@@ -20,8 +20,9 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
 4. **Süre:** 30–45 saniye. Metin ~70–100 kelime. İlk 2 saniyede güçlü bir kanca.
 5. **Kredi:** ElevenLabs ücretsiz plan (ayda 10.000 kredi). Her video için **tek** seslendirme
    (`generations_count: 1`). Asla yeniden deneme amaçlı ikinci üretim başlatma.
-6. **Açıklama satırları:** Her gönderi açıklamasının sonunda `Seslendirme: elevenlabs.io` satırı olur
-   (ücretsiz plan kuralı) ve kaynak satırı (`Kaynak: ...`) olur.
+6. **Açıklama:** Kısa kanca cümlesi, 1–2 cümle özet, izleyiciye bir soru, kaynak satırı (`Kaynak: ...`) ve
+   5–8 Türkçe etiket (#tarih #türktarihi #fermantarih + konuya özel). Kullanıcının isteğiyle açıklamaya
+   ElevenLabs/seslendirme satırı **eklenmez**.
 7. **Yapay zekâ etiketi:** Metricool gönderisinde `instagramData.isAiGenerated: true`.
 
 ## Adımlar
@@ -49,6 +50,8 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
 10. Metricool: önce `getScheduledPosts` ile önümüzdeki 7 güne bak. Paylaşım günleri **Pazartesi, Çarşamba,
     Cuma 18:00**. Gönderi olmayan en yakın paylaşım gününü seç (aynı güne ikinci gönderi koyma).
     `createScheduledPost` ile REEL olarak planla (autoPublish true, isAiGenerated true).
+    Aynı videoyu aynı gün **21:00**'e ayrıca **STORY** olarak planla (instagramData.type "STORY",
+    açıklama metni yok, isAiGenerated true) — Reels'i hikâyede de duyurur.
 11. `topics.md`'ye satır ekle: tarih, konu, dosya adı, kaynaklar. Commit + push.
 12. Kullanıcıya kısa bildirim: hangi konu, hangi gün/saat, Metricool planlayıcı linki. Kullanıcı
     beğenmezse paylaşımdan önce Metricool'dan silebilir.
