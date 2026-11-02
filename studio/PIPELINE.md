@@ -44,8 +44,16 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
    `make_flag`, `wave_flag`). Önce `frames` moduyla 5–7 kare çizip **bak**; çakışan yazı, taşan metin varsa düzelt.
 8. Render: her sahneyi paralel render et, `concat` ile birleştir, `caps.py` ile altyazı göm
    (SRT'yi cümle zamanlarından üret).
-   **Müzik YOK:** Kullanıcı arka plan müziğini ve ses efektlerini istemiyor. Videoda sadece seslendirme olur
-   (`-af loudnorm=I=-14:TP=-1.5:LRA=11`). `audio.py` kullanılmaz.
+   **Müzik YOK, yumuşak ses efektleri VAR:** Kullanıcı arka plan müziğini istemiyor (kulağı rahatsız ediyor),
+   ama yumuşak efekt istiyor. `audio.py` içindeki `effects` + `mix_fx` kullanılır; `score`/`mix` KULLANILMAZ:
+   ```python
+   from audio import effects, mix_fx
+   e = effects(toplam_sure, starts=[sahne başlangıçları], impacts=[(mühür/vuruş anı, 0.5–1.5), ...],
+               final_hit=<son vurucu yazının anı>, seed=<her videoda farklı>)
+   mix_fx("ses.mp3", e, "karisim.m4a")   # efektler konuşmanın altında, -14 LUFS
+   ```
+   `impacts` olarak videodaki `IMPACTS` anlarını (sahne başlangıcı + yerel süre) kullan. Efekt seviyesini
+   (fx_db=-14) yükseltme; kullanıcı yüksek arka plan sesinden rahatsız oluyor.
 9. Videoyu `videos/YYYY-MM-DD_konu.mp4` olarak depoya ekle, commit + push. Herkese açık link:
    `https://raw.githubusercontent.com/yusufakcan0090-dev/claude/main/videos/<dosya>`
    Linki `curl -o /dev/null -w "%{http_code}"` ile kontrol et (200 olmalı).

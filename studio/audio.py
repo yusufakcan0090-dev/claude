@@ -194,3 +194,49 @@ def mix(voice_path, music, out_path, music_db=-20.0, duck_db=-12.0):
                     "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "192k", out_path],
                    input=out.astype(np.float32).tobytes(), check=True)
     return out_path
+
+
+# ---------- effects only (no music): what the channel uses ----------
+def soft_whoosh(dur=0.7, seed=0):
+    """Gentle air swell for scene changes: low-passed noise, slow envelope, no hiss."""
+    rng = np.random.default_rng(seed); n = int(dur * SR)
+    x = _lp(rng.normal(size=n), 900, 2)
+    x = _bp(x, 120, 900, 1)
+    return x * np.sin(np.pi * _t(n) / dur) ** 3 * 0.5
+
+def soft_paper(dur=0.5, seed=0):
+    """Short, muffled paper rustle."""
+    rng = np.random.default_rng(seed); n = int(dur * SR); out = np.zeros(n)
+    for _ in range(int(dur * 14)):
+        p = rng.integers(0, n - 1500); ln = rng.integers(400, 1400)
+        out[p:p + ln] += _bp(rng.normal(size=ln), 600, 2400) * np.hanning(ln) * rng.uniform(0.05, 0.15)
+    return out
+
+def effects(total, starts=(), impacts=(), final_hit=None, seed=1):
+    """Soft sound effects only: düm on stamps/impacts, air swell at scene changes, paper at the start."""
+    n = int(total * SR); x = np.zeros(n)
+    def put(sig, tt, g=1.0):
+        i = int(max(0, tt) * SR); seg = sig[: max(0, n - i)]; x[i:i + len(seg)] += seg * g
+    put(soft_paper(0.5, seed), 0.05, 1.0)
+    for k, s in enumerate(starts):
+        if s > 0.3: put(soft_whoosh(0.7, seed + k), s - 0.35, 1.0)
+    for tt, st in impacts:
+        put(soft_drum(min(1.0, 0.5 + 0.3 * st)), tt, 1.0)
+    if final_hit is not None:
+        put(soft_drum(1.0), final_hit, 1.0)
+    x = reverb(x, 1.0, 0.15)
+    x = _lp(x, 4000, 2)
+    x /= max(1e-6, np.abs(x).max()) / 0.85
+    return np.stack([x, x], 1).astype(np.float32)
+
+def mix_fx(voice_path, fx, out_path, fx_db=-14.0):
+    """Voice + soft effects (no ducking needed; effects sit well below the voice)."""
+    v = _decode(voice_path, 1)[:, 0]
+    n = max(len(v), len(fx))
+    v = np.pad(v, (0, n - len(v))); f = np.pad(fx, ((0, n - len(fx)), (0, 0)))
+    out = f * 10 ** (fx_db / 20) + v[:, None] * 0.95
+    out /= max(1.0, np.abs(out).max() / 0.98)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-",
+                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "192k", out_path],
+                   input=out.astype(np.float32).tobytes(), check=True)
+    return out_path
