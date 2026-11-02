@@ -1,0 +1,6 @@
+__pycache__/
+*.tmp.mp4
+studio/b?.mp4
+studio/bf_*.png
+studio/f_*.png
+studio/g_*.png
