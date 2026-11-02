@@ -128,7 +128,7 @@ def _decode(path, ch=1):
                          capture_output=True, check=True).stdout
     return np.frombuffer(raw, np.float32).reshape(-1, ch)
 
-def mix(voice_path, music, out_path, music_db=-8.0, duck_db=-9.0):
+def mix(voice_path, music, out_path, music_db=-13.0, duck_db=-9.0):
     """Mix voice over music; music is ducked while the voice speaks. Writes AAC (.m4a)."""
     v = _decode(voice_path, 1)[:, 0]
     n = max(len(v), len(music))
