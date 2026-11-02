@@ -42,8 +42,19 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
    fonksiyonlarını ve `SCENES` sürelerini cümle zamanlarına göre ayarla. `make.py`'deki yardımcıları kullan
    (harita: `render_map`, `camera`, `P`, `to_screen`; mühür: `stamp_card`, `paste_pop`; bayrak:
    `make_flag`, `wave_flag`). Önce `frames` moduyla 5–7 kare çizip **bak**; çakışan yazı, taşan metin varsa düzelt.
-8. Render: her sahneyi paralel render et, `concat` ile birleştir, sesi ekle
-   (`-af loudnorm=I=-14:TP=-1.5:LRA=11`), `caps.py` ile altyazı göm (SRT'yi cümle zamanlarından üret).
+8. Render: her sahneyi paralel render et, `concat` ile birleştir, `caps.py` ile altyazı göm
+   (SRT'yi cümle zamanlarından üret).
+   **Müzik ve efektler (her videoda zorunlu):** `audio.py` ile telifsiz müzik + efekt üret ve seslendirmeyle
+   karıştır, sonra videonun sesi olarak bu karışımı kullan:
+   ```python
+   from audio import score, mix
+   m = score(toplam_sure, starts=[sahne başlangıçları], impacts=[(mühür/vuruş anı, 0.5–1.5), ...],
+             drop_at=<son cümleden hemen önce>, final_hit=<son vurucu yazının anı>, seed=<her videoda farklı>,
+             root=<65.41 / 73.42 / 82.41 gibi, her videoda değiştir>)
+   mix("ses.mp3", m, "karisim.m4a")   # konuşurken müzik otomatik kısılır, -14 LUFS'a normalize eder
+   ```
+   `impacts` olarak videodaki `IMPACTS` anlarını (sahne başlangıcı + yerel süre) kullan; en önemli an
+   (ör. "YASAK" damgası) 1.2–1.5, diğerleri 0.5–0.9.
 9. Videoyu `videos/YYYY-MM-DD_konu.mp4` olarak depoya ekle, commit + push. Herkese açık link:
    `https://raw.githubusercontent.com/yusufakcan0090-dev/claude/main/videos/<dosya>`
    Linki `curl -o /dev/null -w "%{http_code}"` ile kontrol et (200 olmalı).
