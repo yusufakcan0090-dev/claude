@@ -1,4 +1,4 @@
-"""Ferman Tarih ses motoru: kodla üretilen sinematik müzik + ses efektleri, seslendirmeyle karıştırma.
+"""Ferman Tarih ses motoru: kodla üretilen yumuşak müzik (Hicaz makamında telli çalgı + def), seslendirmeyle karıştırma.
 
 Telifsiz: her şey burada sentezlenir. Kullanım (örnek):
     from audio import score, mix
@@ -88,39 +88,88 @@ def pulse_track(n, start, stop, period, rng):
         tt += period
     return out
 
+# ---------- soft instruments (default score) ----------
+HICAZ = [0, 1, 4, 5, 7, 8, 10, 12]   # semitones above the tonic: Hicaz makamı (D Eb F# G A Bb C D)
+
+def pluck(freq, dur, bright=0.5, seed=0):
+    """Karplus-Strong plucked string (ud/kanun-like), gentle attack, no harsh highs."""
+    n = int(dur * SR); L = max(2, int(SR / freq))
+    rng = np.random.default_rng(seed)
+    exc = _lp(rng.uniform(-1, 1, L), 1500 + 2500 * bright, 1)
+    x = np.zeros(n); x[:L] = exc
+    a = np.zeros(L + 2); a[0] = 1; a[L] = -0.497; a[L + 1] = -0.497
+    y = signal.lfilter([1.0], a, x)
+    y = _lp(y, 3200, 2)
+    att = int(0.004 * SR); y[:att] *= np.linspace(0, 1, att)
+    return y * np.exp(-_t(n) * 1.2)
+
+def soft_drum(strength=1.0):
+    """Bendir/def-like low 'düm': soft attack, no noise crack."""
+    n = int(1.2 * SR); t = _t(n)
+    f = 62 + 40 * np.exp(-t * 14)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 5.5)
+    att = int(0.008 * SR); body[:att] *= np.linspace(0, 1, att)
+    return _lp(body, 400, 2) * strength
+
+def warm_pad(n, root, rng):
+    """Very soft sine pad: tonic + fifth + octave, slow breathing."""
+    t = _t(n); x = np.zeros(n)
+    for mult, amp in [(1, 0.5), (1.5, 0.25), (2, 0.3)]:
+        x += amp * np.sin(2 * np.pi * root * mult * t + rng.uniform(0, 6.28))
+    return x * (0.75 + 0.25 * np.sin(2 * np.pi * 0.06 * t)) * 0.18
+
+def reverb(x, secs=2.2, wet=0.28, seed=3):
+    rng = np.random.default_rng(seed); n = int(secs * SR)
+    ir = _lp(rng.normal(size=n), 2500, 2) * np.exp(-_t(n) * 3.0 / secs)
+    ir /= np.sqrt((ir ** 2).sum())
+    y = signal.fftconvolve(x, ir)[: len(x)]
+    return x * (1 - wet) + y * wet
+
+def melody(n, tonic, rng, start, stop, beat=0.95):
+    """Slow plucked Hicaz phrase: random walk on the scale, phrases with rests."""
+    out = np.zeros(n); tt = start; idx = 0; k = 0
+    while tt < stop - 0.5:
+        if k % 8 == 7:            # rest at phrase end
+            tt += beat; k += 1; continue
+        idx = int(np.clip(idx + rng.choice([-2, -1, -1, 0, 1, 1, 2]), 0, len(HICAZ) - 1))
+        f = tonic * 2 ** (HICAZ[idx] / 12)
+        note = pluck(f, 2.4, bright=rng.uniform(0.3, 0.6), seed=int(rng.integers(1e6)))
+        if rng.random() < 0.3:    # occasional octave-below drone pluck
+            note = note + 0.6 * pluck(tonic / 2, 2.4, 0.3, int(rng.integers(1e6)))
+        i = int(tt * SR); seg = note[: max(0, n - i)]
+        out[i:i + len(seg)] += seg * rng.uniform(0.55, 0.85)
+        tt += beat * (2 if rng.random() < 0.25 else 1); k += 1
+    return out
+
 def score(total, starts=(), impacts=(), drop_at=None, final_hit=None, seed=1, root=73.42, pulse=True):
-    """Return stereo float32 music+sfx bed of `total` seconds.
-    starts: scene start times (whoosh), impacts: [(time, strength 0..1.5)], drop_at: music fades out
-    here (dramatic silence before the last line), final_hit: one last boom."""
+    """Soft, ear-friendly bed: plucked Hicaz melody + warm pad + gentle 'düm' on impacts.
+    starts: unused (kept for compatibility), impacts: [(time, strength)], drop_at: music recedes here
+    (silence before the last line), final_hit: one last soft düm."""
     rng = np.random.default_rng(seed)
     n = int(total * SR)
-    bed = drone(n, root, rng) + chord_pad(n, [root * 4, root * 4 * 1.189, root * 6], rng) * 0.10
-    # gentle intro fade, and the drop
+    tonic = root * 4          # e.g. 73.42 -> D4 (293.7 Hz)
+    stop = drop_at if drop_at is not None else total
+    mel = melody(n, tonic, rng, 0.6, stop, beat=rng.uniform(0.85, 1.05))
+    pad = warm_pad(n, root * 2, rng)
+    drums = np.zeros(n)
+    for tt, st in impacts:
+        d = soft_drum(min(1.0, 0.45 + 0.35 * st)); i = int(tt * SR); seg = d[: max(0, n - i)]
+        drums[i:i + len(seg)] += seg
+    if final_hit is not None:
+        d = soft_drum(1.0); i = int(final_hit * SR); seg = d[: max(0, n - i)]
+        drums[i:i + len(seg)] += seg
+    music = reverb(mel * 0.5 + pad, wet=0.3)
     env = np.ones(n); fi = int(1.5 * SR); env[:fi] = np.linspace(0, 1, fi)
     if drop_at is not None:
-        d0 = int(max(0, drop_at - 0.8) * SR); d1 = int(drop_at * SR)
-        env[d0:d1] *= np.linspace(1, 0.12, d1 - d0); env[d1:] *= 0.12
-    bed *= env
-    fx = np.zeros(n)
-    if pulse:
-        fx += pulse_track(n, 3.0, (drop_at or total) - 1.0, 1.65, rng)
-    fx[: int(1.2 * SR)] += rustle(1.2, rng)
-    for s in starts:
-        if s <= 0.3: continue
-        w = whoosh(0.8, rng); i = int(max(0, s - 0.45) * SR); seg = w[: max(0, n - i)]
-        fx[i:i + len(seg)] += seg
-    for tt, st in impacts:
-        b = boom(st); i = int(tt * SR); seg = b[: max(0, n - i)]
-        fx[i:i + len(seg)] += seg * 0.55
-    if final_hit is not None:
-        b = boom(1.4, 3.5); i = int(final_hit * SR); seg = b[: max(0, n - i)]
-        fx[i:i + len(seg)] += seg * 0.7
-    mono = bed * 0.55 + fx
-    # simple stereo width: delayed, filtered copy
-    d = int(0.012 * SR)
-    left = mono; right = np.concatenate([np.zeros(d), mono[:-d]]) * 0.92 + _lp(mono, 900) * 0.08
+        d0 = int(max(0, drop_at - 1.0) * SR); d1 = int(drop_at * SR)
+        env[d0:d1] *= np.linspace(1, 0.08, d1 - d0); env[d1:] *= 0.08
+    fo = int(1.2 * SR); env[-fo:] *= np.linspace(1, 0, fo)
+    mono = music * env + reverb(drums, 1.2, 0.2) * 0.8
+    mono = _lp(mono, 5000, 2)
+    d = int(0.011 * SR)
+    left = mono; right = np.concatenate([np.zeros(d), mono[:-d]])
     st = np.stack([left, right], 1)
-    st /= max(1e-6, np.abs(st).max()) / 0.9
+    st /= max(1e-6, np.abs(st).max()) / 0.85
     return st.astype(np.float32)
 
 def _decode(path, ch=1):
