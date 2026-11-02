@@ -50,9 +50,14 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
 10. Metricool: önce `getScheduledPosts` ile önümüzdeki 7 güne bak. Paylaşım günleri **Pazartesi, Çarşamba,
     Cuma 18:00**. Gönderi olmayan en yakın paylaşım gününü seç (aynı güne ikinci gönderi koyma).
     `createScheduledPost` ile REEL olarak planla (autoPublish true, isAiGenerated true).
-    Aynı videoyu aynı gün **21:00**'e ayrıca **STORY** olarak planla (instagramData.type "STORY",
-    açıklama metni yok, isAiGenerated true) — Reels'i hikâyede de duyurur.
-11. `topics.md`'ye satır ekle: tarih, konu, dosya adı, kaynaklar. Commit + push.
+    **Hikâye (STORY):** Metricool ücretsiz planı ayda en fazla **20** yayınlanmış gönderiye izin verir
+    (Reels ve hikâye ayrı sayılır, ayın 1'inde sıfırlanır). Bu yüzden hikâye **sadece Çarşamba** paylaşılan
+    videolar için yapılır: aynı videoyu aynı gün **21:00**'e STORY olarak planla (instagramData.type "STORY",
+    açıklama metni yok, isAiGenerated true). Önce `topics.md`'deki "Gönderi" sütunundan o ay planlanan/yayınlanan
+    toplam gönderiyi say; hikâyeyle birlikte toplam **19'u geçecekse** hikâyeyi atla. Instagram dışında
+    platform kullanılmaz (TikTok/YouTube yok).
+11. `topics.md`'ye satır ekle: paylaşım tarihi, konu, dosya adı, kaynaklar, gönderi sayısı (Reels=1,
+    Reels+Story=2). Commit + push.
 12. Kullanıcıya kısa bildirim: hangi konu, hangi gün/saat, Metricool planlayıcı linki. Kullanıcı
     beğenmezse paylaşımdan önce Metricool'dan silebilir.
 
