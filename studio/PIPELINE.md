@@ -25,6 +25,25 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
    ElevenLabs/seslendirme satırı **eklenmez**.
 7. **Yapay zekâ etiketi:** Metricool gönderisinde `instagramData.isAiGenerated: true`.
 
+## Hikâye tarzı (kullanıcının beğendiği videolar örnek alınır)
+Kullanıcı kendi yönlendirdiği videoları beğeniyor, salt bilgi anlatan videoları ("Piri Reis haritası", 2026-11-09)
+ilgi çekici bulmuyor. Her video şu üç örneğe benzemeli:
+- **Gök Bayrak** (`bayrak.py`): "Bu bayrağı tanıyor musun? Türk bayrağına benziyor… ama MAVİ." → izleyiciye
+  doğrudan soru, görsel bir sürpriz, sonunda duygusal/düşündürücü soru ("Bir bayrak yasaklanabilir… Ya bir milletin hafızası?").
+- **Biz Türk'üz** (`turk.py`): "Osmanlı torunuyuz… diyorsun." → izleyicinin bir inancına meydan okuma, net bir görüş,
+  güçlü kapanış ("Ne mutlu Türk'üm diyene").
+- **Osmanlı'nın unutulan müttefiki** (`make.py`): "Osmanlı Çin'e karşı savaşan bir Türk devletine silah gönderdi." →
+  şaşırtıcı bir olgu, sonunda bugüne bağlanan soru ("Osmanlı o gün sahip çıktı… Ya bugün?").
+
+Zorunlu kalıp:
+1. **İlk cümle tarih ya da isim değil**; izleyiciye soru, meydan okuma ya da şaşırtıcı bir iddia. ("1513." gibi
+   tarihle açılış YOK.)
+2. **Duygu ya da tartışma:** Türk/İslam dünyası, kimlik, gurur, unutulan kardeşlik, adaletsizlik gibi izleyicinin
+   kendini ilgili hissedeceği bir açı. Salt "şu oldu, sonra şu oldu" anlatımı YOK.
+3. **Az bilinen konu** ya da bilinen bir konuya şaşırtıcı bir açı. Okulda herkesin öğrendiği konuyu düz anlatma.
+4. **Kapanış:** Bugüne bağlanan, yorum yazdıran kısa bir soru veya vurucu cümle; son karede siyah ekranda büyük yazı.
+5. Görüş içerse bile olgular doğru ve kaynaklı olur (kural 1); hakaret/aşağılama yok, gurura hitap edip ikna eden dil.
+
 ## Adımlar
 1. `topics.md` dosyasını oku; daha önce işlenen konuları tekrarlama. Yakın tarihli bir yıl dönümü
    (paylaşım gününe denk gelen) varsa onu tercih et.
