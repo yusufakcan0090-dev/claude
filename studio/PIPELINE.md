@@ -36,8 +36,8 @@ ilgi çekici bulmuyor. Her video şu üç örneğe benzemeli:
   şaşırtıcı bir olgu, sonunda bugüne bağlanan soru ("Osmanlı o gün sahip çıktı… Ya bugün?").
 
 Zorunlu kalıp:
-1. **İlk cümle tarih ya da isim değil**; izleyiciye soru, meydan okuma ya da şaşırtıcı bir iddia. ("1513." gibi
-   tarihle açılış YOK.)
+1. **Güçlü açılış:** İlk 2 saniye merak uyandırsın (soru, şaşırtıcı bir iddia, çarpıcı bir tarih/olay olabilir).
+   Tarihler ve yıllar serbest; önemli olan izleyicinin kaydırmadan durması.
 2. **Duygu ya da tartışma:** Türk/İslam dünyası, kimlik, gurur, unutulan kardeşlik, adaletsizlik gibi izleyicinin
    kendini ilgili hissedeceği bir açı. Salt "şu oldu, sonra şu oldu" anlatımı YOK.
 3. **Az bilinen konu** ya da bilinen bir konuya şaşırtıcı bir açı. Okulda herkesin öğrendiği konuyu düz anlatma.
