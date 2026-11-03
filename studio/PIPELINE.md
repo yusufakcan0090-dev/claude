@@ -50,9 +50,28 @@ Zorunlu kalıp:
    Şehir efsanesi, tartışmalı ya da kaynağı belirsiz "ilginç bilgi"ler kullanılmaz; emin değilsen o cümleyi çıkar
    ya da konuyu değiştir. Hakaret/aşağılama yok.
 
+## İzlenme odaklı ek kurallar (kullanıcı tam yetki verdi: "videolar izlensin yeter")
+- **Ne tuttuğunu ölç:** Her çalıştırmanın başında Metricool'dan son 30 günün Reels istatistiklerini oku
+  (`getAnalyticsDataByMetrics`, brandId 7819032, metrikler: IGRE01 tarih, IGRE03 içerik, IGRE23 izlenme,
+  IGRE11 erişim, IGRE27 izlenme oranı/retention, IGRE28 ilk 3 sn'yi geçenler, IGRE21 paylaşım, IGRE12 kaydetme,
+  IGRE07 yorum). Sonuçları `stats.md`'ye tablo olarak yaz (eski satırları güncelle). Yayınlanmış video yoksa atla.
+- **Öğren ve uygula:** `stats.md`'de en çok izlenen / en yüksek retention'lı videoların konu türüne, açılış
+  cümlesine ve süresine bak; yeni videoyu bunlara benzet. IGRE28 düşükse (izleyiciler 3 sn'de kaçıyor) açılışı
+  daha sert yap; retention düşükse videoyu kısalt (30–35 sn). Bu kararı `stats.md`'nin sonuna 1–2 satır not et.
+- **Ekranda ilk karede büyük yazı:** İlk 0.3 saniyede ekranda kancayı özetleyen 2–4 kelimelik büyük bir yazı olsun
+  (sesi kapalı izleyenler için). Boş/sakin açılış karesi yok.
+- **Kapak:** Gönderide `videoCoverMilliseconds` ile kapak olarak ilk sahnenin büyük yazısının tam okunduğu anı seç
+  (ör. 1500). Profil ızgarasında güzel görünsün.
+- **Açıklama ilk satırı:** Instagram'da sadece ilk ~125 karakter görünür; ilk satır merak uyandıran tek bir cümle
+  olsun ve konunun anahtar kelimesini (ör. "Stalin", "Napolyon", "Gestapo") içersin (Instagram aramasında çıkmak için).
+- **Etiketler:** 4–6 etiket; 2 geniş (#tarih #fermantarih), 2–4 konuya özel (#ikincidünyasavaşı #sovyetler gibi).
+  30 etiket doldurma.
+- **İlk yorum:** `firstCommentText` ile izleyiciyi tartışmaya sokan kısa bir soru yaz (ör. "Sizce bu plan
+  işleseydi tarih nasıl değişirdi? 👇").
+
 ## Adımlar
 1. `topics.md` dosyasını oku; daha önce işlenen konuları tekrarlama. Yakın tarihli bir yıl dönümü
-   (paylaşım gününe denk gelen) varsa onu tercih et.
+   (paylaşım gününe denk gelen) varsa onu tercih et. Ardından yukarıdaki "Ne tuttuğunu ölç" adımını yap.
 2. Konu seç: **Dünya tarihinden** az bilinen, şaşırtıcı, tek cümlede anlatılabilen bir olay/kişi/nesne.
    Kullanıcı Osmanlı ağırlığından sıkıldı: **Osmanlı/Türk konusu en fazla 4 videoda 1** olsun (topics.md'ye bak).
    Öncelikli alanlar: **Fransa** (devrim, Napolyon, sömürgeler), **Almanya ve Nazi dönemi**, **Sovyetler Birliği**,
