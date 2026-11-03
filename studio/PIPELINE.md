@@ -111,8 +111,7 @@ Zorunlu kalıp:
 10. Metricool: önce `getScheduledPosts` ile önümüzdeki 7 güne bak. Paylaşım günleri **Pazartesi, Çarşamba,
     Cuma 18:00**. Gönderi olmayan en yakın paylaşım gününü seç (aynı güne ikinci gönderi koyma).
     `createScheduledPost` ile REEL olarak planla (autoPublish true, isAiGenerated true).
-    **Hikâye (STORY) PLANLANMAZ.** Kullanıcı hikâyeleri telefondan kendisi paylaşıyor (Reels'i "Hikâyene ekle" ile);
-    ayrı bir "Hikâye hatırlatma" görevi her Pzt/Çar/Cum 18:12'de ona link gönderiyor. Metricool'da sadece REEL olur
+    **Hikâye (STORY) YOK.** Kullanıcı hikâye istemiyor; her şey sadece REEL olarak paylaşılır
     (aylık 20 gönderi sınırı böylece rahat kalır). Instagram dışında platform kullanılmaz (TikTok/YouTube yok).
 11. `topics.md`'ye satır ekle: paylaşım tarihi, konu, dosya adı, kaynaklar, gönderi sayısı (Reels=1). Commit + push.
 12. Kullanıcıya kısa bildirim: hangi konu, hangi gün/saat, Metricool planlayıcı linki. Kullanıcı
