@@ -22,23 +22,21 @@ Kullanıcının isteği: Metricool'un aylık **20** paylaşım hakkı tam kullan
   Konular dünya tarihinden (Fransa, Almanya/Nazi dönemi, Sovyetler, Rusya, dünya savaşları, Soğuk Savaş vb.);
   Osmanlı/Türk konusu en fazla 4 gönderide 1. `topics.md`'deki Reels ve gönderi konularını tekrarlama.
 - Kaydırmalı gönderi Reels'ten farklı bir hikâye anlatır; aynı hafta Reels'le aynı konu olmaz.
-- **6–8 sayfa, 1080x1350.** Yapı:
-  1. Kapak: koyu zemin, merak uyandıran 2–3 satırlık kanca + büyük mühür başlık + bir görsel. İnsanı kaydırtmalı.
-  2–(n-1). Her sayfada TEK bir fikir: kısa başlık (kırmızı), bir görsel (çizim/mühür/basit harita/ikon),
-     en fazla ~35 kelime metin. Sayı ve tarihler büyük mühürle vurgulanır.
-  n. Son sayfa koyu zemin: "SİZCE?" + yorum yazdıran soru + "@fermantarih" takip çağrısı.
-- **Tasarım: "GİZLİ DOSYA" (`dosya.py`).** Kullanıcı eski parşömen tasarımını yeterince çarpıcı bulmadı; artık
-  sadece `dosya.py` kullanılır (`carousel.py` ESKİ, kullanma). Unsurlar: koyu zemin + kırmızı ışık, Inter Display Black
-  dev başlıklar (krem/kırmızı), kırmızı etiket şeridi (`kicker`), manila klasör (`folder`), "ÇOK GİZLİ" tarzı damga
-  (`stamp`), kâğıt sayfa (`paper_tex` + `place`), daktilo metni ve `**kelime**` ile sarı fosfor vurgusu (`rich_text`),
-  polaroid çizimler (`polaroid`, `art_canvas`), ataç, DEV kırmızı rakamlar (200–400 px), alt bilgide kırmızı "kaydır" düğmesi.
-  Koyu sayfa ile kâğıt sayfayı dönüşümlü kullan; her gönderide en az 2 dev rakam/tarih sayfası olsun.
-- Görseller kodla çizilir (`dosya.py` + çizimler için `make.py`'deki `stamp_card`, `make_flag` vb.).
-  Gerçek fotoğraf, film karesi, başkasının çizimi kullanılmaz. Nazi sembolleri (gamalı haç, SS rünleri) çizilmez.
-  Emoji görsele yazılmaz (font desteklemiyor); emoji sadece açıklama metninde olur.
-- Örnek (yeni tasarım): `c_2026-11-07_hayalet_ordu.py` (önizleme: `posts/_onizleme_hayalet_ordu.png`). Yeni gönderi için bunu kopyala: `c_YYYY-MM-DD_konu.py`.
-- Render'dan sonra `dosya.contact_sheet` ile kontakt sayfası üretip **bak** (koyu zeminde fosforlu kelime okunuyor mu, taşan yazı,
-  çakışan görsel, alt bilgiye binen öğe var mı); sorun varsa düzelt.
+- **6–8 sayfa, 1080x1350. AZ YAZI, ÇOK GÖRSEL** (kullanıcı isteği). Her sayfa: 2–4 kelimelik dev başlık veya dev
+  rakam + büyük bir çizim + en fazla TEK kısa satır (alt siyah şeritte, ≤7 kelime). Paragraf YOK.
+  1. Kapak: çarpıcı 2 kelimelik başlık + büyük çizim + küçük etiket (yıl · konu) + alt şeritte kanca cümlesi.
+  2–(n-1). Sayfa başına TEK fikir; en az 2 sayfa dev rakam/tarih (200–300 px).
+  n. Son sayfa: "SİZCE?" + kısa soru + "TAKİP ET @fermantarih" düğmesi.
+- **Tasarım: SAVAŞ AFİŞİ (`poster.py`).** `dosya.py` ve `carousel.py` ESKİ, kullanma. Unsurlar: güneş ışını zemin (`rays`),
+  yarım ton nokta deseni (`halftone`), kırmızı/siyah/krem/hardal palet, Inter Display Black dev başlık (`title`),
+  etiket (`tag`), damga (`stamp`), alt siyah şerit (`band` + `line`), siluet çizimler (`tank`, `soldier`, `pump`,
+  `halftrack_speaker`, `radio_tower`, `waves`; gerekirse poster.py'ye aynı tarzda yeni siluet ekle), `put` ile yerleştir.
+  Zemin rengini sayfadan sayfaya değiştir (kırmızı / krem / hardal / siyah).
+- Görseller kodla çizilir. Gerçek fotoğraf, film karesi, başkasının çizimi kullanılmaz. Nazi sembolleri (gamalı haç,
+  SS rünleri) çizilmez. Emoji görsele yazılmaz; emoji sadece açıklama metninde olur.
+- Örnek: `c_2026-11-07_hayalet_ordu.py` (önizleme: `posts/_onizleme_hayalet_ordu.png`). Yeni gönderi için kopyala: `c_YYYY-MM-DD_konu.py`.
+- Render'dan sonra `poster.contact_sheet` ile kontakt sayfası üretip **bak** (yazı çizimle/damgayla çakışıyor mu, taşan yazı,
+  alt şeride binen öğe var mı); sorun varsa düzelt.
 
 ## Yayın
 1. Görseller `posts/YYYY-MM-DD_konu/1.jpg … n.jpg`. Commit + push; her raw linkin 200 döndüğünü kontrol et:
