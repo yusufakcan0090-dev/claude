@@ -70,7 +70,7 @@ Zorunlu kalıp:
   işleseydi tarih nasıl değişirdi? 👇").
 
 ## Adımlar
-1. `topics.md` dosyasını oku; daha önce işlenen konuları tekrarlama. Yakın tarihli bir yıl dönümü
+1. `topics.md` dosyasını oku; daha önce işlenen konuları (Reels ve [Gönderi] satırları) tekrarlama. Yakın tarihli bir yıl dönümü
    (paylaşım gününe denk gelen) varsa onu tercih et. Ardından yukarıdaki "Ne tuttuğunu ölç" adımını yap.
 2. Konu seç: **Dünya tarihinden** az bilinen, şaşırtıcı, tek cümlede anlatılabilen bir olay/kişi/nesne.
    Kullanıcı Osmanlı ağırlığından sıkıldı: **Osmanlı/Türk konusu en fazla 4 videoda 1** olsun (topics.md'ye bak).
