@@ -22,21 +22,20 @@ Kullanıcının isteği: Metricool'un aylık **20** paylaşım hakkı tam kullan
   Konular dünya tarihinden (Fransa, Almanya/Nazi dönemi, Sovyetler, Rusya, dünya savaşları, Soğuk Savaş vb.);
   Osmanlı/Türk konusu en fazla 4 gönderide 1. `topics.md`'deki Reels ve gönderi konularını tekrarlama.
 - Kaydırmalı gönderi Reels'ten farklı bir hikâye anlatır; aynı hafta Reels'le aynı konu olmaz.
-- **6–8 sayfa, 1080x1350. AZ YAZI, ÇOK GÖRSEL** (kullanıcı isteği). Her sayfa: 2–4 kelimelik dev başlık veya dev
-  rakam + büyük bir çizim + en fazla TEK kısa satır (alt siyah şeritte, ≤7 kelime). Paragraf YOK.
-  1. Kapak: çarpıcı 2 kelimelik başlık + büyük çizim + küçük etiket (yıl · konu) + alt şeritte kanca cümlesi.
-  2–(n-1). Sayfa başına TEK fikir; en az 2 sayfa dev rakam/tarih (200–300 px).
-  n. Son sayfa: "SİZCE?" + kısa soru + "TAKİP ET @fermantarih" düğmesi.
-- **Tasarım: SAVAŞ AFİŞİ (`poster.py`).** `dosya.py` ve `carousel.py` ESKİ, kullanma. Unsurlar: güneş ışını zemin (`rays`),
-  yarım ton nokta deseni (`halftone`), kırmızı/siyah/krem/hardal palet, Inter Display Black dev başlık (`title`),
-  etiket (`tag`), damga (`stamp`), alt siyah şerit (`band` + `line`), siluet çizimler (`tank`, `soldier`, `pump`,
-  `halftrack_speaker`, `radio_tower`, `waves`; gerekirse poster.py'ye aynı tarzda yeni siluet ekle), `put` ile yerleştir.
-  Zemin rengini sayfadan sayfaya değiştir (kırmızı / krem / hardal / siyah).
-- Görseller kodla çizilir. Gerçek fotoğraf, film karesi, başkasının çizimi kullanılmaz. Nazi sembolleri (gamalı haç,
-  SS rünleri) çizilmez. Emoji görsele yazılmaz; emoji sadece açıklama metninde olur.
-- Örnek: `c_2026-11-07_hayalet_ordu.py` (önizleme: `posts/_onizleme_hayalet_ordu.png`). Yeni gönderi için kopyala: `c_YYYY-MM-DD_konu.py`.
-- Render'dan sonra `poster.contact_sheet` ile kontakt sayfası üretip **bak** (yazı çizimle/damgayla çakışıyor mu, taşan yazı,
-  alt şeride binen öğe var mı); sorun varsa düzelt.
+- **6 sayfa, 1080x1350. SADE: sayfa başına tek sahne + tek kısa cümle** (kullanıcı: "karmaşık olmasın, gerçeğe yakın çiz").
+  Kapakta büyük başlık (2 kelime) + küçük alt başlık (isim · yıllar) + alt cümle. Diğer sayfalarda başlık yok, sadece
+  alttaki tek cümle (≤10 kelime). Etiket, damga, ışın deseni, nokta deseni YOK. Son sayfa cümlesi yorum sorusuyla biter.
+- **Tasarım: GERÇEĞE YAKIN SİNEMATİK ÇİZİM (`scene.py`).** `poster.py`, `dosya.py`, `carousel.py` ESKİ, kullanma.
+  `Scene`: `sky` (gradyan gökyüzü), `glow` (güneş/ateş ışığı), `clouds`, `ridge` (atmosferli dağ katmanları; uzak = açık),
+  `fog`, `ground`, `smoke`; figürler ters ışıkta silüet + kenar ışığı (`figure`) ve `outline_mask` ile elle çizilmiş
+  gerçekçi dış hatlar (`OUTLINES`: bear_up, bear_carry, bear_sit, bear_drink, soldier, soldier_sit; yeni figür gerekiyorsa
+  aynı şekilde gerçek oranlarla nokta listesi ekle). Belge/nesne yakın çekimleri (kâğıt, ahşap, kumaş dokusu) de olur.
+  `finish` (vinyet + film greni) ve `text_overlay` (alt karartma + tek cümle, sayfa noktaları). Gerçek fotoğraf KULLANMA
+  (kullanıcı istemiyor), her şey kodla çizilir.
+- Nazi sembolleri (gamalı haç, SS rünleri) çizilmez. Emoji görsele yazılmaz; emoji sadece açıklama metninde olur.
+- Örnek: `c_2026-11-07_wojtek.py` (önizleme: `posts/_onizleme_wojtek.png`). Yeni gönderi için kopyala: `c_YYYY-MM-DD_konu.py`.
+- Render'dan sonra `scene.contact_sheet` ile kontakt sayfası üretip **bak** (figür tanınıyor mu, yazı okunuyor mu,
+  bir şey havada/kesik mi); sorun varsa düzelt.
 
 ## Yayın
 1. Görseller `posts/YYYY-MM-DD_konu/1.jpg … n.jpg`. Commit + push; her raw linkin 200 döndüğünü kontrol et:
