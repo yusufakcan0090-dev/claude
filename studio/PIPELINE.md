@@ -38,11 +38,17 @@ ilgi çekici bulmuyor. Her video şu üç örneğe benzemeli:
 Zorunlu kalıp:
 1. **Güçlü açılış:** İlk 2 saniye merak uyandırsın (soru, şaşırtıcı bir iddia, çarpıcı bir tarih/olay olabilir).
    Tarihler ve yıllar serbest; önemli olan izleyicinin kaydırmadan durması.
-2. **Duygu ya da tartışma:** Türk/İslam dünyası, kimlik, gurur, unutulan kardeşlik, adaletsizlik gibi izleyicinin
-   kendini ilgili hissedeceği bir açı. Salt "şu oldu, sonra şu oldu" anlatımı YOK.
-3. **Az bilinen konu** ya da bilinen bir konuya şaşırtıcı bir açı. Okulda herkesin öğrendiği konuyu düz anlatma.
-4. **Kapanış:** Bugüne bağlanan, yorum yazdıran kısa bir soru veya vurucu cümle; son karede siyah ekranda büyük yazı.
-5. Görüş içerse bile olgular doğru ve kaynaklı olur (kural 1); hakaret/aşağılama yok, gurura hitap edip ikna eden dil.
+2. **Duygu ya da tartışma:** İhanet, kahramanlık, adaletsizlik, inanılmaz şans, gizli kalmış gerçek gibi izleyiciyi
+   içine çeken bir açı. Salt "şu oldu, sonra şu oldu" anlatımı YOK.
+3. **Herkesin bildiği konu YASAK.** Kullanıcı açıkça istedi. Test: konu lise tarih kitabında, popüler bir filmde ya da
+   "ilginç bilgiler" listelerinde sık geçiyorsa SEÇME (ör. Piri Reis haritası, Titanik, Hitler'in intiharı, Napolyon'un
+   boyu, Berlin Duvarı'nın yıkılışı, Çernobil'in kendisi). Ünlü bir olayın **pek bilinmeyen bir detayı** olabilir.
+4. **Seri YOK.** Kullanıcı seri istemiyor: her video kendi başına tamamdır; "Bölüm 1", "devamı yarın", "seri" ifadesi
+   kullanılmaz, videolar birbirinin devamı olmaz.
+5. **Kapanış:** Yorum yazdıran kısa bir soru veya vurucu cümle; son karede siyah ekranda büyük yazı.
+6. **Doğruluk her şeyden önce:** Videodaki HER tarih, sayı, isim ve iddia iki güvenilir kaynakla doğrulanır (kural 1).
+   Şehir efsanesi, tartışmalı ya da kaynağı belirsiz "ilginç bilgi"ler kullanılmaz; emin değilsen o cümleyi çıkar
+   ya da konuyu değiştir. Hakaret/aşağılama yok.
 
 ## Adımlar
 1. `topics.md` dosyasını oku; daha önce işlenen konuları tekrarlama. Yakın tarihli bir yıl dönümü
