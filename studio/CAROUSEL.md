@@ -12,7 +12,9 @@ Kullanıcının isteği: Metricool'un aylık **20** paylaşım hakkı tam kullan
    (kaydırmalı gönderi de tek gönderi sayılır).
 2. O ayın, hedef tarihten sonra kalan ve henüz Metricool'da Reels'i olmayan **Pazartesi/Çarşamba/Cuma**
    günlerini say (bunlar ileride Reels'e ayrılan haklar).
-3. `sayılan + ayrılan Reels + 1 ≤ 20` ise planla; değilse **planlama**, kullanıcıya kısa bilgi ver ve dur.
+3. Hedef gün/saatte (Salı 18:00 veya Cumartesi 10:00) zaten bir POST varsa (ör. elle planlanmış) **hiçbir şey
+   üretme**, sessizce bitir.
+4. `sayılan + ayrılan Reels + 1 ≤ 20` ise planla; değilse **planlama**, kullanıcıya kısa bilgi ver ve dur.
    Reels'in hakkını asla yeme.
 
 ## İçerik kuralları
