@@ -4,7 +4,7 @@ Bu dosya, @fermantarih Instagram hesabı için otomatik çalışan görevin adı
 Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depodadır.
 
 ## Hesap
-- Instagram: @fermantarih ("Ferman Tarih"), tarihin unutulan sayfaları.
+- Instagram: @fermantarih ("Ferman Tarih"), dünya tarihinin unutulan sayfaları (sadece Osmanlı değil).
 - Metricool brand id: `7819032`, saat dilimi `Europe/Istanbul`.
 - Ses: ElevenLabs, voice_id `1Q43BQXKZsbWRTD3NUlZ` (kullanıcının onayladığı "Evren" sesi), model `eleven_v4`.
 - Görsel tarz: parşömen harita, balmumu/kırmızı mühürler, dalgalanan bayraklar, toz efekti, 1080x1920, 60 fps.
@@ -47,9 +47,16 @@ Zorunlu kalıp:
 ## Adımlar
 1. `topics.md` dosyasını oku; daha önce işlenen konuları tekrarlama. Yakın tarihli bir yıl dönümü
    (paylaşım gününe denk gelen) varsa onu tercih et.
-2. Konu seç: Türk ve İslam tarihinin az bilinen, şaşırtıcı, tek cümlede anlatılabilen bir olayı/kişisi/
-   nesnesi. Çeşitlilik: Osmanlı, Selçuklu, Orta Asya, Endülüs, Memlük, Babür, Altın Orda, bilim tarihi,
-   gündelik hayat, haritalar, bayraklar vb. Sadece savaş anlatma.
+2. Konu seç: **Dünya tarihinden** az bilinen, şaşırtıcı, tek cümlede anlatılabilen bir olay/kişi/nesne.
+   Kullanıcı Osmanlı ağırlığından sıkıldı: **Osmanlı/Türk konusu en fazla 4 videoda 1** olsun (topics.md'ye bak).
+   Öncelikli alanlar: **Fransa** (devrim, Napolyon, sömürgeler), **Almanya ve Nazi dönemi**, **Sovyetler Birliği**,
+   **Rusya** (Çarlık, devrim), İkinci ve Birinci Dünya Savaşı, Soğuk Savaş; ayrıca İngiltere, Japonya, Amerika,
+   Roma, Moğollar vb. Casusluk, gizli operasyonlar, çılgın planlar, şaşırtıcı tesadüfler, unutulan kahramanlar,
+   diktatörlerin az bilinen yanları iyi çalışır. Ardışık iki video aynı ülke/dönemden olmasın.
+   **Nazi/Sovyet konularında:** rejimi, ideolojiyi veya liderlerini öven/özendiren dil YOK; olaylar olgularla ve
+   eleştirel mesafeyle anlatılır. Gamalı haç ve SS rünleri gibi Nazi sembolleri **çizilmez** (Instagram bunları
+   kaldırabiliyor); yerine harita, tarih, belge, mühür kullanılır. Holokost gibi trajediler hafife alınmaz,
+   "eğlenceli bilgi" diye sunulmaz.
 3. Araştır ve doğrula (kural 1). Kaynak linklerini not et.
 4. Metni yaz (Türkçe). eleven_v4 ses etiketleri kullanılabilir: `[dramatically]`, `[sad]`, `[softly]`,
    `[short pause]`, `[pause]`. Sayıları rakamla yaz.
