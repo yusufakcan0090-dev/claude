@@ -62,7 +62,7 @@ Zorunlu kalıp:
   (sesi kapalı izleyenler için). Boş/sakin açılış karesi yok.
 - **Kapak (ZORUNLU, özel görsel):** Videonun en çarpıcı karesini (başlık + görsel) 1080x1920 al, altyazı kutusunu
   koyu kırmızı bir şeritle kapatıp üzerine 2 satırlık büyük merak cümlesi yaz (Inter Display Black, krem; örnek:
-  `covers/2026-11-06_osmanli_kasgar.jpg`). Önemli her şey ortadaki 1080x1440 alanda kalsın (profil ızgarası kırpar).
+  `covers/2026-11-06_osmanli_kasgar.jpg`; araç: `python3 studio/cover.py VIDEO SANIYE CIKTI "SATIR 1" "SATIR 2"`). Önemli her şey ortadaki 1080x1440 alanda kalsın (profil ızgarası kırpar).
   `covers/YYYY-MM-DD_konu.jpg` olarak push et ve Metricool'da `videoThumbnailUrl` ile ver (videoCoverMilliseconds kullanma).
   (ör. 1500). Profil ızgarasında güzel görünsün.
 - **Açıklama ilk satırı:** Instagram'da sadece ilk ~125 karakter görünür; ilk satır merak uyandıran tek bir cümle
