@@ -60,7 +60,10 @@ Zorunlu kalıp:
   daha sert yap; retention düşükse videoyu kısalt (30–35 sn). Bu kararı `stats.md`'nin sonuna 1–2 satır not et.
 - **Ekranda ilk karede büyük yazı:** İlk 0.3 saniyede ekranda kancayı özetleyen 2–4 kelimelik büyük bir yazı olsun
   (sesi kapalı izleyenler için). Boş/sakin açılış karesi yok.
-- **Kapak:** Gönderide `videoCoverMilliseconds` ile kapak olarak ilk sahnenin büyük yazısının tam okunduğu anı seç
+- **Kapak (ZORUNLU, özel görsel):** Videonun en çarpıcı karesini (başlık + görsel) 1080x1920 al, altyazı kutusunu
+  koyu kırmızı bir şeritle kapatıp üzerine 2 satırlık büyük merak cümlesi yaz (Inter Display Black, krem; örnek:
+  `covers/2026-11-06_osmanli_kasgar.jpg`). Önemli her şey ortadaki 1080x1440 alanda kalsın (profil ızgarası kırpar).
+  `covers/YYYY-MM-DD_konu.jpg` olarak push et ve Metricool'da `videoThumbnailUrl` ile ver (videoCoverMilliseconds kullanma).
   (ör. 1500). Profil ızgarasında güzel görünsün.
 - **Açıklama ilk satırı:** Instagram'da sadece ilk ~125 karakter görünür; ilk satır merak uyandıran tek bir cümle
   olsun ve konunun anahtar kelimesini (ör. "Stalin", "Napolyon", "Gestapo") içersin (Instagram aramasında çıkmak için).
