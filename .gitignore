@@ -24,3 +24,6 @@ studio/piri_mix.m4a
 studio/piri_raw.mp4
 studio/cap_1[2-9].png
 studio/af_*.png
+studio/alog_*.txt
+studio/a?.mp4
+studio/*.tmp.mp4
