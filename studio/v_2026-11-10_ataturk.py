@@ -51,7 +51,7 @@ def c1(t, dur):  # Çanakkale 1915: emir beklemedi
     dr = ImageDraw.Draw(base, "RGBA")
     spaced_text(dr, (W / 2, 560), "EMİR BEKLEMEDİ", font(FB, 74), INK + (a,), sp=6, stroke=8, sfill=(245, 235, 211, a))
     paste_pop(base, stamp_card(["DÜŞMANI", "ÖNCEDEN GÖRDÜ"], 700, 220, RED, seed=71, sizes=[58, 70], bg=(240, 228, 196, 245)),
-              W / 2, 1290, t - e("gordu", 5.2), rot=-3)
+              W / 2, 1150, t - e("gordu", 5.2), rot=-3)
     return base.convert("RGB")
 
 def c2(t, dur):  # 'ölmeyi emrediyorum'
@@ -104,7 +104,7 @@ def c3(t, dur):  # cep saati
     crack = ease_out(clamp((t - tc) / 0.25))
     watch(base, W / 2, 790, 250, t, crack)
     paste_pop(base, stamp_card(["SAAT", "ONU KURTARDI"], 660, 220, RED, seed=72, sizes=[64, 70], bg=(240, 228, 196, 245)),
-              W / 2, 1250, t - e("kurtardi", 2.4), rot=-3)
+              W / 2, 1190, t - e("kurtardi", 2.4), rot=-3)
     return base.convert("RGB")
 
 def c4(t, dur):  # 1919 Samsun
@@ -128,7 +128,7 @@ def c5(t, dur):  # Sakarya 22 gün + Akdeniz emri
     x, y = to_screen(cam, *SAKARYA)
     city_dot(dr, x, y, "Sakarya", t - 0.3, color=RED, labelside="r", size=48)
     paste_pop(base, stamp_card(["22 GÜN", "22 GECE"], 520, 230, RED, seed=73, sizes=[86, 86], bg=(240, 228, 196, 245)),
-              W / 2, 1320, t - 0.6, rot=-4)
+              W / 2, 1170, t - 0.6, rot=-4)
     te = e("ordular", 4.4)
     if t > te - 0.2:
         x0, y0 = to_screen(cam, *KOCATEPE); x1, y1 = to_screen(cam, *IZMIR)
@@ -158,7 +158,7 @@ def c6(t, dur):  # Başöğretmen + kadın hakları
             spaced_text(dr, ((bx0 + bx1) / 2, 840), "Türk alfabesi", font(FI, 64), (236, 236, 226, k))
         title_band(base, "1928", t - 0.0, y=280, size=96, col=INK, sub="HARF DEVRİMİ")
         paste_pop(base, stamp_card(["BAŞÖĞRETMEN"], 720, 170, RED, seed=74, sizes=[86], bg=(240, 228, 196, 245)),
-                  W / 2, 1220, t - e("ogretti", 2.6), rot=-3)
+                  W / 2, 1170, t - e("ogretti", 2.6), rot=-3)
     else:
         tt = t - tk
         k = ease_out(clamp(tt / 0.5))
@@ -171,7 +171,7 @@ def c6(t, dur):  # Başöğretmen + kadın hakları
         spaced_text(dr, (bx, by + 70), "SANDIK", font(FB, 60), CREAM + (255,), sp=6)
         title_band(base, "5 ARALIK 1934", tt, y=280, size=84, col=RED, sub="KADINLARA SEÇME VE SEÇİLME HAKKI")
         paste_pop(base, stamp_card(["FRANSA'DAN", "10 YIL ÖNCE"], 640, 220, RED, seed=75, sizes=[64, 74], bg=(240, 228, 196, 245)),
-                  W / 2, 1300, tt - 1.0, rot=-4)
+                  W / 2, 1190, tt - 1.0, rot=-4)
     return base.convert("RGB")
 
 def c7(t, dur):  # kapanış
