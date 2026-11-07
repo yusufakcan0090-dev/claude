@@ -34,3 +34,7 @@ studio/clog_*.txt
 studio/c?.mp4
 studio/clist.txt
 studio/alist.txt
+studio/rf_*.png
+studio/rlog_*.txt
+studio/r?.mp4
+studio/rlist.txt
