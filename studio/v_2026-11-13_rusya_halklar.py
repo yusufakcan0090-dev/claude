@@ -24,22 +24,31 @@ def flag(code, w):
         bd = Image.new("RGBA", (w + 4, h + 4), (40, 30, 20, 255)); bd.alpha_composite(im, (2, 2)); _cache[k] = bd
     return _cache[k]
 
-def grid(base, t, t0, step, names=False, top=330, cw=300, gap_x=30, gap_y=None):
-    cols = 3; x0 = (W - (cols * cw + (cols - 1) * gap_x)) / 2
-    rowh = 195 if names else 190
+def flag_h(code, h):
+    """Bayrağı sabit YÜKSEKLİĞE ölçekle (farklı oranlı bayraklar aynı hizada dursun)."""
+    k = ("h", code, h)
+    if k not in _cache:
+        im = Image.open(os.path.join(FD, code + ".png")).convert("RGBA")
+        w = int(im.width * h / im.height); im = im.resize((w, h), Image.LANCZOS)
+        bd = Image.new("RGBA", (w + 4, h + 4), (40, 30, 20, 255)); bd.alpha_composite(im, (2, 2)); _cache[k] = bd
+    return _cache[k]
+
+def grid(base, t, t0, step, names=False, top=250, fh=120, rowh=148, colw=330):
+    """3 sütun x 7 satır; her hücrede bayrak ortalı, hepsi aynı yükseklikte, isimler tek hizada."""
+    cols = 3; cx0 = W / 2 - colw
     dr = ImageDraw.Draw(base, "RGBA")
     for i, c in enumerate(ORDER):
         ti = t0 + i * step
         if t < ti: continue
         k = ease_out(clamp((t - ti) / 0.25)); r, q = divmod(i, cols)
-        im = flag(c, cw)
-        x = x0 + q * (cw + gap_x); y = top + r * rowh + (1 - k) * 30
+        im = flag_h(c, fh)
+        cx = cx0 + q * colw; y = top + r * rowh + (1 - k) * 24
         if k < 1:
             a = np.asarray(im).copy(); a[..., 3] = (a[..., 3] * k).astype(np.uint8); im = Image.fromarray(a)
-        base.alpha_composite(shadow(im, op=int(90 * k)), (int(x - 18), int(y - 14)))
-        base.alpha_composite(im, (int(x), int(y)))
+        base.alpha_composite(shadow(im, op=int(90 * k)), (int(cx - im.width / 2 - 18), int(y - 14)))
+        base.alpha_composite(im, (int(cx - im.width / 2), int(y)))
         if names:
-            spaced_text(dr, (x + cw / 2, y + im.height + 20), NAMES[c], font(FB, 26), INK + (int(255 * k),), sp=1)
+            spaced_text(dr, (cx, top + r * rowh + fh + 26), NAMES[c], font(FB, 27), INK + (int(255 * k),), sp=1)
 
 def big_flag(base, code, t, cy=820, w=840):
     im = flag(code, w)
@@ -56,7 +65,7 @@ def s1(t, dur):
     paste_pop(base, stamp_card(["190+", "HALK"], 520, 260, RED, seed=81, sizes=[120, 70], bg=(240, 228, 196, 245)),
               W / 2, 860 if t < 6.6 else -999, t - 4.4, rot=-4)
     if t >= 6.6:
-        grid(base, t, 6.6, 0.1, top=260, cw=260, gap_x=40)
+        grid(base, t, 6.6, 0.1, top=250, fh=120, rowh=148)
         title_band(base, "21 CUMHURİYET · 21 BAYRAK", t - 8.7, y=150, size=58, col=RED)
     return base.convert("RGB")
 
@@ -98,13 +107,16 @@ def s7(t, dur):
 
 def s8(t, dur):
     base = SCREEN_PAPER.copy().convert("RGBA"); dr = ImageDraw.Draw(base, "RGBA")
-    grid(base, t, 0.0, 0.04, names=True, top=270, cw=240, gap_x=60)
+    grid(base, t, 0.0, 0.04, names=True, top=250, fh=112, rowh=172)
     title_band(base, "BİR HALKLAR HARİTASI", t - 0.1, y=150, size=66, col=INK)
     if t > 3.0:
-        dim = Image.new("RGBA", (W, 300), (20, 13, 8, int(215 * clamp((t - 3.0) / 0.3)))); base.alpha_composite(dim, (0, 1660))
-        dr = ImageDraw.Draw(base, "RGBA"); a = int(255 * clamp((t - 3.0) / 0.3))
-        spaced_text(dr, (W / 2, 1755), "SEN KAÇINI", font(FB, 66), CREAM + (a,), sp=6)
-        spaced_text(dr, (W / 2, 1850), "TANIDIN?", font(FB, 80), (230, 70, 60, a), sp=6)
+        k = clamp((t - 3.0) / 0.3); a = int(255 * k); p = back(clamp((t - 3.0) / 0.45))
+        box = Image.new("RGBA", (W, H), (0, 0, 0, 0)); bd = ImageDraw.Draw(box)
+        bd.rounded_rectangle([90, 1475, W - 90, 1690], 30, fill=(24, 16, 10, int(235 * k)), outline=(200, 160, 90, a), width=4)
+        base.alpha_composite(box)
+        dr = ImageDraw.Draw(base, "RGBA"); s_ = 0.8 + 0.2 * p
+        spaced_text(dr, (W / 2, 1545), "SEN KAÇINI", font(FB, int(68 * s_)), (250, 240, 220, a), sp=6)
+        spaced_text(dr, (W / 2, 1635), "TANIDIN?", font(FB, int(84 * s_)), (255, 196, 60, a), sp=8)
     return base.convert("RGB")
 
 SCENES = [("r1", s1, 10.4), ("r2", s2, 4.2), ("r3", s3, 2.8), ("r4", s4, 5.2), ("r5", s5, 7.7), ("r6", s6, 2.95), ("r7", s7, 8.15), ("r8", s8, 7.4)]
