@@ -24,12 +24,12 @@ def flag(code, w):
         bd = Image.new("RGBA", (w + 4, h + 4), (40, 30, 20, 255)); bd.alpha_composite(im, (2, 2)); _cache[k] = bd
     return _cache[k]
 
-def flag_h(code, h):
-    """Bayrağı sabit YÜKSEKLİĞE ölçekle (farklı oranlı bayraklar aynı hizada dursun)."""
+def flag_h(code, h, ratio=1.75):
+    """Tüm bayraklar AYNI kutuya (en/boy 1,75) oturtulur; 1:2 ve 2:3 bayraklar en fazla ~%14 esner, hepsi aynı boyutta görünür."""
     k = ("h", code, h)
     if k not in _cache:
         im = Image.open(os.path.join(FD, code + ".png")).convert("RGBA")
-        w = int(im.width * h / im.height); im = im.resize((w, h), Image.LANCZOS)
+        w = int(h * ratio); im = im.resize((w, h), Image.LANCZOS)
         bd = Image.new("RGBA", (w + 4, h + 4), (40, 30, 20, 255)); bd.alpha_composite(im, (2, 2)); _cache[k] = bd
     return _cache[k]
 
@@ -65,7 +65,7 @@ def s1(t, dur):
     paste_pop(base, stamp_card(["190+", "HALK"], 520, 260, RED, seed=81, sizes=[120, 70], bg=(240, 228, 196, 245)),
               W / 2, 860 if t < 6.6 else -999, t - 4.4, rot=-4)
     if t >= 6.6:
-        grid(base, t, 6.6, 0.1, top=250, fh=120, rowh=148)
+        grid(base, t, 6.6, 0.1, top=250, fh=130, rowh=150)
         title_band(base, "21 CUMHURİYET · 21 BAYRAK", t - 8.7, y=150, size=58, col=RED)
     return base.convert("RGB")
 
@@ -97,8 +97,8 @@ def s7(t, dur):
     pos = [(W / 2 - 240, 540), (W / 2 + 240, 540), (W / 2 - 240, 830), (W / 2 + 240, 830), (W / 2 - 240, 1120), (W / 2 + 240, 1120), (W / 2, 1410)]
     for (c, tt), (x, y) in zip(TURK, pos):
         if t < tt: continue
-        k = back(clamp((t - tt) / 0.35)); w = int(330 * max(0.2, k))
-        im = flag(c, w)
+        k = back(clamp((t - tt) / 0.35)); hh = int(190 * max(0.2, k))
+        im = flag_h(c, hh)
         base.alpha_composite(shadow(im, op=90), (int(x - im.width / 2 - 18), int(y - im.height / 2 - 14)))
         base.alpha_composite(im, (int(x - im.width / 2), int(y - im.height / 2)))
         lbl = {"kc": "Karaçay", "kb": "Balkar"}.get(c, NAMES[c])
@@ -107,7 +107,7 @@ def s7(t, dur):
 
 def s8(t, dur):
     base = SCREEN_PAPER.copy().convert("RGBA"); dr = ImageDraw.Draw(base, "RGBA")
-    grid(base, t, 0.0, 0.04, names=True, top=250, fh=112, rowh=172)
+    grid(base, t, 0.0, 0.04, names=True, top=250, fh=118, rowh=172)
     title_band(base, "BİR HALKLAR HARİTASI", t - 0.1, y=150, size=66, col=INK)
     if t > 3.0:
         k = clamp((t - 3.0) / 0.3); a = int(255 * k); p = back(clamp((t - 3.0) / 0.45))
