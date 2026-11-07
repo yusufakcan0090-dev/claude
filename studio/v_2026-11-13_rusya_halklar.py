@@ -63,11 +63,13 @@ def s1(t, dur):
 def card(code, title, sub, stamps):
     def f(t, dur):
         base = SCREEN_PAPER.copy().convert("RGBA")
-        big_flag(base, code, t)
-        title_band(base, title, t - 0.05, y=330, size=92, col=INK, sub=sub)
-        for (lines, sizes, tt, y, col, rot, seed) in stamps:
+        big_flag(base, code, t, cy=720)
+        title_band(base, title, t - 0.05, y=300, size=92, col=INK, sub=sub)
+        for i, (lines, sizes, tt, y, col, rot, seed) in enumerate(stamps):
+            nxt = stamps[i + 1][2] if i + 1 < len(stamps) else 1e9
+            if t >= nxt: continue          # bir sonraki mühür gelince öncekini kaldır (altyazıya binmesin)
             paste_pop(base, stamp_card(lines, 760, 90 + 80 * len(lines), col, seed=seed, sizes=sizes, bg=(240, 228, 196, 245)),
-                      W / 2, y, t - tt, rot=rot)
+                      W / 2, 1140, t - tt, rot=rot)
         return base.convert("RGB")
     return f
 
