@@ -2,6 +2,7 @@ import os, sys, math, subprocess
 import numpy as np
 from PIL import Image, ImageDraw
 import make as M
+from figures import put
 from make import (W, H, FPS, OUT, SCREEN_PAPER, DESK, stamp_card, paste_pop, shadow, spaced_text, font, FB, FI, INK, RED,
                   CREAM, ease, ease_out, back, clamp, finish, dust, title_band)
 
@@ -45,24 +46,8 @@ def bars(dr, x0, x1, y0, y1, a=255, n=7, col=(40, 32, 26)):
 # ---------- scenes ----------
 FIELD = (40, 48, 70)  # Prussian blue coat
 
-def soldier(dr, x, y, sc=1.0, col=FIELD, a=255, spike=True, officer=False):
-    """1906 Prusya askeri silüeti (sivri miğfer / subay kasketi), y = ayak hizası."""
-    s = sc; c = col + (a,)
-    gent(dr, x, y, sc, col=col, a=a, hat=False, coat=True)
-    if officer:
-        dr.rounded_rectangle([x - 50 * s, y - 505 * s, x + 50 * s, y - 452 * s], 14 * s, fill=c)      # cap crown
-        dr.pieslice([x - 58 * s, y - 470 * s, x + 30 * s, y - 440 * s], 0, 180, fill=c)            # visor
-        dr.rectangle([x - 48 * s, y - 470 * s, x + 48 * s, y - 458 * s], fill=RED + (a,))           # band
-        for i in range(2):  # gold buttons
-            pass
-        dr.rectangle([x - 112 * s, y - 352 * s, x - 70 * s, y - 336 * s], fill=GOLD + (a,))          # epaulettes
-        dr.rectangle([x + 70 * s, y - 352 * s, x + 112 * s, y - 336 * s], fill=GOLD + (a,))
-        for i in range(5):
-            dr.ellipse([x - 7 * s, y - (320 - i * 38) * s, x + 7 * s, y - (306 - i * 38) * s], fill=GOLD + (a,))
-    elif spike:
-        dr.pieslice([x - 50 * s, y - 505 * s, x + 50 * s, y - 425 * s], 180, 360, fill=c)
-        dr.polygon([(x - 9 * s, y - 495 * s), (x + 9 * s, y - 495 * s), (x, y - 545 * s)], fill=c)
-        dr.rectangle([x - 58 * s, y - 468 * s, x + 58 * s, y - 458 * s], fill=c)
+def soldier(dr, x, y, sc=1.0, col=None, a=255, spike=True, officer=False, dark=0.0):
+    put(dr._image, "officer" if officer else "soldier", x, y, 760 * sc, alpha=a, dark=dark)
 
 def s1(t, dur):  # hook: a shoemaker took over a town hall with a uniform
     base = SCREEN_PAPER.copy().convert("RGBA"); dr = ImageDraw.Draw(base, "RGBA")
@@ -71,14 +56,12 @@ def s1(t, dur):  # hook: a shoemaker took over a town hall with a uniform
     s = 0.95 + 0.05 * ease_out(t / 0.6)
     p = ease((t - 0.9) / 0.7)
     # shoemaker (brown, apron) morphs to officer
-    if p < 1: gent(dr, W / 2, 1250, 1.1 * s, col=(92, 64, 40), a=int(255 * (1 - p)), hat=False)
-    if p < 1:
-        k = int(255 * (1 - p))
-        dr.rectangle([W / 2 - 80, 1250 - 330 * 1.1 * s, W / 2 + 80, 1250 - 150 * 1.1 * s], fill=(200, 176, 130, k))
-        spaced_text(dr, (W / 2, 1300), "ayakkabıcı", font(FI, 52), INK + (k,))
-    if p > 0: soldier(dr, W / 2, 1250, 1.1 * s, a=int(255 * p), officer=True)
+    if p < 1: put(base, "shoemaker", W / 2, 1330, 860 * s, alpha=int(255 * (1 - p)))
+    if p > 0: put(base, "officer", W / 2, 1330, 860 * s, alpha=int(255 * p))
+    kl = int(255 * clamp(1 - (t - 0.6) / 0.4))
+    if kl > 0: spaced_text(dr, (W / 2, 1385), "ayakkabıcı", font(FI, 52), INK + (kl,))
     if t > 2.6:
-        paste_pop(base, stamp_card(["ELE GEÇİRDİ"], 760, 160, RED, seed=1, sizes=[88], bg=BG), W / 2, 1360, t - 2.6, rot=-3)
+        paste_pop(base, stamp_card(["ELE GEÇİRDİ"], 760, 160, RED, seed=1, sizes=[88], bg=BG), W / 2, 1400, t - 2.6, rot=-3)
     note(ImageDraw.Draw(base, "RGBA"))
     return base.convert("RGB")
 
@@ -88,7 +71,7 @@ def mug(t):
     d.rectangle([0, 0, w, h], fill=(244, 232, 200, 255), outline=(120, 96, 60, 255), width=6)
     spaced_text(d, (w / 2, 70), "SABIKA KAYDI", font(FB, 56), INK + (255,), sp=6)
     d.rectangle([110, 130, w - 110, 560], fill=(214, 196, 156, 255), outline=INK + (255,), width=4)
-    gent(d, w / 2, 660, 0.7, col=(70, 52, 34), hat=False)
+    put(im, "civilian", w / 2, 1150, 1000, shadow=False)
     d.rectangle([110, 560, w - 110, 820], fill=(244, 232, 200, 255))
     d.rectangle([110, 130, w - 110, 560], outline=INK + (255,), width=4)
     spaced_text(d, (w / 2, 625), "WILHELM VOIGT", font(FB, 56), RED + (255,), sp=3)
@@ -154,15 +137,15 @@ def s5(t, dur):  # 16 October 1906, Berlin: orders soldiers
     p = back(t / 0.45); s = int(112 * (0.6 + 0.4 * p))
     spaced_text(dr, (W / 2, 280), "16 EKİM 1906", font(FB, max(10, s)), RED + (a_(t, 0, 0.2),), sp=6)
     spaced_text(dr, (W / 2, 400), "Berlin", font(FI, 60), INK + (a_(t, 0.4),))
-    soldier(dr, 270, 1180, 0.85, officer=True)
+    soldier(dr, 270, 1260, 0.85, officer=True)
     for i in range(3):
         k = a_(t, 2.3 + i * 0.18, 0.3)
-        if k: soldier(dr, 560 + i * 175, 1180, 0.6, a=k)
+        if k: soldier(dr, 560 + i * 175, 1260, 0.6, a=k)
     if t > 2.6:
         kb = a_(t, 2.6, 0.25)
-        dr.rounded_rectangle([90, 520, 640, 640], 26, fill=(255, 250, 235, kb), outline=INK + (kb,), width=5)
-        dr.polygon([(240, 638), (300, 638), (270, 690)], fill=(255, 250, 235, kb))
-        spaced_text(dr, (365, 580), "“BENİ TAKİP EDİN!”", font(FB, 38), RED + (kb,))
+        dr.rounded_rectangle([90, 470, 640, 580], 26, fill=(255, 250, 235, kb), outline=INK + (kb,), width=5)
+        dr.polygon([(240, 578), (300, 578), (270, 625)], fill=(255, 250, 235, kb))
+        spaced_text(dr, (365, 525), "“BENİ TAKİP EDİN!”", font(FB, 38), RED + (kb,))
     note(ImageDraw.Draw(base, "RGBA"))
     return base.convert("RGB")
 
@@ -170,13 +153,13 @@ def s6(t, dur):  # 10 soldiers followed without question
     base = SCREEN_PAPER.copy().convert("RGBA"); dr = ImageDraw.Draw(base, "RGBA")
     for i in range(10):
         r_, c_ = divmod(i, 5)
-        x = 130 + c_ * 195 + (t * 15); y = 760 + r_ * 420
+        x = 130 + c_ * 195 + (t * 15); y = 830 + r_ * 410
         k = int(255 * clamp((t - 0.05 - i * 0.07) / 0.2))
         if k: soldier(dr, x, y, 0.55, a=k)
     p = back((t - 0.0) / 0.4); s = int(120 * (0.6 + 0.4 * p))
     spaced_text(dr, (W / 2, 260), "10 ASKER", font(FB, max(10, s)), RED + (a_(t, 0, 0.2),), sp=8)
     if t > 1.0:
-        paste_pop(base, stamp_card(["HİÇ SORGULAMADAN"], 860, 150, INK, seed=8, sizes=[62], bg=BG), W / 2, 1350, t - 1.0, rot=-2)
+        paste_pop(base, stamp_card(["HİÇ SORGULAMADAN"], 860, 150, INK, seed=8, sizes=[62], bg=BG), W / 2, 1385, t - 1.0, rot=-2)
     note(ImageDraw.Draw(base, "RGBA"))
     return base.convert("RGB")
 
@@ -211,7 +194,7 @@ def s7(t, dur):  # town hall, mayor arrested, 4000 marks
 def s8(t, dur):  # caught, 4 years
     base = PAPER_DARK.copy().convert("RGBA"); dr = ImageDraw.Draw(base, "RGBA")
     spaced_text(dr, (W / 2, 330), "YAKALANDI", font(FB, 110), CREAM + (a_(t, 0, 0.25),), sp=8)
-    gent(dr, W / 2, 1150, 0.95, col=(18, 13, 9), hat=False)
+    put(base, "civilian", W / 2, 1165, 760, dark=0.35)
     p = ease(t / 0.5)
     bars(dr, 150, W - 150, 600 - (1 - p) * 700, 1170, a=int(255 * p), n=6, col=(70, 58, 44))
     if t > 1.2:
@@ -241,7 +224,7 @@ def s9(t, dur):  # Kaiser laughed (reportedly), pardoned
 
 def s10(t, dur):  # ending
     base = Image.new("RGBA", (W, H), (13, 10, 7, 255)); dr = ImageDraw.Draw(base, "RGBA")
-    soldier(dr, W / 2, 1700, 1.2, col=(34, 26, 19), a=int(120 * clamp(t / 1.5)), officer=True)
+    soldier(dr, W / 2, 1700, 1.2, a=int(150 * clamp(t / 1.5)), officer=True, dark=0.55)
     spaced_text(dr, (W / 2, 640), "Bir üniformaya", font(FI, 62), CREAM + (a_(t, 0.1, 0.5),))
     spaced_text(dr, (W / 2, 730), "körü körüne itaat...", font(FI, 62), CREAM + (a_(t, 0.6, 0.5),))
     if t > 2.6:
