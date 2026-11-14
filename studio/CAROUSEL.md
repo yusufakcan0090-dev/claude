@@ -1,3 +1,5 @@
+# İPTAL (15 Kasım 2026): Kullanıcı kaydırmalı gönderileri iptal etti, her şey Reels. Bu dosya sadece arşiv.
+
 # Ferman Tarih — Kaydırmalı gönderi (carousel) talimatı
 
 Kullanıcının isteği: Metricool'un aylık **20** paylaşım hakkı tam kullanılsın. Reels'ler (Pzt/Çar/Cum 18:00,

@@ -17,7 +17,7 @@ Her çalıştırma temiz bir oturumda başlar; ihtiyacın olan her şey bu depod
 2. **Ton:** Merak uyandırıcı ama saygılı. Nefret söylemi, bir halkı/dini aşağılama, şiddeti övme yok.
    Kanlı/şiddet görüntüsü çizme. Güncel siyasette taraf tutan propaganda dili yok; olgular + kaynak.
 3. **Telif:** Film/belgesel görüntüsü, başkasının çizimi, şarkı sözü kullanılmaz. Her şey kodla çizilir.
-4. **Süre:** 30–45 saniye. Metin ~70–100 kelime. İlk 2 saniyede güçlü bir kanca.
+4. **Süre:** 30–35 saniye. Metin en fazla ~75 kelime (ayda ~20 video, ElevenLabs ücretsiz 10.000 kredi yetmeli). İlk 2 saniyede güçlü bir kanca.
 5. **Kredi:** ElevenLabs ücretsiz plan (ayda 10.000 kredi). Her video için **tek** seslendirme
    (`generations_count: 1`). Asla yeniden deneme amaçlı ikinci üretim başlatma.
 6. **Açıklama:** Kısa kanca cümlesi, 1–2 cümle özet, izleyiciye bir soru, kaynak satırı (`Kaynak: ...`) ve
@@ -111,8 +111,10 @@ Zorunlu kalıp:
 9. Videoyu `videos/YYYY-MM-DD_konu.mp4` olarak depoya ekle, commit + push. Herkese açık link:
    `https://raw.githubusercontent.com/yusufakcan0090-dev/claude/main/videos/<dosya>`
    Linki `curl -o /dev/null -w "%{http_code}"` ile kontrol et (200 olmalı).
-10. Metricool: önce `getScheduledPosts` ile önümüzdeki 7 güne bak. Paylaşım günleri **Pazartesi, Çarşamba,
-    Cuma 18:00** (kullanıcı 18:00'de kalmasını istedi, saati değiştirme). Gönderi olmayan en yakın paylaşım gününü seç (aynı güne ikinci gönderi koyma).
+10. Metricool: önce `getScheduledPosts` ile bu ayı çek. **Sadece REEL** paylaşılır (kaydırmalı gönderi ve hikâye iptal).
+    Paylaşım günleri **Pazartesi, Salı, Çarşamba, Cuma, Cumartesi 18:00** (saati değiştirme). Görev bir gün önce
+    çalışır ve YARININ videosunu planlar. Aylık sınır: draft olmayan gönderi sayısı + 1 ≤ 20 değilse üretme.
+    Kalan ElevenLabs kredisi 700'ün altındaysa üretme, kullanıcıya bildir.
     `createScheduledPost` ile REEL olarak planla (autoPublish true, isAiGenerated true).
     **Hikâye (STORY) YOK.** Kullanıcı hikâye istemiyor; her şey sadece REEL olarak paylaşılır
     (aylık 20 gönderi sınırı böylece rahat kalır). Instagram dışında platform kullanılmaz (TikTok/YouTube yok).
