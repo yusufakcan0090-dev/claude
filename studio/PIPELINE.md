@@ -126,3 +126,17 @@ Zorunlu kalıp:
 - ElevenLabs kredisi bittiyse ya da "busy" hatası verdiyse: videoyu üretme, kullanıcıya bildir.
 - Metricool medya hatası verirse: raw linki tekrar kontrol et; düzelmezse kullanıcıya bildir, tekrar tekrar deneme.
 - Doğrulanamayan bir konuda ısrar etme; başka konu seç.
+
+
+## SIRADAKİ KONU (kullanıcı isteği, 15 Kasım 2026) — bir sonraki Reels BU olacak, sonra bu bölümü sil
+- **Başkurdistan: bayrağın anlamı + Başkurtların ilginç gelenekleri + "Başkurt" isminin anlamı tartışması. TEK video** (seri yapma).
+- Bayrak (Wikipedia "Flag of Bashkortostan", 25 Şubat 1992): mavi = dürüstlük/düşüncenin açıklığı, beyaz = barış ve iş birliği,
+  yeşil = özgürlük ve sonsuz yaşam, kuray çiçeği = dostluk; 7 yaprak = Başkurtları oluşturan 7 boy. (2. kaynakla doğrula.)
+- İsmin anlamı tartışmalı (teorileri en az 2 kaynakla doğrula); videoyu "Sence Başkurt ne demek?" sorusuyla bitir — yorum getirir.
+- Gelenekler: kuray (millî çalgı), uzlyau/özlau gırtlak ezgisi, yabani arıcılık (Burzyan balı) vb. — sadece doğrulananları kullan.
+- Rusya bayrakları videosu çok sevildi; dil "konuya hâkim" ve net olsun.
+
+## Yorum yanıtlama tarzı (kullanıcı isteği)
+- Yanıtlar düzgün, tam cümleler olsun; konuya hâkim biri gibi konuş.
+- "Biliyorum / eksik anlatmışsın" yorumlarına örnek: "Bilgileriniz doğru; ancak bu videonun konusu bayraklar olduğu için
+  bu şekilde anlattık. O konulara ilerleyen videolarda değineceğiz."
