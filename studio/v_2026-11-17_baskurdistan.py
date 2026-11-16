@@ -25,8 +25,9 @@ def a_(t, t0, d=0.35): return int(255 * clamp((t - t0) / d))
 def flower(dr, cx, cy, R, t, t0=0.0, step=0.12, col=GOLD, number=False):
     """Stilize 7 yapraklı kuray çiçeği; yapraklar sırayla açılır."""
     for i in range(7):
-        k = back(clamp((t - t0 - i * step) / 0.3))
-        if k <= 0: continue
+        x = (t - t0 - i * step) / 0.3
+        if x <= 0.02: continue
+        k = back(clamp(x))
         ang = -math.pi / 2 + i * 2 * math.pi / 7
         L = R * k; px, py = cx + math.cos(ang) * L * 0.62, cy + math.sin(ang) * L * 0.62
         w = R * 0.26 * k
@@ -39,15 +40,30 @@ def flower(dr, cx, cy, R, t, t0=0.0, step=0.12, col=GOLD, number=False):
             nx, ny = cx + math.cos(ang) * R * 1.22, cy + math.sin(ang) * R * 1.22
             dr.text((nx, ny), str(i + 1), font=font(FB, int(R * 0.22)), fill=RED + (int(255 * clamp(k)),), anchor="mm")
     r = R * 0.16 * back(clamp((t - t0) / 0.3))
-    if r > 0: dr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(200, 120, 30, 255))
+    if t - t0 > 0.01 and r > 0: dr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(200, 120, 30, 255))
 
 # ---- sahneler ----
-def s1(t, dur):  # kanca: 7 yaprak = 7 boy
+def s1(t, dur):  # kanca: önce bayrak (ne olduğu belli), sonra çiçek = 7 boy
     base = SCREEN_PAPER.copy().convert("RGBA"); dr = ImageDraw.Draw(base, "RGBA")
-    p = back(clamp(t / 0.35)); s = 0.8 + 0.2 * p
-    spaced_text(dr, (W / 2, 330), "7 YAPRAK", font(FB, int(120 * s)), INK + (a_(t, 0, 0.12),), sp=8)
-    spaced_text(dr, (W / 2, 470), "7 BOY", font(FB, int(140 * s)), RED + (a_(t, 0, 0.12),), sp=10)
-    flower(dr, W / 2, 1000, 300, t, -0.25, 0.12, number=True)
+    T1 = 1.75  # bayraktan büyük çiçeğe geçiş
+    if t < T1 + 0.2:
+        k = 1.0 - clamp((t - T1) / 0.2)          # bayrak sönümlenir
+        B.put_flag(base, flag(900), W / 2, 900, t, amp=12, op=k)
+        dr = ImageDraw.Draw(base, "RGBA")
+        p = back(clamp(t / 0.35)); s_ = 0.85 + 0.15 * p; a = int(255 * k)
+        spaced_text(dr, (W / 2, 330), "BAŞKURDİSTAN", font(FB, int(92 * s_)), INK + (a,), sp=4)
+        spaced_text(dr, (W / 2, 460), "BAYRAĞI", font(FB, int(108 * s_)), RED + (a,), sp=8)
+        if t > 0.35:  # çiçeğe dikkat çeken kırmızı halka + ok
+            for i in range(2):
+                ph = ((t * 1.1 + i * 0.5) % 1.0); r = 105 + ph * 70
+                dr.ellipse([W / 2 - r, 900 - r, W / 2 + r, 900 + r], outline=RED + (int(230 * (1 - ph) * k),), width=8)
+            dr.text((W / 2, 1300), "BU ÇİÇEK", font=font(FB, 92), fill=RED + (int(a * clamp((t - 0.35) / 0.25)),), anchor="mm")
+            dr.polygon([(W / 2 - 40, 1220), (W / 2 + 40, 1220), (W / 2, 1150)], fill=RED + (int(a * clamp((t - 0.35) / 0.25)),))
+    if t >= T1:
+        a = a_(t, T1 + 0.15, 0.2); p = back(clamp((t - T1 - 0.15) / 0.35)); s_ = 0.8 + 0.2 * p
+        spaced_text(dr, (W / 2, 330), "7 YAPRAK", font(FB, int(120 * s_)), INK + (a,), sp=8)
+        spaced_text(dr, (W / 2, 470), "7 BOY", font(FB, int(140 * s_)), RED + (a,), sp=10)
+        flower(dr, W / 2, 1000, 300, t, T1 + 0.1, 0.1, number=True)
     return base.convert("RGB")
 
 def s2(t, dur):  # bayrak 1992
