@@ -4,12 +4,13 @@ Otomatik görev her çalıştığında güncellenir.
 
 | Tarih | Konu | İzlenme | Erişim | Retention % | 3sn+ % | Paylaşım | Kaydetme | Yorum |
 |---|---|---|---|---|---|---|---|---|
-| 2026-11-03 | Gök Bayrak | 187 | 130 | 48.9 | – | 9 | 0 | 0 |
-| 2026-11-04 | Biz Türk'üz | 174 | 144 | 44.6 | – | 0 | 0 | 0 |
-| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2474 | 2044 | 60.3 | – | 32 | 24 | 1 |
-| 2026-11-09 | Pîrî Reis haritası | 1834 | 1517 | 52.5 | – | 8 | 7 | 0 |
-| 2026-11-10 | Atatürk (10 Kasım özel) | 1564 | 1396 | 52.0 | – | 1 | 4 | 1 |
-| 2026-11-11 | Son dakika: Henry Gunther | 3104 | 2233 | 61.8 | – | 1 | 3 | 1 |
+| 2026-11-03 | Gök Bayrak | 196 | 135 | 46.9 | – | 9 | 0 | 0 |
+| 2026-11-04 | Biz Türk'üz | 178 | 147 | 44.4 | – | 0 | 0 | 0 |
+| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2484 | 2049 | 60.4 | – | 32 | 23 | 1 |
+| 2026-11-09 | Pîrî Reis haritası | 1842 | 1522 | 52.3 | – | 8 | 7 | 0 |
+| 2026-11-10 | Atatürk (10 Kasım özel) | 1571 | 1401 | 52.0 | – | 1 | 4 | 1 |
+| 2026-11-11 | Son dakika: Henry Gunther | 3337 | 2405 | 62.3 | – | 1 | 3 | 1 |
+| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6491 | 5347 | 61.9 | – | 176 | 56 | 20 |
 
 ## Notlar / çıkarımlar
 - 2026-11-05: İki yayın var, veri az. Retention %44–50 → video ~45 sn'de tutuldu (ses 1.1x hızlandırıldı, uzun duraklar kısaltıldı). Soru ile açılan Gök Bayrak daha iyi tuttu ve 9 paylaşım aldı: açılışta doğrudan çarpıcı iddia + ilk karede büyük yazı sürdürülüyor. IGRE28 (3 sn+) verisi henüz boş.
@@ -20,3 +21,7 @@ Otomatik görev her çalıştığında güncellenir.
 - 2026-11-10: Pîrî Reis 1.814 izlenme / %52.4 retention (bilgi anlatımı, Kaşgar'ın altında). Kaşgar hâlâ lider. ElevenLabs yine 'busy' verdi (ücret alınmadı), video üretilmedi; kural gereği ikinci deneme yapılmadı. Sıradaki boş slot: Çar 18 Kasım 18:00. Hazır konu (doğrulandı): Köpenick Yüzbaşısı — ayakkabıcı Wilhelm Voigt (57), eskiciden aldığı yüzbaşı üniformasıyla 16 Ekim 1906'da ~10 askere emir verip Köpenick belediye başkanını tutuklattı, ~4.000 mark aldı; 4 yıl hapis, Kaiser Wilhelm II affı (16 Ağu 1908). Kaynaklar: Wikipedia 'Wilhelm Voigt'; History.com This Day in History; HistoryNet; berlin.de (Treptow-Köpenick, 2021).
 - 2026-11-11: Kullanıcı isteğiyle seslendirme yeniden denendi, 2. denemede üretildi (712 kredi). Köpenick videosu 42.4 sn (ses 1.1x), ilk karede "BİR ÜNİFORMA / BİR BELEDİYE", 18 Kasım Çar 18:00'e REEL olarak planlandı.
 - 2026-11-12: Son dakika (Henry Gunther) yeni lider: 3.104 izlenme, %61.8 retention — dramatik/trajik tek olay + net saat/an çalışıyor. ElevenLabs yine 'busy' verdi (ücret alınmadı), video üretilmedi; kural gereği ikinci deneme yapılmadı. Sıradaki boş slot: Cuma 20 Kasım 18:00. Hazır konu ve metin (doğrulandı): Vavilov'un tohum bankası — Leningrad kuşatmasında (1941–44) enstitü çalışanları tohum koleksiyonunu korudu, yemedi; bazıları açlıktan öldü (sayı kaynaklarda 9/12/19 diye değişiyor → sayı verme). Vavilov Ağustos 1940'ta NKVD tarafından casuslukla suçlanıp tutuklandı, 1941 idam, 1942 20 yıla çevrildi, 26 Oca 1943 Saratov hapishanesinde 55 yaşında öldü. Kaynaklar: Wikipedia 'Nikolai Vavilov', 'Institute of Plant Industry' (Guardian 2024); Science History Institute 'The Seeds of Starvation'; NPR/KPBS (2010). 'Dmitri Ivanov' adı tek zayıf kaynakta → kullanma.
+- 2026-11-16: Rusya halkları/bayraklar videosu açık ara rekor: 6.491 izlenme, %61.9 retention, 176 paylaşım, 56 kaydetme, 20 yorum → bayrak + halk + "kaçını tanıdın?" sorusu çok iyi çalışıyor. Bu çalıştırmada ElevenLabs yine 'busy' verdi (ücret alınmadı), Sal 17 Kasım 18:00 için video üretilmedi; kural gereği ikinci deneme yapılmadı. Başkurdistan metni HAZIR ve doğrulandı (aşağıda), bir sonraki çalıştırma doğrudan kullanabilir.
+  - Metin (~68 kelime): "[dramatically] Bu çiçeğin 7 yaprağı var… ve her yaprak bir Başkurt boyu. [short pause] Başkurdistan bayrağı, 1992. Mavi: düşüncenin açıklığı. Beyaz: barış. Yeşil: özgürlük ve sonsuz yaşam. Ortadaki altın çiçek kuray, dostluğun simgesi. Bu bitkinin sapından Başkurtların millî çalgısı kuray yapılır. Ballarını yüzyıllardır ağaç kovuklarından toplarlar. [pause] Peki Başkurt ne demek? Kimine göre baş kurt, yani lider kurt. Zeki Velidi Togan'a göre ise Beş Ogur. [softly] Sence hangisi?"
+  - Doğrulama: bayrak 25 Şubat 1992 + renk anlamları (Bashinform 2011-02-25 'February 25 is the day of State Flag RB'; Wikipedia 'Flag of Bashkortostan'); 7 yaprak = 7 boy, çiçek = dostluk (FOTW ru-02, R. Zinurov 1992; Bashinform); kuray bitki sapından yapılan millî çalgı (Wikipedia 'Quray'; FOTW); ağaç kovuğu arıcılığı (Wikipedia 'Bashkirs' – Burzyan; kitaplong.ru Başkurdistan somut olmayan miras kütüphanesi 'beekeeping'); "baş + kurt = lider kurt" (Wikipedia 'Bashkirs': Tatişçev, Rıçkov, Georgi; znanierussia.ru 'Башкиры' Этноним); Togan "Beş Ogur" (TDV İslâm Ansiklopedisi 'Başkırt'; Küre Ansiklopedisi 'Başkırt'). "Arı beyi" (Yumatov) tek kaynakta → KULLANMA.
+  - İlk kare yazısı: "7 YAPRAK / 7 BOY"; kapak: "BU ÇİÇEĞİN 7 YAPRAĞI" / "7 BOYU ANLATIYOR". Bayrak PNG: flags_ru_png/ba.png; şablon: v_2026-11-13_rusya_halklar.py.
