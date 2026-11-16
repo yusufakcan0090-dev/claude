@@ -124,7 +124,7 @@ Zorunlu kalıp:
 
 ## Bir şey ters giderse
 - ElevenLabs kredisi bittiyse ya da "busy" hatası verdiyse: videoyu üretme, kullanıcıya bildir.
-  (Not 2026-11-16: eleven_v4 'busy' iken aynı sesle eleven_multilingual_v2 çalıştı; kullanıcı açıkça yeniden denemeyi isterse önce bunu dene. 'busy' hatası ücret almaz.)
+  (Not 2026-11-16: eleven_multilingual_v2 aynı voice_id ile bile belirgin şekilde daha kalın/tekdüze çıkıyor; kullanıcı fark etti. Yedek olarak KULLANMA, sadece eleven_v4. 'busy' hatası ücret almaz; kullanıcı isterse aralıklarla tekrar dene.)
 - Metricool medya hatası verirse: raw linki tekrar kontrol et; düzelmezse kullanıcıya bildir, tekrar tekrar deneme.
 - Doğrulanamayan bir konuda ısrar etme; başka konu seç.
 
