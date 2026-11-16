@@ -163,20 +163,37 @@ def s8(t, dur):  # kapanış
     spaced_text(dr, (W / 2, 1180), "Yorumlara yaz", font(FI, 54), CREAM + (a_(t, 0.8, 0.4),))
     return base.convert("RGB")
 
+def make_sw(t_num, t_rank):
+    def sw(t, dur):  # Ukrayna savaşı kayıpları (Mediazona & BBC Rusça, Şubat 2026)
+        base = Image.new("RGBA", (W, H), (18, 14, 11, 255))
+        B.put_flag(base, flag(900), W / 2, 900, t, amp=10, op=0.22, sat=0.3)
+        dr = ImageDraw.Draw(base, "RGBA")
+        spaced_text(dr, (W / 2, 260), "ACI BİR GERÇEK", font(FB, 80), CREAM + (a_(t, 0, 0.2),), sp=8)
+        p = back(clamp((t - t_num) / 0.4)); s_ = 0.7 + 0.3 * p
+        spaced_text(dr, (W / 2, 860), "7.700", font(FB, int(200 * s_)), (230, 70, 60, a_(t, t_num, 0.2)), sp=6)
+        spaced_text(dr, (W / 2, 1010), "ADI DOĞRULANMIŞ KAYIP", font(FB, 56), CREAM + (a_(t, t_num + 0.2),), sp=4)
+        spaced_text(dr, (W / 2, 1080), "UKRAYNA SAVAŞI · ŞUBAT 2026", font(FB, 44), (200, 185, 160, a_(t, t_num + 0.3)), sp=3)
+        paste_pop(base, stamp_card(["RUSYA'DA 1. SIRA"], 760, 170, RED, seed=96, sizes=[80], bg=(240, 228, 196, 240)), W / 2, 1270, t - t_rank, rot=-3)
+        dr = ImageDraw.Draw(base, "RGBA")
+        dr.text((W / 2, 350), "Kaynak: Mediazona & BBC Rusça", font=font(FI, 34), fill=(200, 185, 160, a_(t, 0.3)), anchor="mm")
+        return base.convert("RGB")
+    return sw
+
 # ---- zamanlama (kelime zamanlarından doldurulur) ----
 TM = json.load(open(os.path.join(OUT, "bask_times.json"))) if os.path.exists(os.path.join(OUT, "bask_times.json")) else None
 if TM:
     st = TM["starts"]; TOTAL_ = TM["total"]; L = TM["local"]
     durs = [st[i + 1] - st[i] for i in range(len(st) - 1)] + [TOTAL_ - st[-1]]
 else:
-    durs = [3.5, 3.0, 6.0, 4.0, 5.0, 3.5, 7.0, 2.5]; L = {"c": [0.6, 1.8, 3.2], "friend": 2.0, "inst": 1.5, "a": 1.6, "b": 3.8}
+    durs = [3.5, 3.0, 6.0, 4.0, 5.0, 3.5, 6.0, 7.0, 2.5]; L = {"c": [0.6, 1.8, 3.2], "friend": 2.0, "inst": 1.5, "a": 1.6, "b": 3.8, "num": 2.0, "rank": 1.0}
 SCENES = [("k1", s1, durs[0]), ("k2", s2, durs[1]), ("k3", make_s3(L["c"]), durs[2]), ("k4", make_s4(L["friend"]), durs[3]),
-          ("k5", make_s5(L["inst"]), durs[4]), ("k6", s6, durs[5]), ("k7", make_s7(L["a"], L["b"]), durs[6]), ("k8", s8, durs[7])]
+          ("k5", make_s5(L["inst"]), durs[4]), ("k6", s6, durs[5]), ("kw", make_sw(L["num"], L["rank"]), durs[6]),
+          ("k7", make_s7(L["a"], L["b"]), durs[7]), ("k8", s8, durs[8])]
 XF = 0.3
 STARTS = []; _a = 0.0
 for _n, _f, _d in SCENES: STARTS.append(_a); _a += _d
 TOTAL = _a
-IMPACTS = {"k1": [0.05], "k2": [0.05], "k3": L["c"], "k4": [L["friend"]], "k5": [L["inst"]], "k6": [1.0],
+IMPACTS = {"k1": [0.05], "k2": [0.05], "k3": L["c"], "k4": [L["friend"]], "k5": [L["inst"]], "k6": [1.0], "kw": [L["num"], L["rank"]],
            "k7": [0.05, L["a"], L["b"]], "k8": [0.05]}
 B.SCENES, B.XF, B.STARTS, B.TOTAL, B.IMPACTS = SCENES, XF, STARTS, TOTAL, IMPACTS
 
