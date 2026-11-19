@@ -4,13 +4,16 @@ Otomatik görev her çalıştığında güncellenir.
 
 | Tarih | Konu | İzlenme | Erişim | Retention % | 3sn+ % | Paylaşım | Kaydetme | Yorum |
 |---|---|---|---|---|---|---|---|---|
-| 2026-11-03 | Gök Bayrak | 196 | 135 | 46.9 | – | 9 | 0 | 0 |
-| 2026-11-04 | Biz Türk'üz | 178 | 147 | 44.4 | – | 0 | 0 | 0 |
-| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2484 | 2049 | 60.4 | – | 32 | 23 | 1 |
-| 2026-11-09 | Pîrî Reis haritası | 1842 | 1522 | 52.3 | – | 8 | 7 | 0 |
-| 2026-11-10 | Atatürk (10 Kasım özel) | 1571 | 1401 | 52.0 | – | 1 | 4 | 1 |
-| 2026-11-11 | Son dakika: Henry Gunther | 3337 | 2405 | 62.3 | – | 1 | 3 | 1 |
-| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6491 | 5347 | 61.9 | – | 176 | 56 | 20 |
+| 2026-11-03 | Gök Bayrak | 197 | 136 | 47.3 | – | 9 | 0 | 0 |
+| 2026-11-04 | Biz Türk'üz | 180 | 149 | 44.4 | – | 0 | 0 | 0 |
+| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2490 | 2052 | 60.4 | – | 32 | 24 | 1 |
+| 2026-11-09 | Pîrî Reis haritası | 1847 | 1526 | 52.3 | – | 8 | 7 | 0 |
+| 2026-11-10 | Atatürk (10 Kasım özel) | 1573 | 1404 | 52.1 | – | 1 | 3 | 1 |
+| 2026-11-11 | Son dakika: Henry Gunther | 3354 | 2418 | 62.2 | – | 1 | 4 | 1 |
+| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6528 | 5368 | 61.9 | – | 179 | 54 | 20 |
+| 2026-11-16 | Vidocq | 594 | 509 | 53.1 | – | 0 | 1 | 1 |
+| 2026-11-17 | Başkurdistan bayrağı | 3388 | 2730 | 62.5 | – | 41 | 57 | 10 |
+| 2026-11-18 | Köpenick Yüzbaşısı | 317 | 268 | 53.8 | – | 0 | 1 | 1 |
 
 ## Notlar / çıkarımlar
 - 2026-11-05: İki yayın var, veri az. Retention %44–50 → video ~45 sn'de tutuldu (ses 1.1x hızlandırıldı, uzun duraklar kısaltıldı). Soru ile açılan Gök Bayrak daha iyi tuttu ve 9 paylaşım aldı: açılışta doğrudan çarpıcı iddia + ilk karede büyük yazı sürdürülüyor. IGRE28 (3 sn+) verisi henüz boş.
@@ -27,3 +30,4 @@ Otomatik görev her çalıştığında güncellenir.
   - İlk kare yazısı: "7 YAPRAK / 7 BOY"; kapak: "BU ÇİÇEĞİN 7 YAPRAĞI" / "7 BOYU ANLATIYOR". Bayrak PNG: flags_ru_png/ba.png; şablon: v_2026-11-13_rusya_halklar.py.
 - 2026-11-16 (2): Kullanıcı 'üretene kadar dene' dedi. eleven_v4 7 kez 'busy' verdi (ücret yok); eleven_multilingual_v2 ile aynı ses ilk denemede üretildi (438 kredi). v4 meşgulken multilingual_v2 yedek olarak kullanılabilir (ses etiketleri olmadan). Başkurdistan videosu 34.4 sn (ses 1.1x), Sal 17 Kasım 18:00'e REEL olarak planlandı.
 - 2026-11-16 (3): multilingual_v2 sesi kullanıcıya farklı geldi (ölçüm: ortalama perde 75 Hz, v4 videolarda ~112 Hz; daha kalın ve tekdüze). Kullanıcı isteğiyle metnin tamamı eleven_v4 ile yeniden seslendirildi (~1 saat 'busy' sonrası, 635 kredi). Son sürüm v5, 43 sn. DERS: multilingual_v2'yi yedek olarak KULLANMA; ses farkı fark ediliyor.
+- 2026-11-19: Bayrak/halk videoları açık ara önde (Rusya 6.5K, Başkurdistan 3.4K, %62 retention, çok paylaşım); Batı merakları zayıf (Vidocq 594, Köpenick 317, %53). Dramatik/trajik tek an (Gunther 3.3K, %62) iyi çalışıyor. Bu yüzden yıl dönümüne denk gelen dramatik bir Rusya hikâyesi seçildi: Tolstoy'un kaçışı ve Astapovo'da 06:05'te duran saat (36.8 sn, ses 1.1x, 573 kredi). İlk kare: "82 YAŞINDA / EVİNDEN KAÇTI"; kapak: "İSTASYONUN SAATİ / 116 YILDIR 06:05'TE". Sonraki seçimlerde: Osmanlı/Türk sınırı (4'te 1) izin verdiğinde bayrak/halk konusu; diğerlerinde dramatik tek an + duygusal açı. Salt 'ilginç dolandırıcı/hilekâr' Batı hikâyelerinden kaçın.
