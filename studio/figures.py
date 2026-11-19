@@ -139,7 +139,36 @@ def civilian(p):
     p.line([(-30, 262), (0, 420)], GREY_D, 6); p.line([(30, 262), (0, 420)], BLACK_L, 6)  # lapels
     head(p)
 
-KINDS = {"officer": officer, "soldier": soldier, "shoemaker": shoemaker, "civilian": civilian}
+
+WHITE_H = (232, 230, 222); WHITE_D = (196, 192, 182)
+PEAS = (214, 206, 186); PEAS_D = (178, 168, 146)
+DRESS = (44, 36, 40); DRESS_D = (30, 24, 28)
+
+def tolstoy(p):
+    """Yaşlı yazar: köylü gömleği (rubaşka), kemer, uzun beyaz sakal. Temsilî."""
+    legs(p, GREY_D, GREY, boots=BROWN_D, boot_top=860)
+    arms(p, PEAS, PEAS_D, PEAS_D)
+    p.poly([(-120, 290), (-96, 262), (96, 262), (120, 290), (112, 430), (120, 680), (-120, 680), (-112, 430)], PEAS)
+    p.poly([(0, 262), (96, 262), (120, 290), (112, 430), (120, 680), (0, 680)], PEAS_D)
+    p.rect(-110, 470, 110, 492, BROWN_D)                                              # belt
+    head(p, mustache=False, hair=False)
+    p.pie(-54, 104, 54, 176, 200, 340, WHITE_D)                                       # thin hair
+    p.ell(-58, 150, -40, 210, WHITE_H); p.ell(40, 150, 58, 210, WHITE_H)              # side hair
+    p.rect(-32, 164, -10, 172, WHITE_H, 3); p.rect(10, 164, 32, 172, WHITE_H, 3)      # white brows
+    p.poly([(-52, 196), (52, 196), (60, 260), (40, 360), (0, 420), (-40, 360), (-60, 260)], WHITE_H)  # beard
+    p.poly([(0, 210), (52, 196), (60, 260), (40, 360), (0, 420)], WHITE_D)
+    p.poly([(-30, 206), (30, 206), (24, 220), (-24, 220)], WHITE_D)                   # mustache
+
+def woman(p):
+    """1910 dönemi kadın: uzun koyu elbise, topuz saç. Temsilî."""
+    arms(p, DRESS, DRESS_D, DRESS_D)
+    p.poly([(-110, 290), (-90, 262), (90, 262), (110, 290), (96, 470), (170, 1000), (-170, 1000), (-96, 470)], DRESS)
+    p.poly([(0, 262), (90, 262), (110, 290), (96, 470), (170, 1000), (0, 1000)], DRESS_D)
+    p.rect(-40, 248, 40, 284, SHIRT, 8)
+    head(p, mustache=False, hair=False)
+    p.pie(-54, 104, 54, 196, 180, 360, WHITE_D); p.ell(-34, 70, 34, 124, WHITE_D)    # grey hair + bun
+
+KINDS = {"officer": officer, "soldier": soldier, "shoemaker": shoemaker, "civilian": civilian, "tolstoy": tolstoy, "woman": woman}
 
 @lru_cache(maxsize=8)
 def master(kind):
