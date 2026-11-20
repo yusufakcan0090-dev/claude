@@ -133,3 +133,19 @@ Zorunlu kalıp:
 - Yanıtlar düzgün, tam cümleler olsun; konuya hâkim biri gibi konuş.
 - "Biliyorum / eksik anlatmışsın" yorumlarına örnek: "Bilgileriniz doğru; ancak bu videonun konusu bayraklar olduğu için
   bu şekilde anlattık. O konulara ilerleyen videolarda değineceğiz."
+
+
+## HALKLAR SIRASI (kullanıcı isteği, 20 Kasım 2026 — Rusya halkları ve Başkurdistan videoları çok tuttu)
+- Haftada **2–3 video** bu listeden, **sırayla** (her halk TEK video, seri değil); kalan günler yine genel dünya tarihi.
+  Örnek hafta: Pzt halk, Çar genel, Cum halk, (Sal/Cmt biri halk olabilir). Aynı hafta üst üste iki halk videosu koyma.
+- Yapılan halkı `topics.md`'ye yaz ve aşağıdaki listede başına ✅ koy; sıradaki ✅ olmayan ilk halk seçilir.
+  1. Tataristan: bayrağın anlamı, Kazan, Tatarların Rusya'daki yeri (Rusya'nın 2. büyük halkı)
+  2. Saha (Yakutistan): dünyanın en soğuk şehri/yerleşimleri, beyaz güneşli bayrak
+  3. Çuvaşistan: bugün yaşayan tek Oğur Türkçesi, bayraktaki hayat ağacı
+  4. Tuva: gırtlak ezgisi (höömey), Moğolistan sınırındaki Türkler
+  5. Adigeler: ilginç gelenekleri, 12 yıldızlı bayrak
+  6. Dağıstan: tek cumhuriyette 30'dan fazla halk
+  7. Kalmukya: Avrupa'nın tek Budist halkı
+- Her halk videosu: bayrak (studio/flags_ru_png, resmi tasarım) + 2–3 doğrulanmış ilginç bilgi + bir tartışma/merak noktası;
+  video "Sence…?" sorusuyla biter (Başkurdistan'daki isim tartışması gibi yorum getirsin). Her bilgi 2 güvenilir kaynakla.
+- Siyasi/güncel savaş tartışmalarına girme; sadece tarih, kültür, bayrak.
