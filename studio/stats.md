@@ -4,16 +4,18 @@ Otomatik görev her çalıştığında güncellenir.
 
 | Tarih | Konu | İzlenme | Erişim | Retention % | 3sn+ % | Paylaşım | Kaydetme | Yorum |
 |---|---|---|---|---|---|---|---|---|
-| 2026-11-03 | Gök Bayrak | 198 | 136 | 47.0 | – | 9 | 0 | 0 |
-| 2026-11-04 | Biz Türk'üz | 181 | 149 | 44.2 | – | 0 | 0 | 0 |
-| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2491 | 2052 | 60.4 | – | 32 | 24 | 1 |
-| 2026-11-09 | Pîrî Reis haritası | 1848 | 1526 | 52.3 | – | 8 | 7 | 0 |
-| 2026-11-10 | Atatürk (10 Kasım özel) | 1574 | 1405 | 52.0 | – | 1 | 3 | 1 |
-| 2026-11-11 | Son dakika: Henry Gunther | 3355 | 2419 | 62.1 | – | 1 | 4 | 1 |
-| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6535 | 5377 | 61.9 | – | 179 | 54 | 20 |
-| 2026-11-16 | Vidocq | 595 | 509 | 53.0 | – | 0 | 1 | 1 |
-| 2026-11-17 | Başkurdistan bayrağı | 3455 | 2776 | 62.3 | – | 41 | 60 | 10 |
-| 2026-11-18 | Köpenick Yüzbaşısı | 1176 | 1023 | 56.2 | – | 0 | 3 | 1 |
+| 2026-11-03 | Gök Bayrak | 200 | 137 | 47.3 | – | 9 | 0 | 0 |
+| 2026-11-04 | Biz Türk'üz | 182 | 150 | 43.9 | – | 0 | 0 | 0 |
+| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2494 | 2052 | 60.4 | – | 32 | 24 | 1 |
+| 2026-11-09 | Pîrî Reis haritası | 1850 | 1527 | 52.3 | – | 8 | 7 | 0 |
+| 2026-11-10 | Atatürk (10 Kasım özel) | 1575 | 1407 | 52.1 | – | 1 | 3 | 1 |
+| 2026-11-11 | Son dakika: Henry Gunther | 3366 | 2427 | 62.2 | – | 1 | 4 | 1 |
+| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6546 | 5385 | 61.9 | – | 179 | 54 | 20 |
+| 2026-11-16 | Vidocq | 597 | 510 | 53.0 | – | 0 | 1 | 1 |
+| 2026-11-17 | Başkurdistan bayrağı | 3585 | 2875 | 62.3 | – | 56 | 66 | 12 |
+| 2026-11-18 | Köpenick Yüzbaşısı | 1180 | 1025 | 56.0 | – | 0 | 3 | 1 |
+| 2026-11-20 | Tolstoy'un kaçışı | 16 | 7 | 50.0 | – | 0 | 0 | 1 |
+| 2026-11-21 | Pilâtre de Rozier balonu | 1547 | 1374 | 51.7 | – | 0 | 1 | 1 |
 
 ## Notlar / çıkarımlar
 - 2026-11-05: İki yayın var, veri az. Retention %44–50 → video ~45 sn'de tutuldu (ses 1.1x hızlandırıldı, uzun duraklar kısaltıldı). Soru ile açılan Gök Bayrak daha iyi tuttu ve 9 paylaşım aldı: açılışta doğrudan çarpıcı iddia + ilk karede büyük yazı sürdürülüyor. IGRE28 (3 sn+) verisi henüz boş.
@@ -32,3 +34,4 @@ Otomatik görev her çalıştığında güncellenir.
 - 2026-11-16 (3): multilingual_v2 sesi kullanıcıya farklı geldi (ölçüm: ortalama perde 75 Hz, v4 videolarda ~112 Hz; daha kalın ve tekdüze). Kullanıcı isteğiyle metnin tamamı eleven_v4 ile yeniden seslendirildi (~1 saat 'busy' sonrası, 635 kredi). Son sürüm v5, 43 sn. DERS: multilingual_v2'yi yedek olarak KULLANMA; ses farkı fark ediliyor.
 - 2026-11-19: Bayrak/halk videoları açık ara önde (Rusya 6.5K, Başkurdistan 3.4K, %62 retention, çok paylaşım); Batı merakları zayıf (Vidocq 594, Köpenick 317, %53). Dramatik/trajik tek an (Gunther 3.3K, %62) iyi çalışıyor. Bu yüzden yıl dönümüne denk gelen dramatik bir Rusya hikâyesi seçildi: Tolstoy'un kaçışı ve Astapovo'da 06:05'te duran saat (36.8 sn, ses 1.1x, 573 kredi). İlk kare: "82 YAŞINDA / EVİNDEN KAÇTI"; kapak: "İSTASYONUN SAATİ / 116 YILDIR 06:05'TE". Sonraki seçimlerde: Osmanlı/Türk sınırı (4'te 1) izin verdiğinde bayrak/halk konusu; diğerlerinde dramatik tek an + duygusal açı. Salt 'ilginç dolandırıcı/hilekâr' Batı hikâyelerinden kaçın.
 - 2026-11-20: Köpenick 2 günde 1.176'ya çıktı (%56 retention) ama hâlâ alt grupta; liderler değişmedi (Rusya 6.5K, Başkurdistan 3.5K, Gunther 3.4K, hepsi ~%62). Osmanlı/Türk kotası (4'te 1) bu slotta dolu ve önceki video Rusya olduğu için Fransa'dan yıl dönümüne denk gelen dramatik/trajik tek an seçildi: Pilâtre de Rozier — 21 Kasım 1783 ilk serbest balon uçuşu, idam mahkûmu planı, 1785'te bilinen ilk hava kazası. 32.9 sn (ses 1.05x, 471 kredi). İlk kare: "İLK UÇUŞA / İDAM MAHKÛMLARI"; kapak (alev alan balon): "İLK UÇUŞUN PİLOTU / İLK HAVA KAZASINDA ÖLDÜ". Not: Metricool'da IGRE27 boş geliyor, tablodaki retention sütunu IGRE28 değeri.
+- 2026-11-22: Balon 1 günde 1.547 izlenme (%51.7) — Batı/Fransa yine orta grupta. Tolstoy Metricool'da sadece 16 izlenme gösteriyor (veri gecikmesi ya da Instagram dağıtımı kısıtladı; kullanıcı kontrol etmeli). Liderler hâlâ halk/bayrak videoları (Rusya 6.5K, Başkurdistan 3.6K). Halklar sırası #1 Tataristan seçildi; kanca: Aziz Vasil Katedrali = Kazan'ın düşüşü (1552) → Kul Şerif → Tatarlar yaşıyor → 2005 Kul Şerif Camii. 35.2 sn (ses 1.0x, 526 kredi). İlk kare: "BU KATEDRAL / BİR TÜRK ŞEHRİNİN DÜŞÜŞÜ İÇİN"; kapak: "1552'DE KAZAN DÜŞTÜ / BU KATEDRAL O GÜNÜN ANITI". Sıradaki halk: Saha (Yakutistan); hafta içi bir sonraki slot genel dünya tarihi olmalı.
