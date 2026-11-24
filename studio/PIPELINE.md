@@ -140,7 +140,7 @@ Zorunlu kalıp:
   Örnek hafta: Pzt halk, Çar genel, Cum halk, (Sal/Cmt biri halk olabilir). Aynı hafta üst üste iki halk videosu koyma.
 - Yapılan halkı `topics.md`'ye yaz ve aşağıdaki listede başına ✅ koy; sıradaki ✅ olmayan ilk halk seçilir.
   1. ✅ Tataristan: bayrağın anlamı, Kazan, Tatarların Rusya'daki yeri (Rusya'nın 2. büyük halkı)
-  2. Saha (Yakutistan): dünyanın en soğuk şehri/yerleşimleri, beyaz güneşli bayrak
+  2. ✅ Saha (Yakutistan): dünyanın en soğuk şehri/yerleşimleri, beyaz güneşli bayrak
   3. Çuvaşistan: bugün yaşayan tek Oğur Türkçesi, bayraktaki hayat ağacı
   4. Tuva: gırtlak ezgisi (höömey), Moğolistan sınırındaki Türkler
   5. Adigeler: ilginç gelenekleri, 12 yıldızlı bayrak
