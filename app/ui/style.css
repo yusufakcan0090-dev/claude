@@ -710,3 +710,12 @@ input[type=range]::-webkit-slider-thumb{width:12px;height:12px;border:0;backgrou
 
 .jobs-dock:not(.has){display:none}
 .toast{cursor:pointer}
+
+/* yuvarlaklık: paneller hafif, düğme/alanlar yumuşak (AE 2024 gibi) */
+.ae .ae-panel,#page-editor .ae-panel,.ae-acc{border-radius:6px}
+.btn,.ae-btn,.tool,.chip,.tog,.cb-btn,.icon-btn,.export-btn,#exportBtn,.ae-tools button,.tl-ic,.pv-btns button,.al-row button,.pj-foot button,.font-opt,.preset,.opt{border-radius:5px!important}
+.inp,.ae .inp,select,.ae-sel,.comp-bar select,.ae-ta,.scrub-in,.tl-search,.pj-search,.fxp-search .inp{border-radius:4px!important}
+.modal,.toast,.ctx-menu,.ae-drop,.card,.set-card,.drop-box,.jobs-dock{border-radius:8px!important}
+.ctx-menu div,.ae-drop div{border-radius:4px;margin:0 4px}
+.proj-list,.fxp-tree,.ec-sec,.cap,.src-wrap,.proj-prev,.pj-thumb{border-radius:4px}
+.tl-lrow .lab,.sw,.ae-color{border-radius:3px}

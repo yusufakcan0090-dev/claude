@@ -316,10 +316,17 @@ const dropOverlay = document.createElement('div');
 dropOverlay.className = 'drop-overlay';
 dropOverlay.innerHTML = `<div class="drop-box"><div class="drop-ico">${KS.icon.plus}</div><b>Bırak, ekleyeyim</b><span>Video → yeni proje · Müzik → müzik katmanı · Resim → resim katmanı · .cube → LUT</span></div>`;
 document.body.appendChild(dropOverlay);
-let dragDepth = 0;
-window.addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragDepth++; dropOverlay.classList.add('show'); } });
-window.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropOverlay.classList.remove('show'); });
-window.addEventListener('dragover', e => e.preventDefault());
+let dragDepth = 0, dragHideT = null;
+const hideDrop = () => { dragDepth = 0; clearTimeout(dragHideT); dropOverlay.classList.remove('show'); };
+const armHide = () => { clearTimeout(dragHideT); dragHideT = setTimeout(hideDrop, 700); };
+window.addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragDepth++; dropOverlay.classList.add('show'); armHide(); } });
+window.addEventListener('dragleave', e => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth || !e.relatedTarget) hideDrop(); });
+window.addEventListener('dragover', e => { e.preventDefault(); if (dropOverlay.classList.contains('show')) armHide(); });
+window.addEventListener('drop', hideDrop, true);
+window.addEventListener('dragend', hideDrop, true);
+['mousemove', 'mousedown', 'keydown', 'blur', 'focus'].forEach(ev => window.addEventListener(ev, () => { if (dropOverlay.classList.contains('show')) hideDrop(); }, true));
+dropOverlay.addEventListener('click', hideDrop);
+KS.hideDrop = hideDrop;
 window.addEventListener('drop', e => {
   e.preventDefault();
   dragDepth = 0; dropOverlay.classList.remove('show');
@@ -341,6 +348,7 @@ window.addEventListener('drop', e => {
   }, 450);
 });
 KS.onDropPath = async paths => {
+  hideDrop();
   dropGotPath = true;
   for (const p of [].concat(paths)) {
     try { KS.handleFile(await KS.api('/api/describe', { path: p })); }
