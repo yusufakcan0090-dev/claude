@@ -1,8 +1,7 @@
 {
- "version": "1.1.1",
+ "version": "1.1.2",
  "date": "2026-11-26",
  "notes": [
-  "Kayıt dosyası artık gereksiz yere büyümüyor",
-  "Otomatik güncelleme testi: bunu görüyorsan güncelleme sistemi çalışıyor! 🎉"
+  "Altyazı çıkarma hatası düzeltildi (ses artık FFmpeg ile okunuyor)"
  ]
 }
