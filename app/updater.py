@@ -17,6 +17,7 @@ from core import APP, ROOT, IS_WIN
 
 REPO = "yusufakcan0090-dev/claude"
 BRANCH = "kesit-studyosu"
+API = f"https://api.github.com/repos/{REPO}/contents/app/version.json?ref={BRANCH}"
 RAW = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/app/version.json"
 ZIP = f"https://github.com/{REPO}/archive/refs/heads/{BRANCH}.zip"
 PROTECTED = {"veri", ".venv", "bin", ".git", "__pycache__"}
@@ -48,13 +49,28 @@ def _get(url, timeout=20):
         return r.read()
 
 
+def _remote_version():
+    errors = []
+    try:  # GitHub API (önbelleksiz, en güncel)
+        import base64
+        d = json.loads(_get(API, 15))
+        return json.loads(base64.b64decode(d["content"]).decode("utf-8"))
+    except Exception as e:
+        errors.append(f"api: {e}")
+    try:
+        return json.loads(_get(RAW + f"?t={int(time.time())}", 15))
+    except Exception as e:
+        errors.append(f"raw: {e}")
+    raise RuntimeError(" | ".join(errors))
+
+
 def check(force=False):
     if not force and _cache["data"] and time.time() - _cache["t"] < 600:
         return _cache["data"]
     cur = local_version()
     res = {"current": cur.get("version"), "latest": None, "available": False, "notes": []}
     try:
-        remote = json.loads(_get(RAW + f"?t={int(time.time())}", 15))
+        remote = _remote_version()
         res["latest"] = remote.get("version")
         res["notes"] = remote.get("notes") or []
         res["available"] = _vt(remote.get("version")) > _vt(cur.get("version"))
