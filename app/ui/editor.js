@@ -332,7 +332,7 @@
     if (f.fadeIn && T < .5) fade = 1 - T / .5; if (f.fadeOut && T > tot - .6) fade = Math.max(fade, (T - (tot - .6)) / .6);
     if (fade > 0) { x.fillStyle = `rgba(0,0,0,${KS.clamp(fade, 0, 1)})`; x.fillRect(0, 0, PW, PH); }
     x.restore();
-    E.drawGizmo();
+    E.drawGizmo(); E.drawCapPrev();
     const tc = E.tc(T); $('#aeTc').textContent = tc; $('#tcCur').textContent = tc; $('#aeFps').textContent = String(Math.round(T * fps())).padStart(5, '0') + ` (${fps().toFixed(2)} fps)`;
   };
   E.tc = T => { const F = fps(), fr = Math.floor((T % 1) * F + 1e-6); return `${Math.floor(T / 3600)}:${String(Math.floor(T % 3600 / 60)).padStart(2, '0')}:${String(Math.floor(T % 60)).padStart(2, '0')}:${String(fr).padStart(2, '0')}`; };
@@ -373,10 +373,15 @@
   E.capAt = (T, list) => { list = list || E.tlCaps(); for (let i = 0; i < list.length; i++) { const c = list[i], n = list[i + 1]; let end = c.e + .35; if (n) { end = Math.min(end, n.s); if (n.s - c.e < .35) end = n.s; } if (T >= c.s && T < Math.max(end, c.s + .2)) return i; } return -1; };
   function wrapLines(x, words, maxW) { const lines = []; let cur = []; for (const w of words) { if (cur.length && x.measureText(cur.concat(w).map(o => o.t).join(' ')).width > maxW) { lines.push(cur); cur = [w]; } else cur.push(w); } if (cur.length) lines.push(cur); return lines; }
   const popScale = dt => dt < 0 ? 1 : dt < .11 ? .72 + .32 * dt / .11 : dt < .17 ? 1.04 - .04 * (dt - .11) / .06 : 1;
+  E.capEditing = () => !E.playing && ((E.sel && E.sel.type === 'cap') || $('.ae-acc[data-acc="style"]').classList.contains('open'));
   function drawCaption(x, T) {
-    const st = P().style, list = E.tlCaps(), i = E.capAt(T, list); if (i < 0) return;
-    const c = list[i], words = c.words.map(w => ({ t: st.upper ? KS.trUpper(w.w) : w.w, s: w.s }));
-    let active = 0; words.forEach((w, k) => { if (T >= w.s - 1e-3) active = k; });
+    const st = P().style, list = E.tlCaps(); let i = E.capAt(T, list), c, words, active = 0;
+    if (i >= 0) { c = list[i]; words = c.words.map(w => ({ t: st.upper ? KS.trUpper(w.w) : w.w, s: w.s })); words.forEach((w, k) => { if (T >= w.s - 1e-3) active = k; }); }
+    else if (E.capEditing()) {
+      // ayar yaparken o anda altyazı yoksa örnek altyazı göster
+      const src = list.length ? list[0].words.map(w => w.w) : ['BU', 'ÇOK', 'İYİ', 'OLDU'];
+      words = src.map(w => ({ t: st.upper ? KS.trUpper(w) : w, s: 0 })); active = Math.min(1, words.length - 1); c = { s: -9 };
+    } else return;
     const size = st.size * K; x.save();
     x.font = `${size}px "${FONT_CSS[st.font] || 'PoppinsBlk'}"`; x.textBaseline = 'alphabetic'; x.lineJoin = 'round'; x.miterLimit = 2;
     const [fa, fd] = FM[st.font] || FM['poppins-black'], bl = (fa - (fa + fd) / 2) * size;
@@ -509,14 +514,14 @@
   /* =========================================================== seçim & paneller */
   E.select = sel => {
     E.sel = sel; E.selKey = null;
-    if (sel) E.lt('controls');
+    if (sel && sel.type === 'cap') E.rt('style'); else if (sel) E.lt('controls');
     E.renderControls(); E.renderTlLayers(); E.drawTimeline(); E.drawGizmo(); E.renderProject(); E.renderInfo();
   };
   E.lt = name => { $$('#leftTabs .ae-tab').forEach(b => b.classList.toggle('active', b.dataset.lt === name)); $$('.lt-panel').forEach(p => p.classList.toggle('active', p.id === 'lt-' + name)); };
   /* sağ taraf AE gibi alt alta paneller: büyük olanlardan biri açık kalır */
   E.rt = name => { const acc = $(`.ae-acc[data-acc="${name}"]`); if (!acc) return; if (acc.classList.contains('grow')) $$('.ae-acc.grow').forEach(a => a.classList.toggle('open', a === acc)); else acc.classList.add('open'); };
   $$('#leftTabs .ae-tab').forEach(b => b.onclick = () => E.lt(b.dataset.lt));
-  $$('.acc-h').forEach(h => h.onclick = () => { const a = h.parentElement; if (a.classList.contains('grow') && !a.classList.contains('open')) E.rt(a.dataset.acc); else a.classList.toggle('open'); });
+  $$('.acc-h').forEach(h => h.onclick = () => { const a = h.parentElement; if (a.classList.contains('grow') && !a.classList.contains('open')) E.rt(a.dataset.acc); else a.classList.toggle('open'); if (P()) E.render(); });
   // etkin panel mavi çerçeve (AE)
   $$('#page-editor .ae-panel, #page-editor .ae-acc').forEach(p => p.addEventListener('mousedown', () => { $$('#page-editor .focus').forEach(q => q.classList.remove('focus')); (p.classList.contains('ae-acc') ? p : p).classList.add('focus'); }, true));
   $$('#page-editor [data-go]').forEach(b => b.onclick = () => KS.go(b.dataset.go));
@@ -663,7 +668,7 @@
     if (!s || (!o && s.type !== 'cap')) { el.innerHTML = '<div class="ec-empty">Katman seçilmedi. Zaman çizelgesinde ya da kompozisyonda bir katmana tıkla.</div>'; return; }
     let h = `<div class="ec2-head">${KS.esc(P().title)} • <b>&nbsp;${KS.esc(s.type === 'cap' ? 'Altyazı' : lname)}</b></div>`;
     const keep = E._ecFor === (s.type + s.id) ? el.scrollTop : 0; E._ecFor = s.type + s.id;
-    if (s.type === 'cap') { el.innerHTML = h + capStyleHtml(); bindCapStyle(el); el.scrollTop = keep; return; }
+    if (s.type === 'cap') { el.innerHTML = h + '<div class="ec-empty">Altyazı görünümünü sağdaki <b>Altyazı Stili</b> panelinden ayarla.</div>'; return; }
     else if (s.type === 'video') h += clipControls(o) + vfxHtml() + '<div class="ec-empty">Efekt eklemek için sağdaki Efektler ve Ön Ayarlar\'da bir efekte çift tıkla.</div>';
     else if (s.type === 'text') h += efx('Yazı', `<div class="erow full"><span></span><textarea class="ae-ta" id="ecText" spellcheck="false" rows="2">${KS.esc(o.text)}</textarea></div>` +
         erow('Yazı tipi', sel('o.font', o.font || 'poppins-black', Object.keys(FONT_CSS).map(f => [f, FONT_NAME[f]]))) +
@@ -844,7 +849,7 @@
     $('#capRedo').onclick = async () => { if (await KS.confirm('Altyazıyı baştan çıkar?', 'Yaptığın düzeltmeler silinecek.', 'Baştan çıkar', true)) E.transcribe(clips().map(c => c.id)); };
     const cm = $('#capMiss'); if (cm) cm.onclick = () => E.transcribe();
     $('#capDict').onclick = () => KS.go('settings');
-    $('#capStyle').onclick = () => E.select({ type: 'cap', id: 'cap' });
+    $('#capStyle').onclick = () => E.rt('style');
     const nf = $('#nextFlag'); if (nf) nf.onclick = E.nextFlag;
     $$('[data-mw]', el).forEach(b => b.onclick = async () => { await E.flush(); const before = snap(), r = await KS.api(`/api/project/${p.id}/rechunk`, { maxWords: +b.dataset.mw }); E.history.push(before); r.clips.forEach(x => { const c = clips().find(q => q.id === x.id); if (c) c.captions = x.captions; }); p.style.maxWords = +b.dataset.mw; E.renderSubs(); E.render(); E.drawTimeline(); E.updateUndo(); });
     $$('.cap', el).forEach(row => {
@@ -879,7 +884,14 @@
   KS.hooks.jobDone.push(async j => {
     if (!P() || !j.result || j.result.project !== P().id) return;
     const fresh = await KS.api('/api/project/' + P().id);
-    if (j.kind === 'altyazi') { fresh.clips.forEach(fc => { const c = clips().find(q => q.id === fc.id); if (c) { c.captions = fc.captions; c.words = fc.words; c.subs_status = fc.subs_status; } }); E.renderSubs(); E.render(); E.drawTimeline(); }
+    if (j.kind === 'altyazi') {
+      fresh.clips.forEach(fc => { const c = clips().find(q => q.id === fc.id); if (c) { c.captions = fc.captions; c.words = fc.words; c.subs_status = fc.subs_status; } });
+      E.renderSubs(); E.renderStyle();
+      // altyazı hazır olunca stil paneli kendiliğinden açılsın ve altyazı ekranda görünsün
+      const list = E.tlCaps();
+      if (list.length) { if (!E.playing && E.capAt(E.T, list) < 0) E.seek(list[0].s + .05); E.select({ type: 'cap', id: 'cap' }); }
+      E.render(); E.drawTimeline();
+    }
     if ((j.kind === 'an' || j.kind === 'indir') && j.result.added) { const known = new Set(clips().map(c => c.id)); fresh.clips.filter(c => !known.has(c.id)).forEach(c => { clips().push(c); E.loadWave(c); }); E.renderAll(); E.render(); E.dirty(); }
   });
   KS.hooks.jobDone.push(j => { if (j.kind === 'altyazi' && j.status === 'hata' && P()) { clips().forEach(c => { if (c.subs_status === 'calisiyor') c.subs_status = 'hata'; }); E.renderSubs(); } });
@@ -890,6 +902,7 @@
   function capStyleHtml() {
     const st = P().style, mw = st.maxWords || 3;
     return `<div class="cs">
+      <canvas class="cs-prev" data-csprev></canvas>
       <div class="cs-h">Hazır stiller</div>
       <div class="preset-grid">${CAP_PRESETS.map((pr, i) => { const s = pr.s, act = ['font', 'color', 'hl', 'outline'].every(k => (st[k] || '').toString().toUpperCase() === (s[k] || '').toString().toUpperCase()); return `<button class="preset ${act ? 'active' : ''}" data-cp="${i}"><div class="cap-preset" style="font-family:'${FONT_CSS[s.font]}';color:${s.color};-webkit-text-stroke:${Math.min(3, s.outlineW / 3)}px ${s.outline};paint-order:stroke fill">${s.upper ? 'BU ÇOK' : 'Bu çok'}&nbsp;<span style="color:${s.karaoke ? s.hl : s.color}">${s.upper ? 'İYİ' : 'iyi'}</span></div><span>${pr.name}</span></button>`; }).join('')}</div>
       <div class="cs-h">Yazı tipi</div>
@@ -910,6 +923,7 @@
       <div class="hint">İpucu: altyazıyı kompozisyonda tutup yukarı-aşağı sürükleyebilir, Ctrl + tekerlek ile büyütebilirsin.</div></div>`;
   }
   function bindCapStyle(el) {
+    setTimeout(() => E.render(), 0);
     const st = P().style, again = () => { E.renderStyle(); if (E.sel && E.sel.type === 'cap') E.renderControls(); };
     $$('[data-cp]', el).forEach(b => b.onclick = () => { E.change(() => Object.assign(st, CAP_PRESETS[+b.dataset.cp].s)); again(); });
     $$('[data-font]', el).forEach(b => b.onclick = () => { E.change(() => st.font = b.dataset.font); again(); });
@@ -922,6 +936,14 @@
     $$('[data-sdef]', el).forEach(b => b.onclick = () => KS.api('/api/defaults', { style: st }).then(() => KS.toast('Yeni kliplerde bu stil kullanılacak', 'ok')));
     $$('[data-sedit]', el).forEach(b => b.onclick = () => E.rt('subs'));
   }
+  E.drawCapPrev = () => {
+    $$('[data-csprev]').forEach(cv => {
+      if (!cv.isConnected || !cv.offsetWidth) return;
+      const w = cv.offsetWidth, h = Math.round(w * .42); if (cv.width !== w * 2) { cv.width = w * 2; cv.height = h * 2; cv.style.height = h + 'px'; }
+      const b = E.boxes.find(q => q.type === 'cap'), cy = b ? b.cy : PH * P().style.y / 100, bh = Math.min(PH, PW * .42 * (PW / PW)), sy = KS.clamp(cy - bh / 2, 0, PH - bh);
+      const g = cv.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(prev, 0, sy, PW, bh, 0, 0, cv.width, cv.height);
+    });
+  };
   E.renderStyle = () => { const el = $('#rt-style'), k = el.scrollTop; el.innerHTML = capStyleHtml(); bindCapStyle(el); el.scrollTop = k; };
 
   /* =========================================================== katman ekleme */

@@ -977,3 +977,4 @@ body.on-editor{background:#0e0e0e}
 .cs-pos button.on{background:#2d8ceb;border-color:#2d8ceb;color:#fff}
 .cs-chk{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .cs-foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.cs-prev{width:100%;display:block;border-radius:6px;border:1px solid #333;background:#000}
