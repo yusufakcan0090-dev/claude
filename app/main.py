@@ -17,6 +17,9 @@ if sys.stdout is None or sys.stderr is None:
         _log = open(Path(__file__).resolve().parent.parent / "veri" / "log.txt", "a", encoding="utf-8", buffering=1)
     sys.stdout = sys.stderr = _log
 
+import logging  # noqa: E402
+logging.getLogger("werkzeug").setLevel(logging.ERROR)  # her isteği kayda yazmasın
+
 import server  # noqa: E402
 
 
