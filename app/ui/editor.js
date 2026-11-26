@@ -10,6 +10,8 @@
   const DEF_STYLE = { font: 'poppins-black', size: 92, color: '#FFFFFF', hl: '#FFE14D', outline: '#000000', outlineW: 9, shadow: true, y: 68, upper: true, karaoke: true, anim: true, maxWords: 3 };
   const DEF_FX = { preset: 'none', bright: 0, contrast: 0, sat: 0, temp: 0, vignette: false, grain: false, glow: false, rgb: false, sharpen: false, mirror: false, fadeIn: false, fadeOut: false, zooms: [], texts: [], shapes: [], hide: {}, fxLayers: [], transition: { type: 'none', d: .4 }, lut: null };
   const FONT_CSS = { anton: 'Anton', poppins: 'PoppinsXB', 'poppins-black': 'PoppinsBlk', bangers: 'Bangers' };
+  /* yazı tiplerinin dikey ölçüleri (libass ile birebir aynı satır yüksekliği/konum için) */
+  const FM = { anton: [1.4043, .3291], poppins: [1.135, .627], 'poppins-black': [1.135, .627], bangers: [1.401, .356] };
   const FONT_NAME = { 'poppins-black': 'Poppins Black', poppins: 'Poppins', anton: 'Anton', bangers: 'Bangers' };
   const LABEL = { cap: '#E4D84C', text: '#B53838', shape: '#677DE0', solid: '#B53838', fx: '#8E2C9A', image: '#A9A9CA', pip: '#3DA2A5', video: '#A9CBC7', music: '#B3C7B3', zoom: '#E7C19E' };
   const CAP_PRESETS = [
@@ -376,12 +378,13 @@
     const c = list[i], words = c.words.map(w => ({ t: st.upper ? KS.trUpper(w.w) : w.w, s: w.s }));
     let active = 0; words.forEach((w, k) => { if (T >= w.s - 1e-3) active = k; });
     const size = st.size * K; x.save();
-    x.font = `${size}px "${FONT_CSS[st.font] || 'PoppinsBlk'}"`; x.textBaseline = 'middle'; x.lineJoin = 'round'; x.miterLimit = 2;
-    const lines = wrapLines(x, words, (BW - 140) * K), lh = size * 1.12, cy = PH * st.y / 100, sc = st.anim ? popScale(T - c.s) : 1, tot = lines.length * lh;
+    x.font = `${size}px "${FONT_CSS[st.font] || 'PoppinsBlk'}"`; x.textBaseline = 'alphabetic'; x.lineJoin = 'round'; x.miterLimit = 2;
+    const [fa, fd] = FM[st.font] || FM['poppins-black'];
+    const lines = wrapLines(x, words, (BW - 140) * K), lh = size * (fa + fd), cy = PH * st.y / 100, sc = st.anim ? popScale(T - c.s) : 1, tot = lines.length * lh;
     x.translate(PW / 2, cy); x.scale(sc, sc); let maxW = 0;
     lines.forEach((ln, li) => {
-      const w = x.measureText(ln.map(o => o.t).join(' ')).width; maxW = Math.max(maxW, w); let xx = -w / 2; const yy = -tot / 2 + lh * li + lh / 2;
-      ln.forEach(o => { const tw = x.measureText(o.t).width; if (st.shadow) { x.fillStyle = 'rgba(0,0,0,.55)'; x.fillText(o.t, xx + 2, yy + 2.5); } if (+st.outlineW > 0) { x.strokeStyle = st.outline; x.lineWidth = st.outlineW * 2 * K; x.strokeText(o.t, xx, yy); } x.fillStyle = st.karaoke && words.indexOf(o) === active ? st.hl : st.color; x.fillText(o.t, xx, yy); xx += tw + x.measureText(' ').width; });
+      const w = x.measureText(ln.map(o => o.t).join(' ')).width; maxW = Math.max(maxW, w); let xx = -w / 2; const yy = -tot / 2 + lh * li + fa * size;
+      ln.forEach(o => { const tw = x.measureText(o.t).width; if (st.shadow) { x.fillStyle = 'rgba(0,0,0,.41)'; x.fillText(o.t, xx + 4 * K, yy + 4 * K); } if (+st.outlineW > 0) { x.strokeStyle = st.outline; x.lineWidth = st.outlineW * 2 * K; x.strokeText(o.t, xx, yy); } x.fillStyle = st.karaoke && words.indexOf(o) === active ? st.hl : st.color; x.fillText(o.t, xx, yy); xx += tw + x.measureText(' ').width; });
     });
     x.restore();
     E.boxes.push({ type: 'cap', id: 'cap', cx: PW / 2, cy, w: maxW + 20, h: tot + 20, rot: 0 });
@@ -389,7 +392,8 @@
   function drawText(x, o, T) {
     const lt = T - o.s, raw = o.upper !== false ? KS.trUpper(o.text || '') : (o.text || ''); if (!raw.trim()) return;
     const anim = Object.keys(o.kf || {}).length > 0, tf = tfAt('text', o, lt), size = (+o.size || 80) * K;
-    x.save(); x.font = `${size}px "${FONT_CSS[o.font || 'poppins-black']}"`; x.textBaseline = 'middle'; x.lineJoin = 'round';
+    x.save(); x.font = `${size}px "${FONT_CSS[o.font || 'poppins-black']}"`; x.textBaseline = 'alphabetic'; x.lineJoin = 'round';
+    const [fa, fd] = FM[o.font || 'poppins-black'] || FM['poppins-black'], bl = (fa - (fa + fd) / 2) * size, lhT = (fa + fd) * size;
     let txt = raw, a = 1, ox = 0, sc = 1; const left = o.e - T;
     if (!anim) {
       if (o.anim === 'type') { const n = raw.length, step = Math.min(.06, Math.max(.02, (o.e - o.s) * .4 / Math.max(1, n))); txt = raw.slice(0, Math.max(1, Math.floor(lt / step) + 1)); }
@@ -399,10 +403,10 @@
     }
     const fw = x.measureText(raw).width;
     x.translate(tf.x * PW + ox, tf.y * PH); x.rotate(tf.rot * Math.PI / 180); x.scale(sc * tf.scale / 100, sc * tf.scale / 100); x.globalAlpha = KS.clamp(a * tf.op / 100, 0, 1);
-    if (o.box !== false) { const pad = 18 * K; x.fillStyle = o.boxColor || '#FF3D8B'; x.fillRect(-fw / 2 - pad, -size * .62 - pad * .6, fw + pad * 2, size * 1.24 + pad * 1.2); }
-    else { x.strokeStyle = '#000'; x.lineWidth = 14 * K; x.strokeText(txt, -fw / 2, 0); }
-    x.fillStyle = o.color || '#FFFFFF'; x.fillText(txt, -fw / 2, 0); x.restore();
-    E.boxes.push({ type: 'text', id: o.id, cx: tf.x * PW, cy: tf.y * PH, w: (fw + 36 * K) * tf.scale / 100, h: size * 1.6 * tf.scale / 100, rot: tf.rot });
+    if (o.box !== false) { const pad = 18 * K; x.fillStyle = o.boxColor || '#FF3D8B'; x.fillRect(-fw / 2 - pad, -lhT / 2 - pad, fw + pad * 2, lhT + pad * 2); }
+    else { x.fillStyle = 'rgba(0,0,0,.5)'; x.fillText(txt, -fw / 2 + 3 * K, bl + 3 * K); x.strokeStyle = '#000'; x.lineWidth = 14 * K; x.strokeText(txt, -fw / 2, bl); }
+    x.fillStyle = o.color || '#FFFFFF'; x.fillText(txt, -fw / 2, bl); x.restore();
+    E.boxes.push({ type: 'text', id: o.id, cx: tf.x * PW, cy: tf.y * PH, w: (fw + 36 * K) * tf.scale / 100, h: (lhT + 36 * K) * tf.scale / 100, rot: tf.rot });
   }
   E.drawGizmo = () => {
     giz.width = prev.width; giz.height = prev.height; gctx.clearRect(0, 0, giz.width, giz.height);

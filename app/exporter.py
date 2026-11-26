@@ -6,6 +6,8 @@ import fxlib
 import model
 from core import FFMPEG, ROOT, load_settings, run_ffmpeg_progress, safe_name, tr_upper
 
+# libass yazı boyutunu (Win yükseliş+iniş)/em oranına göre küçültür; önizlemedeki px boyutu tutsun diye çarpılır
+FONT_RATIO = {"anton": 1.7334, "poppins": 1.762, "poppins-black": 1.762, "bangers": 1.757}
 FONT_FAMILY = {"anton": "Anton", "poppins": "Poppins ExtraBold", "poppins-black": "Poppins Black", "bangers": "Bangers"}
 DEFAULT_STYLE = {"font": "poppins-black", "size": 88, "color": "#FFFFFF", "hl": "#FFE14D", "outline": "#000000",
                  "outlineW": 9, "shadow": True, "y": 68, "upper": True, "karaoke": True, "anim": True, "maxWords": 3}
@@ -137,12 +139,12 @@ def build_ass(project):
 ScriptType: v4.00+
 PlayResX: {BW}
 PlayResY: {BH}
-WrapStyle: 0
+WrapStyle: 1
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: K,{fam},{int(st['size'])},{base_c},{hl_c},{out_c},&H96000000,0,0,0,0,100,100,1,0,1,{float(st['outlineW']):.1f},{4 if st.get('shadow') else 0},5,70,70,0,1
+Style: K,{fam},{float(st['size']) * FONT_RATIO.get(st['font'], 1.762):.1f},{base_c},{hl_c},{out_c},&H96000000,0,0,0,0,100,100,0,0,1,{float(st['outlineW']):.1f},{4 if st.get('shadow') else 0},5,70,70,0,1
 Style: T,Poppins Black,80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,7,3,5,60,60,0,1
 Style: TB,Poppins Black,80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,3,18,0,5,60,60,0,1
 Style: S,Arial,20,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
@@ -228,7 +230,7 @@ def text_events(project, BW, BH):
         fam = FONT_FAMILY.get(tx.get("font") or "poppins-black", "Poppins Black")
         box = tx.get("box", True) is not False
         style = "TB" if box else "T"
-        base = f"\\fn{fam}\\fs{int(tx.get('size', 80))}\\1c{_ass_color(tx.get('color') or '#FFFFFF')}" + \
+        base = f"\\fn{fam}\\fs{float(tx.get('size', 80)) * FONT_RATIO.get(tx.get('font') or 'poppins-black', 1.762):.1f}\\1c{_ass_color(tx.get('color') or '#FFFFFF')}" + \
                (f"\\3c{_ass_color(tx.get('boxColor') or '#FF3D8B')}" if box else "")
         dfl = text_defaults(tx)
         if anim.animated(tx) or anim.has_rotation(tx, dfl) or anim.tf_of(tx, dfl)["scale"] != 100 or anim.tf_of(tx, dfl)["op"] < 100:

@@ -375,57 +375,44 @@ document.addEventListener('keydown', e => {
    AYARLAR
    ================================================================= */
 KS.renderSettings = () => {
-  const s = KS.state.settings, sys = KS.state.system || {};
+  const s = KS.state.settings, sys = KS.state.system || {}, up = KS.state.update || {};
   const fixes = Object.entries(s.duzeltmeler || {});
-  $('#settingsGrid').innerHTML = `
-  <div class="set-card glass"><h3><span class="ic">${KS.icon.folder}</span>Videolar nereye kaydedilsin?</h3>
-    <div class="path-row"><input class="inp" id="setOut" value="${KS.esc(s.cikti_klasoru)}" readonly><button class="btn ghost sm" id="setOutBtn">Değiştir</button><button class="btn ghost sm" id="setOutOpen">Aç</button></div>
-  </div>
-  <div class="set-card glass" style="animation-delay:.05s"><h3><span class="ic">💬</span>Altyazı</h3>
-    <div class="field"><label>Model</label>
-      <select class="inp" id="setModel">
-        <option value="large-v3" ${s.whisper_model === 'large-v3' ? 'selected' : ''}>En doğru (large-v3) — önerilen</option>
-        <option value="turbo" ${s.whisper_model === 'turbo' ? 'selected' : ''}>Daha hızlı (turbo)</option>
-      </select></div>
-    <div class="field"><label>Videolarda geçen isimler (doğru yazılsın diye)</label>
-      <input class="inp" id="setNames" value="${KS.esc(s.ipucu_isimler)}" placeholder="RRaenee, Animeci, ..."></div>
-    <button class="tog ${s.oto_altyazi ? 'on' : ''}" id="setAuto">Klip inince altyazıyı otomatik çıkar<i></i></button>
-  </div>
-  <div class="set-card glass" style="animation-delay:.1s"><h3><span class="ic">✓</span>Düzeltme sözlüğü</h3>
-    <p>Yanlış yazılan kelimeyi bir kere öğret, hep düzeltsin.</p>
-    <div class="fix-list">${fixes.length ? fixes.map(([a, b]) => `<div class="fix"><span>${KS.esc(a)}</span><span>→</span><span>${KS.esc(b)}</span><button class="del-btn" data-fixdel="${KS.esc(a)}">${KS.icon.x}</button></div>`).join('') : '<p class="hint">Henüz yok. Editörde bir kelimeyi düzeltince buraya eklemeni önereceğim.</p>'}</div>
-    <div class="fix-add"><input class="inp" id="fixA" placeholder="yanlış"><input class="inp" id="fixB" placeholder="doğru"><button class="btn primary sm" id="fixAdd">Ekle</button></div>
-  </div>
-  <div class="set-card glass" style="animation-delay:.18s"><h3><span class="ic">✨</span>Güncelleme</h3>
-    <div class="sys-row"><span>Kullandığın sürüm</span><b>v${KS.esc((KS.state.update || {}).current || '')}</b></div>
-    ${(KS.state.update || {}).available ? `<div class="sys-row"><span>Yeni sürüm</span><b class="ok">v${KS.esc(KS.state.update.latest)}</b></div>` : ''}
-    <button class="btn ${(KS.state.update || {}).available ? 'primary glow' : 'ghost'} sm" id="setUpd">${(KS.state.update || {}).available ? 'Güncelle' : 'Güncellemeleri kontrol et'}</button>
-    <p class="hint">Program her açılışta yeni sürüm var mı diye kendisi bakar.</p>
-  </div>
-  <div class="set-card glass" style="animation-delay:.2s"><h3><span class="ic">⚙</span>Sistem</h3>
-    <div class="sys-row"><span>Ekran kartı (altyazı)</span><b class="${sys.gpu ? 'ok' : 'no'}">${sys.gpu ? 'NVIDIA bulundu' : 'Bulunamadı (işlemci)'}</b></div>
-    <div class="sys-row"><span>FFmpeg</span><b class="${sys.ffmpeg ? 'ok' : 'no'}">${sys.ffmpeg ? 'Hazır' : 'Yok — KUR.bat çalıştır'}</b></div>
-    <div class="sys-row"><span>Video indirici (yt-dlp)</span><b class="${sys.ytdlp ? 'ok' : 'no'}">${sys.ytdlp || 'Yok'}</b></div>
-    <p class="hint">Kick indirme bozulursa GUNCELLE.bat'ı çalıştır.</p>
-  </div>
-  <div class="set-card glass" style="animation-delay:.25s"><h3><span class="ic">⌨</span>Kısayollar</h3>${KS.shortcutsHtml()}</div>`;
-  $$('#settingsGrid input[type=range]').forEach(KS.paintRange);
-  const save = patch => KS.api('/api/settings', patch).then(s => { KS.state.settings = s; });
+  const row = (title, desc, ctrl) => `<div class="st-row"><div class="st-t"><b>${title}</b>${desc ? `<span>${desc}</span>` : ''}</div><div class="st-c">${ctrl}</div></div>`;
+  $('#settingsGrid').innerHTML = `<div class="st-wrap">
+    <div class="st-sec"><h3>Genel</h3>
+      ${row('Kayıt klasörü', KS.esc(s.cikti_klasoru || ''), '<button class="btn ghost sm" id="setOutOpen">Aç</button><button class="btn ghost sm" id="setOutBtn">Değiştir</button>')}
+      ${row('Güncelleme', up.available ? `Yeni sürüm hazır: v${KS.esc(up.latest)}` : (up.current ? `v${KS.esc(up.current)} · güncel` : KS.esc(($('#verTag') || {}).textContent || 'Kontrol edilmedi')), `<button class="btn ${up.available ? 'primary' : 'ghost'} sm" id="setUpd">${up.available ? 'Güncelle' : 'Kontrol et'}</button>`)}
+    </div>
+    <div class="st-sec"><h3>Altyazı</h3>
+      ${row('Otomatik altyazı', 'Klip inince altyazıyı kendisi çıkarsın', `<button class="sw-tog ${s.oto_altyazi ? 'on' : ''}" id="setAuto"><i></i></button>`)}
+      ${row('Hız / doğruluk', '', `<div class="seg" id="setModel"><button data-v="large-v3" class="${s.whisper_model !== 'turbo' ? 'on' : ''}">En doğru</button><button data-v="turbo" class="${s.whisper_model === 'turbo' ? 'on' : ''}">Daha hızlı</button></div>`)}
+      ${row('İsimler', 'Videolarda geçen isimler doğru yazılsın', `<input class="inp" id="setNames" value="${KS.esc(s.ipucu_isimler || '')}" placeholder="RRaenee, Animeci">`)}
+      <details class="st-more"><summary>Düzeltme sözlüğü <b>${fixes.length || ''}</b></summary>
+        <div class="fix-list">${fixes.length ? fixes.map(([x, y]) => `<div class="fix"><span>${KS.esc(x)}</span><span>→</span><span>${KS.esc(y)}</span><button class="del-btn" data-fixdel="${KS.esc(x)}">${KS.icon.x}</button></div>`).join('') : '<p class="hint">Henüz yok. Editörde bir kelimeyi düzeltince eklemeyi önereceğim.</p>'}</div>
+        <div class="fix-add"><input class="inp" id="fixA" placeholder="yanlış"><input class="inp" id="fixB" placeholder="doğru"><button class="btn primary sm" id="fixAdd">Ekle</button></div>
+      </details>
+    </div>
+    <div class="st-sec"><h3>Yardım</h3>
+      ${row('Klavye kısayolları', 'After Effects ile aynı', '<button class="btn ghost sm" id="setKeys">Göster</button>')}
+      <div class="st-sys"><span class="${sys.gpu ? 'ok' : 'no'}">● Ekran kartı ${sys.gpu ? 'hazır' : 'yok'}</span><span class="${sys.ffmpeg ? 'ok' : 'no'}">● FFmpeg ${sys.ffmpeg ? 'hazır' : 'yok'}</span><span class="${sys.ytdlp ? 'ok' : 'no'}">● İndirici ${sys.ytdlp ? 'hazır' : 'yok'}</span></div>
+    </div></div>`;
+  const save = patch => KS.api('/api/settings', patch).then(r => { KS.state.settings = r; });
   $('#setOutBtn').onclick = async () => { const r = await KS.api('/api/pick_folder', {}); if (r.path) { await save({ cikti_klasoru: r.path }); KS.renderSettings(); } };
   $('#setOutOpen').onclick = () => KS.api('/api/reveal', { path: s.cikti_klasoru }).catch(() => KS.toast('Klasör henüz yok, ilk videoda oluşacak.'));
-  $('#setUpd').onclick = () => (KS.state.update || {}).available ? KS.updateDialog() : KS.checkUpdate(true, true).then(KS.renderSettings);
-  $('#setModel').onchange = e => save({ whisper_model: e.target.value }).then(() => KS.toast('Model değişti, bir sonraki altyazıda kullanılacak.'));
+  $('#setUpd').onclick = () => up.available ? KS.updateDialog() : KS.checkUpdate(true, true).then(KS.renderSettings);
+  $$('#setModel button').forEach(b => b.onclick = () => save({ whisper_model: b.dataset.v }).then(KS.renderSettings));
   $('#setNames').onchange = e => save({ ipucu_isimler: e.target.value });
-  $('#setAuto').onclick = e => { const on = !s.oto_altyazi; save({ oto_altyazi: on }).then(KS.renderSettings); };
+  $('#setAuto').onclick = () => save({ oto_altyazi: !s.oto_altyazi }).then(KS.renderSettings);
+  $('#setKeys').onclick = () => KS.modal(`<h2>Klavye Kısayolları</h2><p class="msub">After Effects ile aynı</p>${KS.shortcutsHtml()}<div class="mfoot"><button class="btn primary" data-close>Tamam</button></div>`, { wide: true });
   $('#fixAdd').onclick = async () => {
-    const a = $('#fixA').value.trim(), b = $('#fixB').value.trim();
-    if (!a || !b) return;
-    const r = await KS.api('/api/fixes', { add: { [a]: b } });
-    KS.state.settings.duzeltmeler = r.duzeltmeler; KS.renderSettings();
+    const x = $('#fixA').value.trim(), y = $('#fixB').value.trim();
+    if (!x || !y) return;
+    const r = await KS.api('/api/fixes', { add: { [x]: y } });
+    KS.state.settings.duzeltmeler = r.duzeltmeler; KS.renderSettings(); $('.st-more').open = true;
   };
   $$('[data-fixdel]').forEach(b => b.onclick = async () => {
     const r = await KS.api('/api/fixes', { remove: [b.dataset.fixdel] });
-    KS.state.settings.duzeltmeler = r.duzeltmeler; KS.renderSettings();
+    KS.state.settings.duzeltmeler = r.duzeltmeler; KS.renderSettings(); $('.st-more').open = true;
   });
 };
 
