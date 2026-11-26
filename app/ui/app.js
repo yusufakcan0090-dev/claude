@@ -62,6 +62,7 @@ document.addEventListener('input', e => { if (e.target.type === 'range') KS.pain
 /* ---------- sayfalar ---------- */
 KS.go = page => {
   KS.page = page;
+  document.body.classList.toggle('on-editor', page === 'editor');
   $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
   if (page === 'settings') KS.renderSettings();
@@ -211,8 +212,9 @@ KS.onJobFinished = j => {
 };
 
 KS.openProject = async pid => {
+  KS.editor._pending = pid;
   KS.go('editor');
-  await KS.editor.load(pid);
+  try { await KS.editor.load(pid); } finally { KS.editor._pending = null; }
 };
 
 /* ---------- an bulma seçenekleri (her kaynak için aynı pencere) ---------- */

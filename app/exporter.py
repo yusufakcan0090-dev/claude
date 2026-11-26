@@ -423,7 +423,7 @@ def build_command(project, opts, s, out, encoder):
         idx = add_input(c["source"], ss=float(c["in"]), t=dur)
         fc.append(f"[{idx}:v]setpts=(PTS-STARTPTS)/{sp:.4f},fps={cfps:g}[r{i}]")
         fc += layout_chain(f"r{i}", f"l{i}", c, fmt, OW, OH)
-        fc.append(f"[l{i}]format=yuv420p[v{i}]")
+        fc.append(f"[l{i}]format=yuv420p" + (",drawbox=c=black:t=fill" if c.get("hidden") else "") + f"[v{i}]")
         L = dur / sp
         if c.get("has_audio"):
             at = _atempo(sp)

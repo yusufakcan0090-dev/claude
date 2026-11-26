@@ -1,8 +1,15 @@
 {
- "version": "1.2.1",
+ "version": "1.3.0",
  "date": "2026-11-26",
  "notes": [
-  "Dosya sürükleyince çıkan 'Bırak, ekleyeyim' ekranı takılı kalıp her şeyi kilitliyordu, düzeltildi",
-  "Düğmeler, menüler ve paneller tekrar hafif yuvarlak"
+  "Editör After Effects'e birebir yakın: sağda alt alta paneller (Bilgi, Önizleme, Efektler ve Ön Ayarlar, Hizala, Altyazı, Karakter)",
+  "Zaman çizelgesinde her klip ayrı katman; Giriş / Çıkış / Süre / Uzatma sütunları, arama kutusu, sağ tık menüsü",
+  "Efekt Kontrolleri AE gibi: fx başlıkları, Sıfırla / Kaldır, mavi sürüklenebilir değerler",
+  "Efektler ve Ön Ayarlar: klasör ağacı, çift tıkla uygula (Renk Düzeltme, Stilize, Geçişler, Animasyon Ön Ayarları)",
+  "Proje paneli: tüm kompozisyonlar ve görüntüler tek listede, çift tıkla aç",
+  "Render Sırası sekmesi, anlık görüntü (Shift+F5), zamana git (Alt+Shift+J), güvenli alan ızgarası, saydamlık ızgarası, LL ses dalga formu",
+  "Klip Bulucu açılışta son kanalı kendiliğinden getiriyor; klipler En yeni / En çok izlenen sıralanıyor",
+  "Editör açılınca son proje kendiliğinden açılıyor",
+  "Takılı kalan sürükle-bırak ekranı düzeltildi, köşeler hafif yuvarlak"
  ]
 }

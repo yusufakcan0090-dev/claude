@@ -120,7 +120,7 @@
     p.effects.texts.forEach(t => Object.keys({ id: 0, size: 0, color: 0, box: 0, boxColor: 0, anim: 0, upper: 0, font: 0 }).forEach(k => { if (t[k] === undefined) t[k] = { id: 't' + KS.uid(), size: 80, color: '#FFFFFF', box: true, boxColor: '#FF3D8B', anim: 'pop', upper: true, font: 'poppins-black' }[k]; }));
     p.media = Object.assign({ music: null, images: [] }, p.media || {}); p.media.images = p.media.images || [];
     p.overlays = p.overlays || []; p.markers = p.markers || []; p.clips = p.clips || [];
-    E.project = p; E.sel = null; E.selKey = null; E.history = []; E.future = []; E.T = 0; E.waves = E.waves || {}; E.imgCache = {};
+    $('#compStage').style.visibility = ''; E.project = p; E.sel = null; E.selKey = null; E.history = []; E.future = []; E.T = 0; E.waves = E.waves || {}; E.imgCache = {};
     pool.forEach(v => { v.pause(); v.remove(); }); pool.clear();
     E.setFormat();
     $('#edTitle').value = p.title;
@@ -133,7 +133,13 @@
   };
   E.loadWave = c => { if (E.waves[c.source] !== undefined) return; E.waves[c.source] = null; KS.api(`/api/project/${P().id}/wave/${c.id}`).then(w => { E.waves[c.source] = w; E.drawTimeline(); }).catch(() => { }); };
   E.close = () => { E.pause(); E.project = null; E.showNoProject(); };
-  E.onShow = () => setTimeout(() => { if (P()) { E.mag === 'fit' ? E.fit() : E.applyView(); E.sizeTimeline(); E.render(); } else E.showNoProject(); }, 40);
+  E.onShow = () => setTimeout(() => {
+    if (P()) { E.mag === 'fit' ? E.fit() : E.applyView(); E.sizeTimeline(); E.render(); return; }
+    if (E._pending) return;
+    // proje açık değilse son projeyi (yoksa en yenisini) kendiliğinden aç
+    const ps = KS.state.projects || [], last = ps.find(p => p.id === KS.state.settings.son_proje) || ps.slice().sort((a, b) => (b.updated || b.created || 0) - (a.updated || a.created || 0))[0];
+    if (last) KS.openProject(last.id); else E.showNoProject();
+  }, 40);
   E.setFormat = () => { const f = FORMATS[P().format] || FORMATS.dikey; BW = f[0]; BH = f[1]; E.resizeCanvas(); };
   E.resizeCanvas = () => { K = .5 * E.qual; PW = Math.round(BW * K); PH = Math.round(BH * K); prev.width = PW; prev.height = PH; };
   E.showNoProject = () => {
@@ -141,17 +147,18 @@
       <button class="btn primary" id="npNew">Yeni Proje (Ctrl+N)</button><button class="btn ghost" id="npOpen">Projeleri Aç</button></div>`;
     $('#npNew').onclick = () => E.newProjectDialog(); $('#npOpen').onclick = () => E.projectsDialog();
     ['#lt-controls', '#rt-subs', '#rt-style', '#rt-fx', '#tlLayers'].forEach(s => $(s).innerHTML = '');
-    $('#compEmpty').hidden = true; pctx.clearRect(0, 0, prev.width, prev.height); gctx.clearRect(0, 0, giz.width, giz.height);
+    $('#compStage').style.visibility = 'hidden'; $('#compEmpty').hidden = true; pctx.clearRect(0, 0, prev.width, prev.height); gctx.clearRect(0, 0, giz.width, giz.height);
     const t = $('#tlCanvas'); t.width = 1; t.height = 1; $('#compTab').textContent = 'Kompozisyon'; $('#tlInfo').textContent = '';
   };
   E.renderAll = () => {
     if (!P()) return E.showNoProject();
     E.renderProject(); E.renderControls(); E.renderFx(); E.renderSubs(); E.renderStyle();
     E.sizeTimeline(); E.updateUndo();
-    $('#compTab').textContent = 'Kompozisyon: ' + (P().title || '').slice(0, 40);
+    $('#compTab').textContent = 'Kompozisyon: ' + (P().title || '').slice(0, 40); $('#compCrumb').textContent = P().title; $('#tlTab').textContent = P().title;
     $('#compRes').textContent = `${BW}×${BH} · ${(FORMATS[P().format] || FORMATS.dikey)[2]}`;
-    $('#aeFps').textContent = fps() + ' fps';
+    
     $('#compEmpty').hidden = clips().length > 0;
+    E.renderInfo();
   };
 
   /* =========================================================== geçmiş & kayıt */
@@ -191,7 +198,7 @@
     let v = pool.get(key);
     if (!v) {
       v = document.createElement('video'); v.preload = 'auto'; v.playsInline = true; v.src = `/media/${kind}/${P().id}/${o.id}`;
-      if (kind === 'overlay') v.dataset.pip = 1;
+      if (kind === 'overlay') v.dataset.pip = 1; v.muted = !!E.muted;
       v.addEventListener('seeked', () => { if (!E.playing) { E.render(); E.drawSrc && E.drawSrc(); } });
       v.addEventListener('loadeddata', () => { E.render(); E.drawSrc && E.drawSrc(); });
       $('#vidPool').appendChild(v); pool.set(key, v);
@@ -231,11 +238,11 @@
     if (r && v) {
       const T = r.start + (v.currentTime - r.c.in) / (r.c.speed || 1), end = r.start + r.len;
       if (v.currentTime >= r.c.out - .03 || v.ended || T >= end - .02) {
-        if (end >= wb - .02) { E.pause(); E.seek(P().work ? P().work.a : Math.max(0, total() - .05)); return; }
+        if (end >= wb - .02) { if (E.loop) { E.T = P().work ? P().work.a : 0; E.syncVideos(true); E.activeVid.play().catch(() => { }); E.syncMusic(true); requestAnimationFrame(loop); return; } E.pause(); E.seek(Math.max(0, total() - .05)); return; }
         E.T = end + .001; E.syncVideos(true); E.activeVid.play().catch(() => { });
       } else {
         E.T = Math.max(r.start, T);
-        if (E.T >= wb) { E.pause(); E.seek(P().work.a); return; }
+        if (E.T >= wb) { if (E.loop) { E.T = P().work.a; E.syncVideos(true); E.activeVid.play().catch(() => { }); requestAnimationFrame(loop); return; } E.pause(); E.seek(P().work.a); return; }
         if (v.paused) v.play().catch(() => { });
       }
       E.syncVideos(false);
@@ -286,9 +293,9 @@
   E.render = () => {
     const p = P(); if (!p) return;
     const x = pctx, T = E.T, f = fx();
-    x.save(); x.fillStyle = '#000'; x.fillRect(0, 0, PW, PH);
+    x.save(); if (E.transGrid) x.clearRect(0, 0, PW, PH); else { x.fillStyle = '#000'; x.fillRect(0, 0, PW, PH); }
     const r = clips().length ? clipAt(T) : null;
-    if (r) {
+    if (r && !r.c.hidden) {
       const v = vidFor('clip', r.c);
       if (v.readyState >= 2) {
         const { z, sh } = hidden('zoom') ? { z: 1, sh: 0 } : zoomAt(T);
@@ -324,7 +331,7 @@
     if (fade > 0) { x.fillStyle = `rgba(0,0,0,${KS.clamp(fade, 0, 1)})`; x.fillRect(0, 0, PW, PH); }
     x.restore();
     E.drawGizmo();
-    const tc = E.tc(T); $('#aeTc').textContent = tc; $('#tcCur').textContent = tc;
+    const tc = E.tc(T); $('#aeTc').textContent = tc; $('#tcCur').textContent = tc; $('#aeFps').textContent = String(Math.round(T * fps())).padStart(5, '0') + ` (${fps().toFixed(2)} fps)`;
   };
   E.tc = T => { const F = fps(), fr = Math.floor((T % 1) * F + 1e-6); return `${Math.floor(T / 3600)}:${String(Math.floor(T % 3600 / 60)).padStart(2, '0')}:${String(Math.floor(T % 60)).padStart(2, '0')}:${String(fr).padStart(2, '0')}`; };
   const hex = h => { h = (h || '#000').replace('#', ''); return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16) || 0); };
@@ -400,6 +407,7 @@
   E.drawGizmo = () => {
     giz.width = prev.width; giz.height = prev.height; gctx.clearRect(0, 0, giz.width, giz.height);
     if (E.drawRect) { const d = E.drawRect; gctx.strokeStyle = '#2d8ceb'; gctx.lineWidth = 1.5; gctx.setLineDash([5, 4]); if (d.kind === 'ellipse') { gctx.beginPath(); gctx.ellipse((d.x0 + d.x1) / 2, (d.y0 + d.y1) / 2, Math.abs(d.x1 - d.x0) / 2, Math.abs(d.y1 - d.y0) / 2, 0, 0, 7); gctx.stroke(); } else gctx.strokeRect(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0)); gctx.setLineDash([]); }
+    if (E.grid) { gctx.save(); gctx.strokeStyle = 'rgba(255,255,255,.55)'; gctx.lineWidth = 1; [[.9, .9], [.8, .8]].forEach(([a, b]) => gctx.strokeRect(PW * (1 - a) / 2 + .5, PH * (1 - b) / 2 + .5, PW * a, PH * b)); gctx.beginPath(); gctx.moveTo(PW / 2 - 10, PH / 2); gctx.lineTo(PW / 2 + 10, PH / 2); gctx.moveTo(PW / 2, PH / 2 - 10); gctx.lineTo(PW / 2, PH / 2 + 10); gctx.stroke(); gctx.restore(); }
     if (!E.sel || E.playing) return;
     const b = E.boxes.find(q => q.type === E.sel.type && q.id === E.sel.id); if (!b) return;
     gctx.save(); gctx.translate(b.cx, b.cy); gctx.rotate(b.rot * Math.PI / 180);
@@ -428,7 +436,7 @@
     E.pan.x -= ox * (ns / old - 1); E.pan.y -= oy * (ns / old - 1); E.mag = 'custom'; E.scale = ns; E.applyView();
   };
   $('#magSel').onchange = e => { const v = e.target.value; if (v === 'fit') E.fit(); else if (v !== 'custom') { E.mag = 'custom'; E.scale = +v / K; E.pan = { x: 0, y: 0 }; E.applyView(); } };
-  $('#qualSel').onchange = e => { E.qual = +e.target.value; const old = E.scale; E.resizeCanvas(); if (E.mag !== 'fit') E.scale = old * (e.target.value == .5 ? 2 : .5); E.applyView(); E.render(); };
+  $('#qualSel').onchange = e => { const oq = E.qual; E.qual = +e.target.value; E.resizeCanvas(); if (E.mag !== 'fit') E.scale = E.scale * oq / E.qual; E.applyView(); E.render(); };
   new ResizeObserver(() => { if (P()) E.applyView(); }).observe(view);
   view.addEventListener('wheel', e => {
     if (!P()) return; e.preventDefault();
@@ -495,88 +503,180 @@
   E.select = sel => {
     E.sel = sel; E.selKey = null;
     if (sel && sel.type === 'cap') E.rt('style'); else if (sel) E.lt('controls');
-    E.renderControls(); E.renderTlLayers(); E.drawTimeline(); E.drawGizmo(); E.renderProject();
+    E.renderControls(); E.renderTlLayers(); E.drawTimeline(); E.drawGizmo(); E.renderProject(); E.renderInfo();
   };
   E.lt = name => { $$('#leftTabs .ae-tab').forEach(b => b.classList.toggle('active', b.dataset.lt === name)); $$('.lt-panel').forEach(p => p.classList.toggle('active', p.id === 'lt-' + name)); };
-  E.rt = name => { $$('#rightTabs .ae-tab').forEach(b => b.classList.toggle('active', b.dataset.rt === name)); $$('.ae-right .rt-panel').forEach(p => p.classList.toggle('active', p.id === 'rt-' + name)); };
+  /* sağ taraf AE gibi alt alta paneller: büyük olanlardan biri açık kalır */
+  E.rt = name => { const acc = $(`.ae-acc[data-acc="${name}"]`); if (!acc) return; if (acc.classList.contains('grow')) $$('.ae-acc.grow').forEach(a => a.classList.toggle('open', a === acc)); else acc.classList.add('open'); };
   $$('#leftTabs .ae-tab').forEach(b => b.onclick = () => E.lt(b.dataset.lt));
-  $$('#rightTabs .ae-tab').forEach(b => b.onclick = () => E.rt(b.dataset.rt));
+  $$('.acc-h').forEach(h => h.onclick = () => { const a = h.parentElement; if (a.classList.contains('grow') && !a.classList.contains('open')) E.rt(a.dataset.acc); else a.classList.toggle('open'); });
+  // etkin panel mavi çerçeve (AE)
+  $$('#page-editor .ae-panel, #page-editor .ae-acc').forEach(p => p.addEventListener('mousedown', () => { $$('#page-editor .focus').forEach(q => q.classList.remove('focus')); (p.classList.contains('ae-acc') ? p : p).classList.add('focus'); }, true));
+  $$('#page-editor [data-go]').forEach(b => b.onclick = () => KS.go(b.dataset.go));
 
-  /* --- Proje paneli --- */
-  const typeIcon = { clip: SVG.film, pip: SVG.film, image: SVG.img, music: SVG.note };
+  /* --- kompozisyon alt çubuğu: ızgara, saydamlık, anlık görüntü, zamana git --- */
+  $('#gridBtn').onclick = () => { E.grid = !E.grid; $('#gridBtn').classList.toggle('on', E.grid); E.drawGizmo(); };
+  $('#transBtn').onclick = () => { E.transGrid = !E.transGrid; $('#transBtn').classList.toggle('on', E.transGrid); prev.classList.toggle('trans', E.transGrid); E.render(); };
+  E.snapshot = async () => {
+    if (!P()) return;
+    try { const r = await KS.api('/api/snapshot', { data: prev.toDataURL('image/png'), name: (P().title || 'kare') + '_' + E.tc(E.T).replace(/:/g, '-') }); KS.toast('Anlık görüntü kaydedildi: ' + KS.esc(r.name), 'ok', [{ label: 'Klasörde göster', fn: () => KS.api('/api/reveal', { path: r.path }) }]); }
+    catch (e) { KS.toast(KS.esc(e.message), 'err'); }
+  };
+  $('#snapBtn').onclick = () => E.snapshot();
+  E.goTo = () => {
+    if (!P()) return;
+    const md = KS.modal(`<h2>Zamana Git</h2><div class="go-dialog"><input id="goIn" value="${E.tc(E.T)}"></div><p class="hint" style="margin-top:6px">saat:dakika:saniye:kare ya da saniye (ör. 12,5)</p><div class="mfoot"><button class="btn ghost" data-close>İptal</button><button class="btn primary" id="goOk">Tamam</button></div>`);
+    const i = $('#goIn', md.el); i.select(); i.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') $('#goOk', md.el).click(); };
+    $('#goOk', md.el).onclick = () => { const v = i.value.trim().replace(',', '.'); let t; if (v.includes(':')) { const p = v.split(':').map(Number); while (p.length < 4) p.unshift(0); t = p[0] * 3600 + p[1] * 60 + p[2] + p[3] / fps(); } else t = parseFloat(v); md.close(); if (!isNaN(t)) E.seek(t); };
+  };
+  $('#tcCur').onclick = () => E.goTo(); $('#aeTc').onclick = () => E.goTo();
+
+  /* --- Bilgi / Önizleme / Hizala --- */
+  E.renderInfo = (px) => {
+    const el = $('#rt-info'); if (!el) return;
+    if (px) E._px = px; px = E._px || { r: 0, g: 0, b: 0, a: 0, x: 0, y: 0 };
+    const o = selObj(), s = E.sel;
+    let txt = P() ? `${P().title}\n${E.tc(E.T)}` : 'Proje yok';
+    if (s && o) { const nm = s.type === 'video' ? o.name : (E.layers().find(l => l.type === s.type && l.id === s.id) || {}).name || ''; const st = o.s ?? (TL().find(r => r.c === o) || {}).start, en = o.e ?? ((TL().find(r => r.c === o) || {}).start + clipLen(o)); txt += `\n${nm}` + (st != null && !isNaN(en) ? `\nGiriş: ${E.tc(st)}, Çıkış: ${E.tc(en)}\nSüre: ${E.tc(en - st)}` : ''); }
+    el.innerHTML = `<div class="info-g"><div class="info-sw" style="background:rgb(${px.r},${px.g},${px.b})"></div><b>R:</b><span>${px.r}</span><span></span><b>G:</b><span>${px.g}</span><b>X:</b><span>${px.x}</span><b>B:</b><span>${px.b}</span><b>Y:</b><span>${px.y}</span><b>A:</b><span>${px.a}</span></div><div class="info-txt">${KS.esc(txt)}</div>`;
+  };
+  view.addEventListener('mousemove', e => {
+    if (!P() || E.playing) return;
+    const [cx, cy] = toComp(e); if (cx < 0 || cy < 0 || cx >= PW || cy >= PH) return;
+    const d = pctx.getImageData(Math.floor(cx), Math.floor(cy), 1, 1).data;
+    E.renderInfo({ r: d[0], g: d[1], b: d[2], a: d[3], x: Math.round(cx / PW * BW), y: Math.round(cy / PH * BH) });
+  });
+  const IC = { first: '<path d="M5 5h2v14H5zM20 5v14L9 12z"/>', prev: '<path d="M6 5h2v14H6zM19 5v14L9 12z"/>', play: '<path d="M7 4v16l13-8z"/>', next: '<path d="M16 5h2v14h-2zM5 5v14l10-7z"/>', last: '<path d="M17 5h2v14h-2zM4 5v14l11-7z"/>' };
+  $('#rt-preview').innerHTML = `<div class="pv-btns"><button data-pv="first" title="İlk kare (Home)"><svg viewBox="0 0 24 24">${IC.first}</svg></button><button data-pv="prev" title="Önceki kare (PageUp)"><svg viewBox="0 0 24 24">${IC.prev}</svg></button><button data-pv="play" title="Oynat/Durdur (Boşluk)"><svg viewBox="0 0 24 24">${IC.play}</svg></button><button data-pv="next" title="Sonraki kare (PageDown)"><svg viewBox="0 0 24 24">${IC.next}</svg></button><button data-pv="last" title="Son kare (End)"><svg viewBox="0 0 24 24">${IC.last}</svg></button></div>
+    <label class="ae-chk"><input type="checkbox" id="pvLoop" checked>Döngü (sona gelince baştan oynat)</label><label class="ae-chk"><input type="checkbox" id="pvMute">Sesi kapat</label>`;
+  $$('[data-pv]').forEach(b => b.onclick = () => { if (!P()) return; const k = b.dataset.pv, F = 1 / fps(); if (k === 'first') E.seek(0); if (k === 'prev') E.seek(E.T - F); if (k === 'play') E.toggle(); if (k === 'next') E.seek(E.T + F); if (k === 'last') E.seek(total()); });
+  E.loop = true; $('#pvLoop').onchange = e => E.loop = e.target.checked;
+  $('#pvMute').onchange = e => { E.muted = e.target.checked; pool.forEach(v => v.muted = E.muted); music.muted = E.muted; };
+  const AL = { l: '<path d="M4 3v18M8 7h12v4H8zM8 13h7v4H8z"/>', hc: '<path d="M12 3v18M5 7h14v4H5zM8 13h8v4H8z"/>', r: '<path d="M20 3v18M4 7h12v4H4zM9 13h7v4H9z"/>', t: '<path d="M3 4h18M7 8v12h4V8zM13 8v7h4V8z"/>', vc: '<path d="M3 12h18M7 5v14h4V5zM13 8v8h4V8z"/>', b: '<path d="M3 20h18M7 4v12h4V4zM13 9v7h4V9z"/>' };
+  $('#rt-align').innerHTML = `<div class="al-row"><span class="lbl">Katmanları hizala:</span></div><div class="al-row">${Object.entries(AL).map(([k, p]) => `<button data-al="${k}" title="${{ l: 'Sola', hc: 'Yatay ortala', r: 'Sağa', t: 'Üste', vc: 'Dikey ortala', b: 'Alta' }[k]} hizala">${`<svg viewBox="0 0 24 24">${p}</svg>`}</button>`).join('')}</div><div class="hint">Seçili katmanı kompozisyona göre hizalar.</div>`;
+  $$('[data-al]').forEach(b => b.onclick = () => {
+    const s = E.sel, o = selObj(); if (!s || !o || !TRANSFORMABLE.includes(s.type)) return KS.toast('Önce yazı, şekil, resim ya da üst video seç', '', [], 1500);
+    const bx = E.boxes.find(q => q.type === s.type && q.id === s.id); if (!bx) return;
+    const lt = E.T - o.s, t = tfAt(s.type, o, lt), hw = bx.w / 2 / PW, hh = bx.h / 2 / PH, k = b.dataset.al;
+    let nx = t.x, ny = t.y; if (k === 'l') nx = hw; if (k === 'hc') nx = .5; if (k === 'r') nx = 1 - hw; if (k === 't') ny = hh; if (k === 'vc') ny = .5; if (k === 'b') ny = 1 - hh;
+    E.change(() => setProp(s.type, o, 'pos', [+nx.toFixed(4), +ny.toFixed(4)], lt));
+  });
+
+  /* --- Proje paneli (AE: kompozisyonlar + görüntüler) --- */
+  const typeIcon = { clip: SVG.film, pip: SVG.film, image: SVG.img, music: SVG.note, comp: SVG.comp };
   E.renderProject = () => {
     const p = P(), el = $('#lt-project'); if (!p) return;
-    const items = [];
-    clips().forEach(c => items.push({ kind: 'clip', sel: { type: 'video', id: c.id }, name: c.name, info: 'Video', dur: clipLen(c) }));
-    p.overlays.forEach(o => items.push({ kind: 'pip', sel: { type: 'pip', id: o.id }, name: o.name, info: 'Üst video', dur: o.e - o.s }));
-    p.media.images.forEach(o => items.push({ kind: 'image', sel: { type: 'image', id: o.id }, name: o.name, info: 'Resim', dur: o.e - o.s }));
-    if (p.media.music) items.push({ kind: 'music', sel: { type: 'music', id: 'music' }, name: p.media.music.name, info: 'Ses', dur: p.media.music.duration || 0 });
-    const s = E.sel;
-    el.innerHTML = `<div class="proj-prev" style="background-image:url(/thumb/${p.id}?r=${Math.round(p.updated || 0)})">${KS.esc(p.title)} · ${BW}×${BH} · ${KS.fmt(total())}</div>
-      <div class="proj-top"><button class="btn primary sm" id="pjImport" title="Ctrl+I">İçe Aktar</button><button class="btn ghost sm" id="pjNew" title="Ctrl+N">Yeni</button><button class="btn ghost sm" id="pjOpen">Projeler</button></div>
-      <div class="proj-list"><div class="proj-hdr"><span></span><span>Ad</span><span>Tür</span><span>Süre</span></div>
-        <div class="proj-item ${!s ? 'sel' : ''}" data-pi="-1"><i style="color:#ccc">${SVG.comp}</i><span>${KS.esc(p.title)}</span><span>Kompozisyon</span><span>${KS.fmt(total())}</span></div>
-        ${items.map((it, i) => `<div class="proj-item ${s && s.type === it.sel.type && s.id === it.sel.id ? 'sel' : ''}" data-pi="${i}" title="${KS.esc(it.name)}"><i>${typeIcon[it.kind]}</i><span>${KS.esc(it.name)}</span><span>${it.info}</span><span>${KS.fmt(it.dur)}</span></div>`).join('')}</div>
-      <div class="hint">Dosyaları pencerenin herhangi bir yerine sürükleyebilirsin. Video → ana videonun sonuna. Shift basılıyken bırakırsan üst video olarak eklenir.</div>`;
-    $('#pjImport').onclick = () => KS.addFile(); $('#pjNew').onclick = () => E.newProjectDialog(); $('#pjOpen').onclick = () => E.projectsDialog();
-    $$('.proj-item', el).forEach(d => {
-      d.onclick = () => { const i = +d.dataset.pi; E.select(i < 0 ? null : items[i].sel); };
-      d.ondblclick = () => { const i = +d.dataset.pi; if (i < 0) return; const it = items[i]; if (it.kind === 'clip') { const r = TL().find(q => q.c.id === it.sel.id); if (r) E.seek(r.start); } else { const o = selObj(); if (o && o.s != null) E.seek(o.s); } };
+    const q = KS.trLower(E.pjSearch || ''), s = E.sel, items = [];
+    (KS.state.projects || []).forEach(pr => items.push({ kind: 'comp', id: pr.id, name: pr.title, info: 'Kompozisyon', dur: pr.id === p.id ? total() : pr.duration, cur: pr.id === p.id, lab: '#A9A9CA', fmt: pr.format }));
+    clips().forEach(c => items.push({ kind: 'clip', sel: { type: 'video', id: c.id }, name: c.name, info: 'MPEG', dur: c.src_dur, lab: LABEL.video, c }));
+    p.overlays.forEach(o => items.push({ kind: 'pip', sel: { type: 'pip', id: o.id }, name: o.name, info: 'MPEG', dur: o.src_dur || (o.e - o.s), lab: LABEL.pip }));
+    p.media.images.forEach(o => items.push({ kind: 'image', sel: { type: 'image', id: o.id }, name: o.name, info: 'Resim', dur: 0, lab: LABEL.image }));
+    if (p.media.music) items.push({ kind: 'music', sel: { type: 'music', id: 'music' }, name: p.media.music.name, info: 'Ses', dur: p.media.music.duration || 0, lab: LABEL.music });
+    const vis = items.filter(it => !q || KS.trLower(it.name || '').includes(q));
+    const selIt = vis.find(it => it.sel && s && s.type === it.sel.type && s.id === it.sel.id) || vis.find(it => it.cur);
+    let meta = '';
+    if (selIt && selIt.c) meta = `<b>${KS.esc(selIt.name)}</b>${selIt.c.width} x ${selIt.c.height} (1,00)<br>Δ ${E.tc(selIt.c.src_dur)}, ${(+selIt.c.fps || 30).toFixed(2)} fps<br>Milyonlarca Renk<br>H.264${selIt.c.has_audio ? '<br>48,000 kHz / Stereo' : ''}`;
+    else if (selIt && selIt.kind === 'comp') meta = `<b>${KS.esc(p.title)}</b>${BW} x ${BH} (1,00)<br>Δ ${E.tc(total())}, ${fps().toFixed(2)} fps<br>${(FORMATS[p.format] || FORMATS.dikey)[2]}`;
+    else if (selIt) meta = `<b>${KS.esc(selIt.name)}</b>${selIt.info}${selIt.dur ? '<br>Δ ' + E.tc(selIt.dur) : ''}`;
+    const pre = E.pjSearch || '';
+    el.innerHTML = `<div class="pj-info"><div class="pj-thumb" style="background-image:url(/thumb/${p.id}?r=${Math.round(p.updated || 0)})"></div><div class="pj-meta">${meta}</div></div>
+      <div class="pj-search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg><input id="pjSearch" value="${KS.esc(pre)}" spellcheck="false"></div>
+      <div class="pj-list"><div class="pj-hdr"><span></span><span></span><span>Ad ▲</span><span></span><span>Tür</span><span>Süre</span></div>
+      ${vis.map((it, i) => `<div class="pj-row ${it.cur ? 'cur' : ''} ${(it.sel && s && s.type === it.sel.type && s.id === it.sel.id) || (it.cur && !s) ? 'sel' : ''}" data-pi="${i}" title="${KS.esc(it.name)}"><span></span><i>${typeIcon[it.kind]}</i><span>${it.cur ? '<b>' + KS.esc(it.name) + '</b>' : KS.esc(it.name)}</span><span class="lb" style="background:${it.lab}"></span><span>${it.info}</span><span>${it.dur ? E.tc(it.dur) : ''}</span></div>`).join('')}</div>
+      <div class="pj-foot"><button id="pjImport" title="İçe aktar (Ctrl+I)"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg></button><button id="pjNew" title="Yeni kompozisyon (Ctrl+N)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M12 9v6M9 12h6"/></svg></button><button id="pjSet" title="Kompozisyon ayarları (Ctrl+K)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button><button id="pjDel" title="Seçili öğeyi sil"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/></svg></button><span class="bpc">8 bpc</span></div>`;
+    const si = $('#pjSearch'); si.oninput = () => { E.pjSearch = si.value; const pos = si.selectionStart; E.renderProject(); const n = $('#pjSearch'); n.focus(); n.setSelectionRange(pos, pos); }; si.onkeydown = e => e.stopPropagation();
+    $('#pjImport').onclick = () => KS.addFile(); $('#pjNew').onclick = () => E.newProjectDialog(); $('#pjSet').onclick = () => E.compSettings();
+    $('#pjDel').onclick = () => { if (E.sel) E.deleteSel(); };
+    $$('.pj-row', el).forEach(d => {
+      const it = vis[+d.dataset.pi];
+      d.onclick = () => { if (it.kind === 'comp') { if (it.cur) E.select(null); else { $$('.pj-row.sel', el).forEach(x => x.classList.remove('sel')); d.classList.add('sel'); } } else E.select(it.sel); };
+      d.ondblclick = () => { if (it.kind === 'comp') { if (!it.cur) KS.openProject(it.id); return; } if (it.kind === 'clip') { const r = TL().find(q2 => q2.c.id === it.sel.id); if (r) E.seek(r.start); } else { const o = selObj(); if (o && o.s != null) E.seek(o.s); } };
+      d.oncontextmenu = e => { e.preventDefault(); if (it.kind === 'comp') E.ctx(e.clientX, e.clientY, [['Aç', () => KS.openProject(it.id)], ['Kompozisyonu sil', async () => { if (!await KS.confirm('Kompozisyonu sil?', 'Düzenlemeler silinecek. Dışa aktardığın videolar silinmez.', 'Sil', true)) return; await KS.api('/api/project/' + it.id + '?dosya=1', undefined, 'DELETE'); if (it.cur) E.close(); await KS.refresh(); if (P()) E.renderProject(); }]]); else { E.select(it.sel); E.layerMenu(e.clientX, e.clientY); } };
     });
   };
+  KS.hooks.state.push(() => { if (P()) E.renderProject(); });
 
-  /* --- Efekt Kontrolleri --- */
+  /* --- Efekt Kontrolleri (AE görünümü) --- */
   const scrub = (id, v, label, step = 1) => `<span class="scrub" data-scrub="${id}" data-v="${v}" data-step="${step}">${label}</span>`;
-  const swatches = (cur, key, list = SWATCH) => { cur = cur || '#FFFFFF'; return `<div class="swatches">${list.map(c => `<button class="sw ${cur.toUpperCase() === c ? 'active' : ''}" style="background:${c}" data-k="${key}" data-c="${c}"></button>`).join('')}<label class="sw custom" title="Özel renk"><input type="color" value="${cur}" data-k="${key}"></label></div>`; };
-  const tog = (key, label, on) => `<button class="tog ${on ? 'on' : ''}" data-tog="${key}">${label}<i></i></button>`;
+  const colorBox = (cur, key) => `<input type="color" class="ae-color" value="${(cur || '#FFFFFF').slice(0, 7)}" data-k="${key}">`;
+  const chk = (key, label, on) => `<label class="ae-chk"><input type="checkbox" data-chk="${key}" ${on ? 'checked' : ''}>${label}</label>`;
+  const sel = (key, cur, opts) => `<select class="ae-sel" data-selk="${key}">${opts.map(([v, n]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+  const erow = (label, val, watch) => `<div class="erow"><span class="knav">${watch && watch.an ? `<button data-kprev="${watch.p}" title="Önceki keyframe">◀</button><button data-kadd="${watch.p}" title="Keyframe ekle/kaldır"><span class="kd ${watch.here ? 'on' : ''}"></span></button><button data-knext="${watch.p}" title="Sonraki keyframe">▶</button>` : ''}</span><span>${watch ? `<button class="sw-btn ${watch.an ? 'on' : ''}" data-watch="${watch.p}" title="Kronometre">${SVG.watch}</button>` : ''}</span><span class="nm">${label}</span><span class="v">${val}</span></div>`;
+  const efx = (name, body, links = '', badge = true) => `<details class="efx" open><summary>${badge ? '<span class="fxb">fx</span>' : ''}${name}${links}</summary>${body}</details>`;
   function transformHtml(type, o) {
-    const lt = E.T - o.s, t = tfAt(type, o, lt);
-    const row = (p, label, valHtml) => { const an = isAnim(o, p), here = keysOf(o, pSub(p)[0]).some(k => Math.abs(k.t - lt) < 1 / 60); return `<div class="prow"><button class="sw-btn ${an ? 'on' : ''}" data-watch="${p}" title="Kronometre: animasyonu aç/kapat">${SVG.watch}</button><span>${label}</span><span class="kn">${valHtml}${an ? `<button data-kprev="${p}" title="Önceki keyframe (J)">◀</button><button data-kadd="${p}" title="Keyframe ekle/kaldır"><span class="kd ${here ? 'on' : ''}"></span></button><button data-knext="${p}" title="Sonraki keyframe (K)">▶</button>` : ''}</span></div>`; };
-    return `<details class="ec-sec" open><summary>Dönüştür <span class="hint" style="margin-left:auto">P S R T</span></summary><div class="ec-body">
-      ${row('pos', 'Konum', scrub('x', t.x * BW, Math.round(t.x * BW)) + ',' + scrub('y', t.y * BH, Math.round(t.y * BH)))}
-      ${row('scale', 'Ölçek', scrub('scale', t.scale, t.scale.toFixed(1) + '%', .5))}
-      ${row('rot', 'Döndürme', scrub('rot', t.rot, '0x' + (t.rot >= 0 ? '+' : '') + t.rot.toFixed(1) + '°', .5))}
-      ${row('op', 'Opaklık', scrub('op', t.op, Math.round(t.op) + '%', .5))}
-      <div class="mini-btns"><span class="hint">Geçiş:</span>${[['lin', 'Doğrusal'], ['ease', 'Easy Ease (F9)'], ['hold', 'Hold']].map(([k, n]) => `<button class="chip" data-ease="${k}">${n}</button>`).join('')}</div>
-      <button class="btn ghost sm" data-tfreset>Dönüştürmeyi sıfırla</button></div></details>`;
+    const lt = E.T - o.s, t = tfAt(type, o, lt), w = p => ({ p, an: isAnim(o, p), here: keysOf(o, pSub(p)[0]).some(k => Math.abs(k.t - lt) < 1 / 60) });
+    return efx('Dönüştür', erow('Konum', scrub('x', t.x * BW, (t.x * BW).toFixed(1)) + ',' + scrub('y', t.y * BH, (t.y * BH).toFixed(1)), w('pos')) +
+      erow('Ölçek', scrub('scale', t.scale, '∞ ' + t.scale.toFixed(1) + ',' + t.scale.toFixed(1) + '%', .5), w('scale')) +
+      erow('Döndürme', scrub('rot', t.rot, '0x' + (t.rot >= 0 ? '+' : '') + t.rot.toFixed(1) + '°', .5), w('rot')) +
+      erow('Opaklık', scrub('op', t.op, Math.round(t.op) + '%', .5), w('op')) +
+      erow('Keyframe geçişi', sel('ease', '', [['', '—'], ['lin', 'Doğrusal'], ['ease', 'Easy Ease (F9)'], ['in', 'Easy Ease Giriş'], ['out', 'Easy Ease Çıkış'], ['hold', 'Hold']])),
+      '<span class="lk" data-tfreset>Sıfırla</span>', false);
+  }
+  /* ana videoya uygulanan efektler (AE'de katmana efekt eklemek gibi) */
+  const VFX = {
+    preset: ['Renk Ön Ayarı', f => f.preset && f.preset !== 'none', f => { f.preset = 'none'; }],
+    cc: ['Parlaklık ve Kontrast', f => +f.bright || +f.contrast || (f.vfxOn || {}).cc, f => { f.bright = 0; f.contrast = 0; f.vfxOn = Object.assign({}, f.vfxOn, { cc: false }); }],
+    hs: ['Ton / Doygunluk', f => +f.sat || +f.temp || (f.vfxOn || {}).hs, f => { f.sat = 0; f.temp = 0; f.vfxOn = Object.assign({}, f.vfxOn, { hs: false }); }],
+    lut: ['LUT Uygula', f => !!f.lut, null],
+    vignette: ['Vinyet', f => f.vignette, f => { f.vignette = false; }],
+    grain: ['Film Greni Ekle', f => f.grain, f => { f.grain = false; }],
+    glow: ['Parlama', f => f.glow, f => { f.glow = false; }],
+    rgb: ['RGB Kayması', f => f.rgb, f => { f.rgb = false; }],
+    sharpen: ['Keskinleştir', f => f.sharpen, f => { f.sharpen = false; }],
+    mirror: ['Yatay Çevir', f => f.mirror, f => { f.mirror = false; }],
+    fadeIn: ['Açılış Kararması', f => f.fadeIn, f => { f.fadeIn = false; }],
+    fadeOut: ['Kapanış Kararması', f => f.fadeOut, f => { f.fadeOut = false; }],
+    trans: ['Kesim Geçişi', f => f.transition && f.transition.type !== 'none', f => { f.transition.type = 'none'; }],
+  };
+  E.addVfx = k => {
+    if (needClips()) return; const f = fx();
+    if (k === 'lut') return KS.addFile();
+    E.change(() => { if (k === 'cc' || k === 'hs') f.vfxOn = Object.assign({}, f.vfxOn, { [k]: true }); else if (k === 'preset') { if (f.preset === 'none') f.preset = 'sinematik'; } else if (k === 'trans') { if (f.transition.type === 'none') f.transition.type = 'flash'; } else f[k] = true; });
+    const c = clipAt(E.T); if (c) E.select({ type: 'video', id: c.c.id });
+  };
+  function vfxHtml() {
+    const f = fx(); let h = '';
+    Object.entries(VFX).forEach(([k, [name, on]]) => {
+      if (!on(f)) return;
+      let body = '';
+      if (k === 'preset') body = erow('Ön ayar', sel('g_preset', f.preset, FX_PRESETS.map(p => [p[0], p[1]])));
+      if (k === 'cc') body = erow('Parlaklık', scrub('g_bright', f.bright, f.bright)) + erow('Kontrast', scrub('g_contrast', f.contrast, f.contrast));
+      if (k === 'hs') body = erow('Doygunluk', scrub('g_sat', f.sat, f.sat)) + erow('Sıcaklık', scrub('g_temp', f.temp, f.temp));
+      if (k === 'lut') body = erow('Dosya', `<span style="color:#ccc">${KS.esc(f.lut.name)}</span>`) + erow('Etki', scrub('g_lut', f.lut.mix ?? 100, (f.lut.mix ?? 100) + '%'));
+      if (k === 'trans') body = erow('Tür', sel('g_trans', f.transition.type, KS.fx.TRANS)) + erow('Süre', scrub('g_trd', f.transition.d, (+f.transition.d).toFixed(2) + ' sn', .01));
+      h += efx(name, body, `${k === 'cc' || k === 'hs' ? `<span class="lk" data-vreset="${k}">Sıfırla</span>` : ''}<span class="lk" data-vdel="${k}">Kaldır</span>`);
+    });
+    return h;
   }
   E.renderControls = () => {
     const el = $('#lt-controls'); if (!P()) return;
     const s = E.sel, o = selObj();
-    if (!s || (!o && s.type !== 'cap')) { el.innerHTML = '<div class="hint" style="padding:12px">Bir katman seç (timeline\'da ya da kompozisyonda tıkla). Özellikleri burada görünür.</div>'; return; }
-    const l = E.layers().find(q => q.type === s.type && q.id === s.id);
-    let h = `<div class="ec-head"><i style="width:10px;height:10px;background:${LABEL[s.type] || '#888'}"></i><b>${KS.esc(s.type === 'video' ? o.name : (l ? l.name : ''))}</b></div>`;
-    if (s.type === 'cap') h += '<div class="hint" style="padding:8px">Altyazı ayarları sağdaki <b>Karakter</b> sekmesinde.</div>';
-    else if (s.type === 'video') h += clipControls(o);
-    else if (s.type === 'text') h += `<details class="ec-sec" open><summary>Yazı</summary><div class="ec-body">
-        <textarea class="inp" id="ecText" spellcheck="false" rows="2">${KS.esc(o.text)}</textarea>
-        <div class="font-grid">${Object.keys(FONT_CSS).map(f => `<button class="font-opt ${(o.font || 'poppins-black') === f ? 'active' : ''}" data-tfont="${f}" style="font-family:'${FONT_CSS[f]}';font-size:14px">${FONT_NAME[f]}</button>`).join('')}</div>
-        <div class="prow"><span></span><span>Boyut</span>${scrub('tsize', o.size, Math.round(o.size) + ' px')}</div>
-        <div class="style-sec"><h4>Renk</h4>${swatches(o.color, 'o.color')}</div>
-        <div class="toggles">${tog('o.box', 'Arka kutu', o.box !== false)}${tog('o.upper', 'BÜYÜK HARF', o.upper !== false)}</div>
-        ${o.box !== false ? `<div class="style-sec"><h4>Kutu rengi</h4>${swatches(o.boxColor || '#FF3D8B', 'o.boxColor', ['#FF3D8B', '#2D8CEB', '#000000', '#FFE14D', '#22D3EE', '#FF3B3B', '#3DFFA2'])}</div>` : ''}
-        <div class="mini-btns"><span class="hint">Giriş:</span>${[['pop', 'Pop'], ['slide', 'Kayma'], ['fade', 'Solma'], ['type', 'Daktilo'], ['none', 'Yok']].map(([k, n]) => `<button class="chip ${(o.anim || 'pop') === k ? 'on' : ''}" data-tanim="${k}">${n}</button>`).join('')}</div>
-        <div class="hint">Keyframe kullanırsan giriş animasyonu devre dışı kalır.</div></div></details>` + transformHtml('text', o);
-    else if (s.type === 'shape') h += `<details class="ec-sec" open><summary>${o.solid ? 'Düz Renk' : 'Şekil'}</summary><div class="ec-body">
-        ${o.solid ? '' : `<div class="mini-btns">${[['rect', 'Dikdörtgen'], ['ellipse', 'Elips']].map(([k, n]) => `<button class="chip ${o.kind === k ? 'on' : ''}" data-skind="${k}">${n}</button>`).join('')}</div>`}
-        <div class="prow"><span></span><span>Boyut</span><span>${scrub('sw', o.w * BW, Math.round(o.w * BW))} × ${scrub('sh', o.h * BH, Math.round(o.h * BH))}</span></div>
-        ${o.kind === 'rect' && !o.solid ? `<div class="prow"><span></span><span>Köşe yuvarlaklığı</span>${scrub('srad', (o.radius || 0) * 100, Math.round((o.radius || 0) * 100) + '%')}</div>` : ''}
-        <div class="style-sec"><h4>Dolgu</h4>${swatches(o.fill || '#FF3D8B', 'o.fill')}</div>
-        ${o.solid ? '' : `<div class="toggles">${tog('o.noFill', 'Dolgusuz', o.noFill)}</div><div class="prow"><span></span><span>Kontur kalınlığı</span>${scrub('ssw', o.strokeW || 0, (o.strokeW || 0) + ' px')}</div><div class="style-sec"><h4>Kontur</h4>${swatches(o.stroke || '#FFFFFF', 'o.stroke')}</div>`}</div></details>` + transformHtml('shape', o);
-    else if (s.type === 'image') h += `<details class="ec-sec" open><summary>Resim</summary><div class="ec-body"><div class="prow"><span></span><span>Temel genişlik</span>${scrub('isize', o.size || 22, Math.round(o.size || 22) + '%')}</div></div></details>` + transformHtml('image', o);
-    else if (s.type === 'pip') h += `<details class="ec-sec" open><summary>Üst Video</summary><div class="ec-body">
-        <div class="toggles">${tog('o.chroma', 'Yeşil ekranı sil', o.chroma)}</div>
-        ${o.chroma ? `<div class="style-sec"><h4>Silinecek renk</h4>${swatches(o.chroma_color || '#00FF00', 'o.chroma_color', ['#00FF00', '#00B140', '#0047BB', '#000000', '#FFFFFF'])}</div><div class="prow"><span></span><span>Benzerlik</span>${scrub('psim', (o.similarity || .3) * 100, Math.round((o.similarity || .3) * 100) + '%')}</div>` : ''}
-        <div class="prow"><span></span><span>Ses</span>${scrub('pvol', (o.volume ?? 1) * 100, Math.round((o.volume ?? 1) * 100) + '%')}</div>
-        <div class="prow"><span></span><span>Temel genişlik</span>${scrub('pw', (o.w ?? .4) * 100, Math.round((o.w ?? .4) * 100) + '%')}</div>
-        <div class="prow"><span></span><span>Videonun başı</span>${scrub('pin', o.in || 0, KS.fmt(o.in || 0, true), .05)}</div></div></details>` + transformHtml('pip', o);
-    else if (s.type === 'fx') h += `<details class="ec-sec" open><summary>${KS.esc((KS.fx.LIST[o.kind] || [o.kind])[0])}</summary><div class="ec-body">
-        <div class="prow"><span></span><span>Şiddet</span>${scrub('fi', o.i ?? 70, Math.round(o.i ?? 70) + '%')}</div>
-        ${(KS.fx.PARAMS[o.kind] || []).map(([k, lab]) => `<div class="style-sec"><h4>${lab}</h4>${swatches(o.params[k], 'p.' + k, ['#FF3D8B', '#FF8A00', '#FFE14D', '#22D3EE', '#2D8CEB', '#3DFFA2', '#2B1055', '#FFFFFF'])}</div>`).join('')}
-        ${o.kind === 'dirblur' ? `<div class="prow"><span></span><span>Yön</span>${scrub('fang', o.params.angle || 0, (o.params.angle || 0) + '°')}</div>` : ''}
-        <div class="hint">Ayar katmanı: altındaki her şeye (video, üst videolar, resimler) etki eder.</div></div></details>`;
-    else if (s.type === 'music') h += `<details class="ec-sec" open><summary>Ses</summary><div class="ec-body"><div class="prow"><span></span><span>Ses seviyesi</span>${scrub('mvol', (o.vol ?? .25) * 100, Math.round((o.vol ?? .25) * 100) + '%')}</div><button class="btn ghost sm" data-mstart>Müzik şimdi başlasın</button><div class="hint">Konuşma duyulsun diye %20–30 iyi olur.</div></div></details>`;
-    else if (s.type === 'zoom') h += `<details class="ec-sec" open><summary>Zoom Vurgusu</summary><div class="ec-body"><div class="prow"><span></span><span>Güç</span>${scrub('zz', ((o.z || 1.25) - 1) * 100, Math.round(((o.z || 1.25) - 1) * 100) + '%')}</div><div class="prow"><span></span><span>Süre</span>${scrub('zd', o.d || .8, (+o.d || .8).toFixed(2) + ' sn', .02)}</div><div class="toggles">${tog('o.shake', 'Sarsıntı', o.shake)}</div></div></details>`;
+    const lname = s && o ? (s.type === 'video' ? o.name : (E.layers().find(q => q.type === s.type && q.id === s.id) || {}).name || '') : '';
+    $('#ecTab').firstChild.textContent = 'Efekt Kontrolleri' + (lname ? ': ' + (lname.length > 18 ? lname.slice(0, 18) + '…' : lname) : '');
+    if (!s || (!o && s.type !== 'cap')) { el.innerHTML = '<div class="ec-empty">Katman seçilmedi. Zaman çizelgesinde ya da kompozisyonda bir katmana tıkla.</div>'; return; }
+    let h = `<div class="ec2-head">${KS.esc(P().title)} • <b>&nbsp;${KS.esc(s.type === 'cap' ? 'Altyazı' : lname)}</b></div>`;
+    if (s.type === 'cap') h += '<div class="ec-empty">Altyazı görünümü sağdaki <b>Karakter</b> panelinde, metinler <b>Altyazı</b> panelinde.</div>';
+    else if (s.type === 'video') h += clipControls(o) + vfxHtml() + '<div class="ec-empty">Efekt eklemek için sağdaki Efektler ve Ön Ayarlar\'da bir efekte çift tıkla.</div>';
+    else if (s.type === 'text') h += efx('Yazı', `<div class="erow full"><span></span><textarea class="ae-ta" id="ecText" spellcheck="false" rows="2">${KS.esc(o.text)}</textarea></div>` +
+        erow('Yazı tipi', sel('o.font', o.font || 'poppins-black', Object.keys(FONT_CSS).map(f => [f, FONT_NAME[f]]))) +
+        erow('Boyut', scrub('tsize', o.size, Math.round(o.size) + ' px')) + erow('Dolgu rengi', colorBox(o.color, 'o.color')) +
+        erow('Arka kutu', chk('o.box', 'Açık', o.box !== false) + (o.box !== false ? colorBox(o.boxColor || '#FF3D8B', 'o.boxColor') : '')) +
+        erow('Tümü büyük harf', chk('o.upper', 'Açık', o.upper !== false)) +
+        erow('Giriş animasyonu', sel('o.anim', o.anim || 'pop', [['pop', 'Pop'], ['slide', 'Kayma'], ['fade', 'Solma'], ['type', 'Daktilo'], ['none', 'Yok']])), '', false) + transformHtml('text', o);
+    else if (s.type === 'shape') h += efx(o.solid ? 'Düz Renk' : 'Şekil', (o.solid ? '' : erow('Tür', sel('o.kind', o.kind, [['rect', 'Dikdörtgen'], ['ellipse', 'Elips']]))) +
+        erow('Boyut', scrub('sw', o.w * BW, Math.round(o.w * BW)) + ' x ' + scrub('sh', o.h * BH, Math.round(o.h * BH))) +
+        (o.kind === 'rect' && !o.solid ? erow('Köşe yuvarlaklığı', scrub('srad', (o.radius || 0) * 100, Math.round((o.radius || 0) * 100) + '%')) : '') +
+        erow('Dolgu', chk('o.fillOn', 'Açık', !o.noFill) + colorBox(o.fill || '#FF3D8B', 'o.fill')) +
+        (o.solid ? '' : erow('Kontur', colorBox(o.stroke || '#FFFFFF', 'o.stroke') + scrub('ssw', o.strokeW || 0, (o.strokeW || 0) + ' px'))), '', false) + transformHtml('shape', o);
+    else if (s.type === 'image') h += efx('Resim', erow('Temel genişlik', scrub('isize', o.size || 22, Math.round(o.size || 22) + '%')), '', false) + transformHtml('image', o);
+    else if (s.type === 'pip') h += efx('Renk Anahtarı (Yeşil Ekran)', erow('Açık', chk('o.chroma', 'Rengi sil', o.chroma)) + (o.chroma ? erow('Anahtar rengi', colorBox(o.chroma_color || '#00FF00', 'o.chroma_color')) + erow('Benzerlik', scrub('psim', (o.similarity || .3) * 100, Math.round((o.similarity || .3) * 100) + '%')) : '')) +
+        efx('Video', erow('Ses düzeyi', scrub('pvol', (o.volume ?? 1) * 100, Math.round((o.volume ?? 1) * 100) + '%')) + erow('Temel genişlik', scrub('pw', (o.w ?? .4) * 100, Math.round((o.w ?? .4) * 100) + '%')) + erow('Kaynak başlangıcı', scrub('pin', o.in || 0, E.tc(o.in || 0), .05)), '', false) + transformHtml('pip', o);
+    else if (s.type === 'fx') h += efx(KS.esc((KS.fx.LIST[o.kind] || [o.kind])[0]), erow('Şiddet', scrub('fi', o.i ?? 70, Math.round(o.i ?? 70) + '%')) +
+        (KS.fx.PARAMS[o.kind] || []).map(([k, lab]) => erow(lab, colorBox(o.params[k], 'p.' + k))).join('') +
+        (o.kind === 'dirblur' ? erow('Yön', scrub('fang', o.params.angle || 0, (o.params.angle || 0) + '°')) : '') +
+        erow('Süre', `<span style="color:#ccc">${E.tc(o.s)} – ${E.tc(o.e)}</span>`), '<span class="lk" data-fxreset>Sıfırla</span>') + '<div class="ec-empty">Ayar katmanı: altındaki her şeye (video, üst videolar, resimler) etki eder.</div>';
+    else if (s.type === 'music') h += efx('Ses', erow('Ses düzeyi', scrub('mvol', (o.vol ?? .25) * 100, Math.round((o.vol ?? .25) * 100) + '%')) + erow('Başlangıç', `<span style="color:#ccc">${E.tc(o.s || 0)}</span> <button class="ae-btn" data-mstart>Buraya al</button>`), '', false);
+    else if (s.type === 'zoom') h += efx('Zoom Vurgusu', erow('Güç', scrub('zz', ((o.z || 1.25) - 1) * 100, Math.round(((o.z || 1.25) - 1) * 100) + '%')) + erow('Süre', scrub('zd', o.d || .8, (+o.d || .8).toFixed(2) + ' sn', .02)) + erow('Sarsıntı', chk('o.shake', 'Açık', o.shake)));
     el.innerHTML = h;
     bindControls(el, s, o);
   };
@@ -584,21 +684,17 @@
   function clipControls(c) {
     const fmt = P().format || 'dikey', L = c.layout || {};
     const modes = fmt === 'dikey' ? [['split', 'Yüz + Oyun'], ['crop', 'Tam Kırp'], ['blur', 'Bulanık Arka'], ['fit', 'Sığdır']] : [['fit', 'Sığdır'], ['crop', 'Kırp'], ['blur', 'Bulanık Arka']];
-    return `<details class="ec-sec" open><summary>Kadraj</summary><div class="ec-body">
-      <div class="mini-btns">${modes.map(([k, n]) => `<button class="chip ${L.mode === k ? 'on' : ''}" data-cmode="${k}">${n}</button>`).join('')}</div>
-      <div class="src-wrap" id="srcWrap"><canvas id="srcCanvas"></canvas>${L.mode === 'split' ? '<div class="rect face" data-r="face"><b>YÜZ</b><i class="h"></i></div><div class="rect game" data-r="game"><b>OYUN</b><i class="h"></i></div>' : ''}${L.mode === 'crop' ? '<div class="rect crop" data-r="crop"><b>KADRAJ</b><i class="h"></i></div>' : ''}</div>
-      ${c.content ? '<div class="hint">Videonun kendi siyah kenarları otomatik kesildi.</div>' : ''}
-      ${L.mode === 'split' ? `<div class="prow"><span></span><span>Yüz alanı</span>${scrub('csplit', (L.split ?? .4) * 100, Math.round((L.split ?? .4) * 100) + '%')}</div>` : ''}
-      <div class="mini-btns"><button class="btn ghost sm" data-cl-all>Tüm kliplere uygula</button><button class="btn ghost sm" data-cl-def>Varsayılan yap</button></div></div></details>
-      <details class="ec-sec" open><summary>Klip</summary><div class="ec-body">
-      <div class="prow"><span></span><span>Hız</span>${scrub('cspeed', (c.speed || 1) * 100, Math.round((c.speed || 1) * 100) + '%')}</div>
-      <div class="prow"><span></span><span>Ses</span>${scrub('cvol', (c.volume ?? 1) * 100, Math.round((c.volume ?? 1) * 100) + '%')}</div>
-      <div class="prow"><span></span><span>Giriş / Çıkış</span><span class="hint">${KS.fmt(c.in, true)} – ${KS.fmt(c.out, true)}</span></div>
-      <button class="btn ghost sm" data-csubs>Bu klibin altyazısını çıkar</button></div></details>`;
+    return efx('Kadraj', erow('Mod', sel('cmode', L.mode, modes)) +
+      `<div class="src-wrap" id="srcWrap"><canvas id="srcCanvas"></canvas>${L.mode === 'split' ? '<div class="rect face" data-r="face"><b>YÜZ</b><i class="h"></i></div><div class="rect game" data-r="game"><b>OYUN</b><i class="h"></i></div>' : ''}${L.mode === 'crop' ? '<div class="rect crop" data-r="crop"><b>KADRAJ</b><i class="h"></i></div>' : ''}</div>` +
+      (L.mode === 'split' ? erow('Yüz alanı', scrub('csplit', (L.split ?? .4) * 100, Math.round((L.split ?? .4) * 100) + '%')) : '') +
+      (c.content ? erow('Siyah kenarlar', '<span style="color:#ccc">otomatik kesildi</span>') : '') +
+      `<div class="erow full"><span></span><span style="display:flex;gap:4px"><button class="ae-btn" data-cl-all>Tüm kliplere uygula</button><button class="ae-btn" data-cl-def>Varsayılan yap</button></span></div>`, '', false) +
+      efx('Zaman ve Ses', erow('Hız', scrub('cspeed', (c.speed || 1) * 100, Math.round((c.speed || 1) * 100) + '%')) + erow('Ses düzeyi', scrub('cvol', (c.volume ?? 1) * 100, Math.round((c.volume ?? 1) * 100) + '%')) +
+        erow('Kaynak giriş / çıkış', `<span style="color:#ccc">${E.tc(c.in)} – ${E.tc(c.out)}</span>`) + `<div class="erow full"><span></span><span><button class="ae-btn" data-csubs>Bu klibin altyazısını çıkar</button></span></div>`, '', false);
   }
-  function bindControls(el, s, o) {
+  function bindScrubs(el, s, o) {
     $$('[data-scrub]', el).forEach(sp => sp.onmousedown = e => {
-      e.preventDefault(); const x0 = e.clientX, v0 = +sp.dataset.v, step = +sp.dataset.step; let moved = false; E.beginDrag();
+      e.preventDefault(); e.stopPropagation(); const x0 = e.clientX, v0 = +sp.dataset.v, step = +sp.dataset.step; let moved = false; E.beginDrag();
       const mv = ev => { const dx = ev.clientX - x0; if (Math.abs(dx) > 2) moved = true; if (moved) applyScrub(sp.dataset.scrub, v0 + dx * step * (ev.shiftKey ? 10 : ev.ctrlKey ? .1 : 1), s, o, true); };
       const up = () => {
         removeEventListener('mousemove', mv); removeEventListener('mouseup', up); E.endDrag();
@@ -607,29 +703,39 @@
       };
       addEventListener('mousemove', mv); addEventListener('mouseup', up);
     });
-    const lt = o && o.s != null ? E.T - o.s : 0, type = s.type;
+  }
+  function bindControls(el, s, o) {
+    bindScrubs(el, s, o);
+    const lt = o && o.s != null ? E.T - o.s : 0, type = s.type, f = fx();
     $$('[data-watch]', el).forEach(b => b.onclick = () => E.change(() => toggleWatch(type, o, b.dataset.watch, lt)));
     $$('[data-kadd]', el).forEach(b => b.onclick = () => E.change(() => toggleKeyAt(type, o, b.dataset.kadd, lt)));
     $$('[data-kprev],[data-knext]', el).forEach(b => b.onclick = () => { const p = b.dataset.kprev || b.dataset.knext, ks = keysOf(o, pSub(p)[0]).map(k => k.t + o.s), t = b.dataset.kprev ? ks.filter(k => k < E.T - 1e-3).pop() : ks.find(k => k > E.T + 1e-3); if (t != null) E.seek(t); });
-    $$('[data-ease]', el).forEach(b => b.onclick = () => E.change(() => Object.values(o.kf || {}).forEach(arr => arr.forEach(k => k.ease = b.dataset.ease))));
-    $$('[data-tfreset]', el).forEach(b => b.onclick = () => E.change(() => { o.tf = {}; o.kf = {}; }));
+    $$('[data-tfreset]', el).forEach(b => b.onclick = e => { e.preventDefault(); E.change(() => { o.tf = {}; o.kf = {}; }); });
+    $$('[data-fxreset]', el).forEach(b => b.onclick = e => { e.preventDefault(); E.change(() => { o.i = 70; (KS.fx.PARAMS[o.kind] || []).forEach(([k, , v]) => o.params[k] = v); }); });
+    $$('[data-vreset]', el).forEach(b => b.onclick = e => { e.preventDefault(); E.change(() => { if (b.dataset.vreset === 'cc') { f.bright = 0; f.contrast = 0; } else { f.sat = 0; f.temp = 0; } }); });
+    $$('[data-vdel]', el).forEach(b => b.onclick = async e => { e.preventDefault(); const k = b.dataset.vdel; if (k === 'lut') { await E.flush(); await KS.api(`/api/project/${P().id}/lut`, {}); E.change(() => f.lut = null); KS.fx.lut = null; E.render(); return; } E.change(() => VFX[k][2](f)); });
     const ta = $('#ecText', el); if (ta) { ta.onfocus = E.beginDrag; ta.oninput = () => { o.text = ta.value; E.render(); }; ta.onblur = () => { E.endDrag(); E.renderTlLayers(); E.drawTimeline(); }; ta.onkeydown = e => e.stopPropagation(); }
-    $$('[data-tfont]', el).forEach(b => b.onclick = () => E.change(() => o.font = b.dataset.tfont));
-    $$('[data-tanim]', el).forEach(b => b.onclick = () => E.change(() => o.anim = b.dataset.tanim));
-    $$('[data-skind]', el).forEach(b => b.onclick = () => E.change(() => o.kind = b.dataset.skind));
     const setKey = (k, v) => { if (k.startsWith('o.')) o[k.slice(2)] = v; else if (k.startsWith('p.')) o.params[k.slice(2)] = v; };
-    $$('.sw[data-c]', el).forEach(b => b.onclick = () => E.change(() => setKey(b.dataset.k, b.dataset.c)));
-    $$('input[type=color]', el).forEach(i => i.onchange = () => E.change(() => setKey(i.dataset.k, i.value.toUpperCase())));
-    $$('[data-tog]', el).forEach(b => b.onclick = () => E.change(() => { const k = b.dataset.tog.slice(2); o[k] = (k === 'box' || k === 'upper') ? o[k] === false : !o[k]; }));
-    $$('[data-cmode]', el).forEach(b => b.onclick = () => E.change(() => { o.layout = Object.assign({}, o.layout, { mode: b.dataset.cmode }); fixLayout(o); }));
+    $$('input[type=color]', el).forEach(i => { i.onclick = e => e.stopPropagation(); i.onchange = () => E.change(() => setKey(i.dataset.k, i.value.toUpperCase())); });
+    $$('[data-chk]', el).forEach(c => c.onchange = () => E.change(() => { const k = c.dataset.chk.slice(2); if (k === 'fillOn') o.noFill = !c.checked; else o[k] = c.checked; }));
+    $$('[data-selk]', el).forEach(sl => { sl.onkeydown = e => e.stopPropagation(); sl.onchange = () => {
+      const k = sl.dataset.selk, v = sl.value;
+      if (k === 'ease') { if (v) E.change(() => Object.values(o.kf || {}).forEach(arr => arr.forEach(q => q.ease = v))); return; }
+      E.change(() => {
+        if (k === 'cmode') { o.layout = Object.assign({}, o.layout, { mode: v }); fixLayout(o); }
+        else if (k === 'g_preset') f.preset = v; else if (k === 'g_trans') f.transition.type = v;
+        else setKey(k, v);
+      });
+    }; });
     $$('[data-cl-all]', el).forEach(b => b.onclick = () => E.change(() => clips().forEach(c => { if (c !== o) { c.layout = JSON.parse(JSON.stringify(o.layout)); fixLayout(c); } })));
     $$('[data-cl-def]', el).forEach(b => b.onclick = () => KS.api('/api/defaults', { layout: o.layout }).then(() => KS.toast('Yeni kliplerde bu kadraj kullanılacak', 'ok')));
     $$('[data-csubs]', el).forEach(b => b.onclick = () => E.transcribe([o.id]));
     $$('[data-mstart]', el).forEach(b => b.onclick = () => E.change(() => o.s = +E.T.toFixed(3)));
+    $$('details.efx>summary', el).forEach(sm => sm.addEventListener('click', e => { if (e.target.closest('.lk')) e.preventDefault(); }));
     if (s.type === 'video') setupSrc(o);
   }
   function applyScrub(k, v, s, o, live) {
-    const lt = o && o.s != null ? E.T - o.s : 0, type = s.type, C = (a, b) => KS.clamp(v, a, b);
+    const lt = o && o.s != null ? E.T - o.s : 0, type = s.type, C = (a, b) => KS.clamp(v, a, b), f = fx();
     switch (k) {
       case 'x': setProp(type, o, 'pos', [v / BW, tfAt(type, o, lt).y], lt); break;
       case 'y': setProp(type, o, 'pos', [tfAt(type, o, lt).x, v / BH], lt); break;
@@ -647,9 +753,13 @@
       case 'zz': o.z = 1 + C(1, 100) / 100; break; case 'zd': o.d = C(.1, 5); break;
       case 'csplit': o.layout.split = C(20, 70) / 100; fixLayout(o); break;
       case 'cspeed': o.speed = C(25, 400) / 100; break; case 'cvol': o.volume = C(0, 200) / 100; break;
+      case 'g_bright': f.bright = Math.round(C(-50, 50)); break; case 'g_contrast': f.contrast = Math.round(C(-50, 50)); break;
+      case 'g_sat': f.sat = Math.round(C(-100, 100)); break; case 'g_temp': f.temp = Math.round(C(-100, 100)); break;
+      case 'g_lut': f.lut.mix = Math.round(C(0, 100)); break; case 'g_trd': f.transition.d = +C(.15, 1.5).toFixed(2); break;
     }
     if (live) { E.render(); E.drawTimeline(); if (k === 'csplit') placeRects(o); }
   }
+
   /* --- kadraj (klip başına; videonun siyah kenarları hariç alan) --- */
   const ASPECT = c => { const r = (c.layout || {}).split ?? .4; return { face: BW / (BH * r), game: BW / (BH * (1 - r)), crop: BW / BH }; };
   function fixLayout(c) {
@@ -673,35 +783,36 @@
     }));
   }
 
-  /* --- Efektler ve Ön Ayarlar --- */
+  /* --- Efektler ve Ön Ayarlar (AE: arama + klasör ağacı, çift tık = uygula) --- */
   E.renderFx = () => {
-    const f = fx(), el = $('#rt-fx'), q = E.fxSearch || '';
+    const el = $('#rt-fx'), q = E.fxSearch || '', f = fx();
     const cats = Object.entries(KS.fx.LIST).reduce((m, [k, v]) => ((m[v[1]] = m[v[1]] || []).push([k, v[0]]), m), {});
     const match = n => !q || KS.trLower(n).includes(KS.trLower(q)), op = q ? 'open' : '';
-    el.innerHTML = `<div class="fxp-search"><input class="inp" id="fxSearch" placeholder="Ara (glitch, parlama, sarsıntı...)" value="${KS.esc(q)}"></div>
+    const folder = (name, items, open) => { const its = items.filter(it => match(it[1])); return its.length ? `<details ${op || open || ''}><summary>${name}</summary>${its.map(([act, n, on, ps]) => `<div class="fxp-item ${ps ? 'ps' : ''} ${on ? 'on' : ''}" data-act="${act}" title="Çift tıkla: uygula">${n}</div>`).join('')}</details>` : ''; };
+    const V = k => VFX[k][1](f);
+    el.innerHTML = `<div class="fxp-search"><input class="inp" id="fxSearch" placeholder="Ara..." value="${KS.esc(q)}" spellcheck="false"></div>
       <div class="fxp-tree">
-        <details open><summary>Renk Ön Ayarları (tüm video)</summary>${FX_PRESETS.filter(p => match(p[1])).map(([k, n]) => `<div class="fxp-item ${f.preset === k ? 'on' : ''}" data-preset="${k}">${f.preset === k ? '● ' : ''}${n}</div>`).join('')}</details>
-        ${Object.entries(cats).map(([cat, items]) => { const its = items.filter(([, n]) => match(n)); return its.length ? `<details ${op}><summary>${KS.fx.ICON[cat] || ''} ${cat}</summary>${its.map(([k, n]) => `<div class="fxp-item" data-fxadd="${k}" title="Oynatma çizgisine ayar katmanı olarak ekle">${n}</div>`).join('')}</details>` : ''; }).join('')}
-        <details ${op}><summary>Geçişler (kesimlerde)</summary>${KS.fx.TRANS.filter(([, n]) => match(n)).map(([k, n]) => `<div class="fxp-item ${f.transition.type === k ? 'on' : ''}" data-trans="${k}">${f.transition.type === k ? '● ' : ''}${n}</div>`).join('')}</details>
-        <details ${op}><summary>Zoom Vurgusu</summary><div class="fxp-item" data-zoomadd="0">Zoom (punch)</div><div class="fxp-item" data-zoomadd="1">Sarsıntılı zoom</div></details>
-        <details><summary>Tüm Videoya</summary><div style="padding:6px"><div class="toggles">${[['vignette', 'Vinyet'], ['grain', 'Film greni'], ['glow', 'Parlama'], ['rgb', 'RGB kayması'], ['sharpen', 'Keskinleştir'], ['mirror', 'Ayna'], ['fadeIn', 'Açılış fade'], ['fadeOut', 'Kapanış fade']].map(([k, n]) => tog(k, n, f[k])).join('')}</div></div></details>
-        <details><summary>Renk Düzeltme</summary><div style="padding:6px">${[['bright', 'Parlaklık', -50, 50], ['contrast', 'Kontrast', -50, 50], ['sat', 'Doygunluk', -100, 100], ['temp', 'Sıcaklık', -100, 100]].map(([k, l, a, b]) => `<div class="field"><label>${l} <b id="fv_${k}">${f[k]}</b></label><input type="range" min="${a}" max="${b}" value="${f[k]}" data-frng="${k}"></div>`).join('')}<button class="btn ghost sm" id="fxReset">Sıfırla</button></div></details>
-        <details><summary>LUT (.cube)</summary><div style="padding:6px">${f.lut ? `<div class="prow"><span></span><span>${KS.esc(f.lut.name)}</span><button class="del-btn" id="lutDel">${KS.icon.trash}</button></div><div class="field"><label>Etki <b id="lutV">%${f.lut.mix ?? 100}</b></label><input type="range" min="0" max="100" value="${f.lut.mix ?? 100}" id="lutMix"></div>` : '<button class="btn ghost sm" id="lutAdd">LUT yükle</button>'}</div></details>
-      </div>
-      ${f.transition.type !== 'none' ? `<div class="field"><label>Geçiş süresi <b id="trV">${(+f.transition.d).toFixed(2)} sn</b></label><input type="range" min="15" max="120" value="${Math.round(f.transition.d * 100)}" id="trRange"></div>` : ''}`;
-    $$('#rt-fx input[type=range]').forEach(KS.paintRange);
-    const s = $('#fxSearch'); s.oninput = () => { E.fxSearch = s.value; const pos = s.selectionStart; E.renderFx(); const n = $('#fxSearch'); n.focus(); n.setSelectionRange(pos, pos); }; s.onkeydown = e => e.stopPropagation();
-    $$('[data-preset]', el).forEach(b => b.onclick = () => E.change(() => f.preset = b.dataset.preset));
-    $$('[data-fxadd]', el).forEach(b => b.onclick = () => E.addFx(b.dataset.fxadd));
-    $$('[data-trans]', el).forEach(b => b.onclick = () => E.change(() => f.transition.type = b.dataset.trans));
-    $$('[data-zoomadd]', el).forEach(b => b.onclick = () => E.addZoom(b.dataset.zoomadd === '1'));
-    $$('[data-tog]', el).forEach(b => b.onclick = () => E.change(() => f[b.dataset.tog] = !f[b.dataset.tog]));
-    $$('[data-frng]', el).forEach(r => { r.onpointerdown = E.beginDrag; r.oninput = () => { f[r.dataset.frng] = +r.value; $('#fv_' + r.dataset.frng).textContent = r.value; E.render(); }; r.onchange = () => E.endDrag(); });
-    const rs = $('#fxReset'); if (rs) rs.onclick = () => E.change(() => Object.assign(f, { bright: 0, contrast: 0, sat: 0, temp: 0 }));
-    const tr = $('#trRange'); if (tr) { tr.onpointerdown = E.beginDrag; tr.oninput = () => { f.transition.d = tr.value / 100; $('#trV').textContent = (tr.value / 100).toFixed(2) + ' sn'; E.render(); }; tr.onchange = () => E.endDrag(); }
-    const la = $('#lutAdd'); if (la) la.onclick = () => KS.addFile();
-    const ld = $('#lutDel'); if (ld) ld.onclick = async () => { await E.flush(); await KS.api(`/api/project/${P().id}/lut`, {}); E.change(() => f.lut = null); KS.fx.lut = null; E.render(); };
-    const lm = $('#lutMix'); if (lm) { lm.onpointerdown = E.beginDrag; lm.oninput = () => { f.lut.mix = +lm.value; $('#lutV').textContent = '%' + lm.value; E.render(); }; lm.onchange = () => E.endDrag(); }
+        ${folder('* Animasyon Ön Ayarları', [...FX_PRESETS.slice(1).map(p => ['preset:' + p[0], 'Renk: ' + p[1], f.preset === p[0], 1]), ...CAP_PRESETS.map((p, i) => ['cap:' + i, 'Altyazı: ' + p.name, 0, 1])])}
+        ${folder('Renk Düzeltme', [['vfx:cc', 'Parlaklık ve Kontrast', V('cc')], ['vfx:hs', 'Ton / Doygunluk', V('hs')], ['vfx:preset', 'Renk Ön Ayarı', V('preset')], ['vfx:lut', 'LUT Uygula', V('lut')]])}
+        ${folder('Stilize', [['vfx:glow', 'Parlama', V('glow')], ['vfx:vignette', 'Vinyet', V('vignette')], ['vfx:rgb', 'RGB Kayması', V('rgb')], ['vfx:sharpen', 'Keskinleştir', V('sharpen')], ...(cats['Stilize'] || []).map(([k, n]) => ['fx:' + k, n + ' (ayar katmanı)'])])}
+        ${folder('Gürültü ve Gren', [['vfx:grain', 'Film Greni Ekle', V('grain')]])}
+        ${folder('Bozma', [['vfx:mirror', 'Yatay Çevir', V('mirror')], ['zoom:0', 'Zoom Vurgusu'], ['zoom:1', 'Sarsıntılı Zoom']])}
+        ${Object.entries(cats).filter(([c]) => c !== 'Stilize').map(([cat, items]) => folder(cat + ' (ayar katmanı)', items.map(([k, n]) => ['fx:' + k, n]))).join('')}
+        ${folder('Geçişler', [...KS.fx.TRANS.filter(t => t[0] !== 'none').map(([k, n]) => ['trans:' + k, n, f.transition.type === k]), ['vfx:fadeIn', 'Açılış Kararması', V('fadeIn')], ['vfx:fadeOut', 'Kapanış Kararması', V('fadeOut')]])}
+      </div>`;
+    const s = $('#fxSearch'); s.oninput = () => { E.fxSearch = s.value; const pos = s.selectionStart; E.renderFx(); const n = $('#fxSearch'); n.focus(); n.setSelectionRange(pos, pos); }; s.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') { const first = $('#rt-fx .fxp-item'); if (first) first.dispatchEvent(new MouseEvent('dblclick')); } };
+    $$('.fxp-item', el).forEach(it => {
+      it.onclick = () => { $$('.fxp-item.sel', el).forEach(x => x.classList.remove('sel')); it.classList.add('sel'); };
+      it.ondblclick = () => {
+        const [kind, v] = it.dataset.act.split(':');
+        if (kind === 'fx') E.addFx(v);
+        else if (kind === 'vfx') E.addVfx(v);
+        else if (kind === 'preset') { if (needClips()) return; E.change(() => fx().preset = v); const c = clipAt(E.T); if (c) E.select({ type: 'video', id: c.c.id }); }
+        else if (kind === 'cap') { E.change(() => Object.assign(P().style, CAP_PRESETS[+v].s)); E.rt('style'); }
+        else if (kind === 'trans') { if (needClips()) return; E.change(() => fx().transition.type = v); const c = clipAt(E.T); if (c) E.select({ type: 'video', id: c.c.id }); }
+        else if (kind === 'zoom') E.addZoom(v === '1');
+      };
+    });
   };
 
   /* --- Altyazı --- */
@@ -764,24 +875,22 @@
   });
   KS.hooks.jobDone.push(j => { if (j.kind === 'altyazi' && j.status === 'hata' && P()) { clips().forEach(c => { if (c.subs_status === 'calisiyor') c.subs_status = 'hata'; }); E.renderSubs(); } });
 
-  /* --- Karakter (altyazı stili) --- */
+  /* --- Karakter (AE Karakter paneli: altyazı görünümü) --- */
   E.renderStyle = () => {
     const st = P().style, el = $('#rt-style');
-    el.innerHTML = `<div class="style-sec"><h4>Hazır stiller</h4><div class="preset-grid">${CAP_PRESETS.map((pr, i) => { const s = pr.s, act = ['font', 'color', 'hl', 'outline'].every(k => (st[k] || '').toString().toUpperCase() === (s[k] || '').toString().toUpperCase()); return `<button class="preset ${act ? 'active' : ''}" data-cp="${i}"><div class="cap-preset" style="font-family:'${FONT_CSS[s.font]}';color:${s.color};-webkit-text-stroke:${Math.min(3, s.outlineW / 3)}px ${s.outline};paint-order:stroke fill">${s.upper ? 'BU ÇOK' : 'Bu çok'}&nbsp;<span style="color:${s.karaoke ? s.hl : s.color}">${s.upper ? 'İYİ' : 'iyi'}</span></div><span>${pr.name}</span></button>`; }).join('')}</div></div>
-      <div class="font-grid">${Object.keys(FONT_CSS).map(f => `<button class="font-opt ${st.font === f ? 'active' : ''}" data-font="${f}" style="font-family:'${FONT_CSS[f]}';font-size:15px">${FONT_NAME[f]}</button>`).join('')}</div>
-      <div class="prow"><span></span><span>Boyut</span>${scrub('csize', st.size, st.size + ' px')}</div>
-      <div class="prow"><span></span><span>Yükseklik (kompozisyonda sürükle)</span>${scrub('cy', st.y, '%' + Math.round(st.y), .2)}</div>
-      <div class="prow"><span></span><span>Kenar kalınlığı</span>${scrub('cow', st.outlineW, st.outlineW + ' px', .2)}</div>
-      <div class="style-sec"><h4>Yazı rengi</h4>${swatches(st.color, 'color')}</div>
-      <div class="style-sec"><h4>Vurgu rengi (konuşulan kelime)</h4>${swatches(st.hl, 'hl')}</div>
-      <div class="style-sec"><h4>Kenar rengi</h4>${swatches(st.outline, 'outline', ['#000000', '#FFFFFF', '#5B2BFF', '#FF3D8B', '#1A1A2E'])}</div>
-      <div class="toggles">${tog('upper', 'BÜYÜK HARF', st.upper)}${tog('karaoke', 'Kelime vurgusu', st.karaoke)}${tog('anim', 'Pop animasyon', st.anim)}${tog('shadow', 'Gölge', st.shadow)}</div>
-      <button class="btn ghost sm" id="styleDefault">Bu stili varsayılan yap</button>`;
-    $$('[data-cp]', el).forEach(b => b.onclick = () => E.change(() => Object.assign(st, CAP_PRESETS[+b.dataset.cp].s)));
-    $$('[data-font]', el).forEach(b => b.onclick = () => E.change(() => st.font = b.dataset.font));
-    $$('.sw[data-c]', el).forEach(b => b.onclick = () => E.change(() => st[b.dataset.k] = b.dataset.c));
+    el.innerHTML = `${erow('Yazı tipi', sel('font', st.font, Object.keys(FONT_CSS).map(f => [f, FONT_NAME[f]])))}
+      ${erow('Dolgu rengi', colorBox(st.color, 'color'))}
+      ${erow('Kontur rengi', colorBox(st.outline, 'outline'))}
+      ${erow('Vurgu rengi', colorBox(st.hl, 'hl'))}
+      ${erow('<b style="font:700 12px Georgia">T</b>&nbsp; Boyut', scrub('csize', st.size, st.size + ' px'))}
+      ${erow('Kontur kalınlığı', scrub('cow', st.outlineW, st.outlineW + ' px', .2))}
+      ${erow('Dikey konum', scrub('cy', st.y, '%' + st.y.toFixed(1), .2))}
+      <div class="erow full"><span></span><span style="display:flex;flex-direction:column;gap:4px">${chk('upper', 'TT  Tümü büyük harf', st.upper)}${chk('karaoke', 'Konuşulan kelimeyi vurgula', st.karaoke)}${chk('anim', 'Pop animasyon', st.anim)}${chk('shadow', 'Gölge', st.shadow)}</span></div>
+      <div class="erow full"><span></span><span><button class="ae-btn" id="styleDefault">Varsayılan yap</button></span></div>
+      <div class="hint" style="padding:0 6px">Hazır altyazı stilleri: Efektler ve Ön Ayarlar → Animasyon Ön Ayarları. Konumu kompozisyonda sürükleyerek de değiştirebilirsin.</div>`;
+    $$('[data-selk]', el).forEach(s => { s.onkeydown = e => e.stopPropagation(); s.onchange = () => E.change(() => st[s.dataset.selk] = s.value); });
     $$('input[type=color]', el).forEach(i => i.onchange = () => E.change(() => st[i.dataset.k] = i.value.toUpperCase()));
-    $$('[data-tog]', el).forEach(b => b.onclick = () => E.change(() => st[b.dataset.tog] = !st[b.dataset.tog]));
+    $$('[data-chk]', el).forEach(c => c.onchange = () => E.change(() => st[c.dataset.chk] = c.checked));
     $$('[data-scrub]', el).forEach(sp => sp.onmousedown = e => {
       e.preventDefault(); const x0 = e.clientX, v0 = +sp.dataset.v, step = +sp.dataset.step, k = sp.dataset.scrub; E.beginDrag();
       const mv = ev => { const v = v0 + (ev.clientX - x0) * step * (ev.shiftKey ? 10 : 1); if (k === 'csize') st.size = Math.round(KS.clamp(v, 30, 220)); if (k === 'cy') st.y = KS.clamp(+v.toFixed(1), 3, 97); if (k === 'cow') st.outlineW = Math.round(KS.clamp(v, 0, 20)); E.render(); };
@@ -883,14 +992,26 @@
     KS.toast(`Boşluklar kırpıldı: ${KS.fmt(before)} → ${KS.fmt(total())}`, 'ok', [{ label: 'Geri al', fn: E.undo }]);
   };
 
-  /* =========================================================== ZAMAN ÇİZELGESİ */
+  /* =========================================================== ZAMAN ÇİZELGESİ (AE: her klip ayrı katman) */
   const tlc = $('#tlCanvas'), tl = tlc.getContext('2d'), scroll = $('#tlScroll');
-  const RH = { cap: 20, text: 20, shape: 20, fx: 20, image: 20, pip: 22, video: 36, music: 20, zoom: 18, sub: 18 };
-  const RULER = 26;
+  const RH = 20, WAVE_H = 46, RULER = 26;
+  const shade = (hx, k) => { const [r, g, b] = hex(hx); const f = v => Math.round(KS.clamp(v * k, 0, 255)); return `rgb(${f(r)},${f(g)},${f(b)})`; };
+  const tcS = t => E.tc(Math.max(0, t));
   E.rows = () => {
     if (!P()) return [];
-    const rows = [], showProps = l => E.reveal[l.id] || (E.open[l.id] ? PROPS.map(p => p[0]) : null);
-    E.layers().forEach((l, i) => { rows.push({ ...l, num: i + 1, h: RH[l.type] }); if (TRANSFORMABLE.includes(l.type)) { const ps = showProps(l); if (ps && ps.length) ps.forEach(p => rows.push({ sub: true, prop: p, h: RH.sub, type: l.type, id: l.id, obj: l.obj })); } });
+    const rows = [], q = KS.trLower(($('#tlSearch') || {}).value || '').trim(), showProps = l => E.reveal[l.id] || (E.open[l.id] ? PROPS.map(p => p[0]) : null);
+    let num = 0;
+    const tlmap = new Map(TL().map(r => [r.c.id, r]));
+    E.layers().forEach(l => {
+      const list = l.type === 'video' ? clips().map(c => ({ type: 'video', id: c.id, name: c.name, obj: c, r: tlmap.get(c.id) })) : [l];
+      list.forEach(L => {
+        num++;
+        if (q && !KS.trLower(L.name || '').includes(q)) return;
+        rows.push({ ...L, num, h: RH });
+        if (TRANSFORMABLE.includes(L.type)) { const ps = showProps(L); if (ps && ps.length) ps.forEach(p => rows.push({ sub: true, prop: p, h: RH, type: L.type, id: L.id, obj: L.obj })); }
+        if (L.type === 'video' && E.open[L.id]) rows.push({ sub: true, prop: 'wave', h: WAVE_H, type: 'video', id: L.id, obj: L.obj, r: L.r });
+      });
+    });
     let y = RULER; rows.forEach(r => { r.y0 = y; r.y1 = y + r.h; y += r.h; }); E._rowsH = y + 10; return rows;
   };
   const pps = () => (tlc.clientWidth - 20) / Math.max(1, total() || 10);
@@ -907,119 +1028,149 @@
   scroll.addEventListener('wheel', e => {
     if (!P()) return;
     if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); scroll.scrollLeft += (e.deltaX || e.deltaY); return; }
-    if (e.ctrlKey) return; // Ctrl+tekerlek: dikey kaydır
+    if (!e.altKey) return; // AE: tekerlek dikey kaydırır, Alt+tekerlek zaman yakınlaştırır
     e.preventDefault(); const r = tlc.getBoundingClientRect(), mx = e.clientX - r.left, t = x2t(mx), rel = mx - scroll.scrollLeft;
     E.zoom = KS.clamp(E.zoom * (e.deltaY < 0 ? 1.18 : 1 / 1.18), 1, 60); zr.value = E.zoom; KS.paintRange(zr); E.sizeTimeline(); scroll.scrollLeft = tx2(t) - rel;
   }, { passive: false });
   $('#tlLayers').addEventListener('wheel', e => { scroll.scrollTop += e.deltaY; }, { passive: true });
+  $('#tlSearch').oninput = () => E.sizeTimeline();
+  $('#tlSearch').onkeydown = e => e.stopPropagation();
 
+  const colsOf = r => {
+    const o = r.obj;
+    if (r.type === 'video' && r.r) return [tcS(r.r.start), tcS(r.r.start + r.r.len), tcS(r.r.len), Math.round(100 / (o.speed || 1)) + '%'];
+    if (o && o.s != null && o.e != null) return [tcS(o.s), tcS(o.e), tcS(o.e - o.s), '100%'];
+    if (r.type === 'music' && o) return [tcS(o.s || 0), tcS(total()), tcS(total() - (o.s || 0)), '100%'];
+    return ['', '', '', ''];
+  };
   E.renderTlLayers = rows => {
     const el = $('#tlLayers'); if (!P()) return; rows = rows || E.rows(); const s = E.sel;
-    el.innerHTML = `<div class="tl-lrow hdr" style="height:${RULER}px"><span class="c" title="Görünürlük">${SVG.eye}</span><span class="c" title="Solo">${SVG.solo}</span><span class="c" title="Kilit">${SVG.lock}</span><span style="width:24px"></span><span class="num">#</span><span class="tw"></span><span class="nm">Katman Adı</span></div>` +
+    el.innerHTML = `<div class="tl-lrow hdr" style="height:${RULER}px"><span class="c" title="Görünürlük">${SVG.eye}</span><span class="c" title="Solo">${SVG.solo}</span><span class="c" title="Kilit">${SVG.lock}</span><span style="width:25px"></span><span class="num">#</span><span class="tw"></span><span class="nm">Kaynak Adı</span><span class="cols"><span>Giriş</span><span>Çıkış</span><span>Süre</span><span>Uzatma</span></span></div>` +
       rows.map((r, ri) => {
+        if (r.sub && r.prop === 'wave') return `<div class="tl-lrow sub" style="height:${r.h}px"><span class="nm">Ses Dalga Formu</span></div>`;
         if (r.sub) {
           const o = r.obj, t = tfAt(r.type, o, E.T - o.s), an = isAnim(o, r.prop);
-          const val = r.prop === 'pos' ? `${Math.round(t.x * BW)},${Math.round(t.y * BH)}` : r.prop === 'scale' ? t.scale.toFixed(1) + '%' : r.prop === 'rot' ? '0x' + (t.rot >= 0 ? '+' : '') + t.rot.toFixed(1) + '°' : Math.round(t.op) + '%';
-          return `<div class="tl-lrow sub" style="height:${r.h}px" data-ri="${ri}"><span class="nm"><button class="sw-btn" data-twatch="${ri}" style="color:${an ? '#2d8ceb' : '#777'};width:16px;display:inline-grid;vertical-align:middle">${SVG.watch}</button> ${PROPS.find(p => p[0] === r.prop)[1]}</span><span class="val" style="color:#3fa9ff;font:11px ui-monospace,Consolas,monospace">${val}</span></div>`;
+          const val = r.prop === 'pos' ? scrub('x', t.x * BW, (t.x * BW).toFixed(1)) + ',' + scrub('y', t.y * BH, (t.y * BH).toFixed(1)) : r.prop === 'scale' ? scrub('scale', t.scale, '∞ ' + t.scale.toFixed(1) + ',' + t.scale.toFixed(1) + '%', .5) : r.prop === 'rot' ? scrub('rot', t.rot, '0x' + (t.rot >= 0 ? '+' : '') + t.rot.toFixed(1) + '°', .5) : scrub('op', t.op, Math.round(t.op) + '%', .5);
+          return `<div class="tl-lrow sub" style="height:${r.h}px" data-ri="${ri}"><span class="nm"><button class="sw-btn" data-twatch="${ri}" style="color:${an ? '#2d8ceb' : '#888'}">${SVG.watch}</button>${PROPS.find(p => p[0] === r.prop)[1]}</span><span class="val" data-sub="${ri}">${val}</span></div>`;
         }
-        const o = r.obj, isSel = s && s.type === r.type && (s.id === r.id || r.type === 'video'), can = !!o && r.type !== 'music';
-        const hk = { cap: 'cap', music: 'music', zoom: 'zoom' }[r.type], off = can ? o.hidden : (hk && hidden(hk));
+        const o = r.obj, isSel = s && s.type === r.type && s.id === r.id, can = !!o && r.type !== 'music';
+        const hk = { cap: 'cap', music: 'music', zoom: 'zoom' }[r.type], off = (can && r.type !== 'video') ? o.hidden : (hk && hidden(hk)) || (r.type === 'video' && o.hidden);
+        const tw = TRANSFORMABLE.includes(r.type) || r.type === 'video';
+        const op = E.open[r.id] || E.reveal[r.id];
         return `<div class="tl-lrow ${isSel ? 'sel' : ''}" style="height:${r.h}px" data-ri="${ri}">
-          <span class="c ${off ? 'off' : ''}" data-eye="${ri}" title="Göster/gizle">${SVG.eye}</span>
-          <span class="c ${can && o.solo ? 'solo-on' : ''}" data-solo="${ri}" title="Solo">${can ? SVG.solo : ''}</span>
-          <span class="c ${can && o.locked ? 'lock-on' : ''}" data-lock="${ri}" title="Kilit">${can ? SVG.lock : ''}</span>
+          <span class="c ${off ? 'off' : ''}" data-eye="${ri}" title="Video (göster/gizle)">${SVG.eye}</span>
+          <span class="c ${can && o.solo ? 'solo-on' : ''}" data-solo="${ri}" title="Solo">${can && r.type !== 'video' ? SVG.solo : ''}</span>
+          <span class="c ${can && o.locked ? 'lock-on' : ''}" data-lock="${ri}" title="Kilit">${can && o.locked ? SVG.lock : ''}</span>
           <span class="lab" style="background:${o && o.solid ? LABEL.solid : LABEL[r.type]}"></span><span class="num">${r.num}</span>
-          <span class="tw" data-twirl="${ri}">${TRANSFORMABLE.includes(r.type) ? (E.open[r.id] || E.reveal[r.id] ? '▼' : '▶') : ''}</span>
-          <span class="nm" title="${KS.esc(r.name)}">${KS.esc(r.name)}</span></div>`;
+          <span class="tw" data-twirl="${ri}">${tw ? `<i class="tri ${op ? 'o' : ''}"></i>` : ''}</span>
+          <span class="nm" title="${KS.esc(r.name)}">${KS.esc(r.name)}</span><span class="cols">${colsOf(r).map(v => `<span>${v}</span>`).join('')}</span></div>`;
       }).join('');
     el.scrollTop = scroll.scrollTop;
-    $$('.tl-lrow[data-ri]', el).forEach(d => { const r = rows[+d.dataset.ri]; d.onmousedown = e => { if (e.target.closest('[data-eye],[data-solo],[data-lock],[data-twirl],[data-twatch]')) return; if (r.type === 'video') { const c = clips().length ? clipAt(E.T).c : null; E.select(c ? { type: 'video', id: c.id } : null); } else E.select({ type: r.type, id: r.id }); }; });
+    const selRow = r => { if (r.type === 'video' && r.obj) E.select({ type: 'video', id: r.obj.id }); else E.select({ type: r.type, id: r.id }); };
+    $$('.tl-lrow[data-ri]', el).forEach(d => {
+      const r = rows[+d.dataset.ri];
+      d.onmousedown = e => { if (e.button !== 0 || e.target.closest('[data-eye],[data-solo],[data-lock],[data-twirl],[data-twatch],.scrub')) return; if (!r.sub) selRow(r); };
+      d.oncontextmenu = e => { e.preventDefault(); if (r.sub) return; selRow(r); E.layerMenu(e.clientX, e.clientY); };
+      d.ondblclick = () => { if (!r.sub && r.obj && r.obj.s != null) E.seek(r.obj.s); else if (r.type === 'video' && r.r) E.seek(r.r.start); };
+    });
     $$('[data-eye]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.eye]; E.change(() => { if (r.obj && r.type !== 'music') r.obj.hidden = !r.obj.hidden; else { const k = { cap: 'cap', music: 'music', zoom: 'zoom' }[r.type]; if (k) { fx().hide = Object.assign({}, fx().hide); fx().hide[k] = !fx().hide[k]; } } }); });
-    $$('[data-solo]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.solo]; if (r.obj && r.type !== 'music') E.change(() => r.obj.solo = !r.obj.solo); });
+    $$('[data-solo]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.solo]; if (r.obj && !['music', 'video'].includes(r.type)) E.change(() => r.obj.solo = !r.obj.solo); });
     $$('[data-lock]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.lock]; if (r.obj && r.type !== 'music') E.change(() => r.obj.locked = !r.obj.locked); });
-    $$('[data-twirl]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.twirl]; if (!TRANSFORMABLE.includes(r.type)) return; if (E.reveal[r.id]) delete E.reveal[r.id]; else E.open[r.id] = !E.open[r.id]; E.sizeTimeline(); });
+    $$('[data-twirl]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.twirl]; if (E.reveal[r.id]) delete E.reveal[r.id]; else E.open[r.id] = !E.open[r.id]; E.sizeTimeline(); });
     $$('[data-twatch]', el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.twatch]; E.change(() => toggleWatch(r.type, r.obj, r.prop, E.T - r.obj.s)); });
+    $$('[data-sub]', el).forEach(v => { const r = rows[+v.dataset.sub]; bindScrubs(v, { type: r.type, id: r.id }, r.obj); });
+  };
+  E.layerMenu = (x, y) => {
+    const s = E.sel; if (!s) return;
+    const items = [['Katmanı Böl', E.split], ['Çoğalt', E.duplicate], ['Sil', E.deleteSel], null];
+    if (TRANSFORMABLE.includes(s.type) || s.type === 'fx') items.push(['Öne Getir', () => E.layerOrder('front')], ['Bir Öne', () => E.layerOrder('up')], ['Bir Geri', () => E.layerOrder('down')], ['En Geriye', () => E.layerOrder('back')], null);
+    if (TRANSFORMABLE.includes(s.type)) items.push(['Dönüştürmeyi Sıfırla', () => { const o = selObj(); if (o) E.change(() => { o.tf = {}; o.kf = {}; }); }]);
+    if (s.type === 'video') items.push(['Bu klibin altyazısını çıkar', () => E.transcribe([s.id])], ['Boşlukları Kırp', () => $('#silenceBtn').click()]);
+    const o = selObj(); if (o && s.type !== 'music') items.push([o.hidden ? 'Göster' : 'Gizle', () => E.change(() => o.hidden = !o.hidden)], [o.locked ? 'Kilidi Aç' : 'Kilitle', () => E.change(() => o.locked = !o.locked)]);
+    E.ctx(x, y, items);
   };
 
   const rr = (x, a, b, y0, y1, fill) => { x.fillStyle = fill; x.fillRect(a, y0, Math.max(2, b - a), y1 - y0); };
   E.drawTimeline = () => {
     const p = P(); if (!p || tlc.width < 2) return;
     const x = tl, W = tlc.clientWidth, H = tlc.clientHeight, D = total() || 10, rows = E.rows(), sy = scroll.scrollTop, s = E.sel;
-    x.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); x.clearRect(0, 0, W, H);
-    rows.forEach((r, i) => { x.fillStyle = r.sub ? '#191919' : (i % 2 ? '#1d1d1d' : '#202020'); x.fillRect(0, r.y0, W, r.h); x.fillStyle = '#141414'; x.fillRect(0, r.y1 - 1, W, 1); });
-    const bar = (r, a, b, label, color, sel) => {
-      const y0 = r.y0 + 2, y1 = r.y1 - 3; rr(x, tx2(a), tx2(b), y0, y1, color);
-      if (sel) { x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.strokeRect(tx2(a) + .5, y0 + .5, tx2(b) - tx2(a) - 1, y1 - y0 - 1); }
-      x.save(); x.beginPath(); x.rect(tx2(a), y0, tx2(b) - tx2(a), y1 - y0); x.clip(); x.fillStyle = '#101010'; x.font = '11px Segoe UI'; x.fillText(label || '', tx2(a) + 5, y1 - 5); x.restore();
-    };
+    x.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); x.fillStyle = '#232323'; x.fillRect(0, 0, W, H);
+    const wa = p.work || { a: 0, b: D };
+    // çalışma alanı dışı hafif karartma (AE gibi)
+    x.fillStyle = '#1c1c1c'; x.fillRect(0, 0, tx2(wa.a), H); x.fillRect(tx2(wa.b), 0, W, H);
+    rows.forEach(r => { if (r.y1 < sy || r.y0 > sy + H) return; const sel = !r.sub && s && s.type === r.type && s.id === r.id; if (sel) { x.fillStyle = 'rgba(61,79,99,.45)'; x.fillRect(0, r.y0, W, r.h); } x.fillStyle = '#1d1d1d'; x.fillRect(0, r.y1 - 1, W, 1); });
+    const bar = (r, a, b, color, sel) => { const y0 = r.y0 + 2, y1 = r.y1 - 3; rr(x, tx2(a), tx2(b), y0, y1, sel ? shade(color, 1.18) : shade(color, .78)); if (sel) { x.strokeStyle = shade(color, 1.45); x.lineWidth = 1; x.strokeRect(tx2(a) + .5, y0 + .5, tx2(b) - tx2(a) - 1, y1 - y0 - 1); } };
     rows.forEach(r => {
       if (r.y1 < sy + RULER || r.y0 > sy + H) return;
       const o = r.obj;
-      if (r.sub) { keysOf(o, pSub(r.prop)[0]).forEach(k => { const xx = tx2(o.s + k.t), yy = (r.y0 + r.y1) / 2, sk = E.selKey && E.selKey.id === r.id && E.selKey.prop === r.prop && Math.abs(E.selKey.t - k.t) < 1e-3; x.save(); x.translate(xx, yy); x.rotate(Math.PI / 4); x.fillStyle = sk ? '#2d8ceb' : (k.ease === 'hold' ? '#e8920d' : k.ease && k.ease !== 'lin' ? '#e4d84c' : '#c8c8c8'); x.fillRect(-4, -4, 8, 8); x.strokeStyle = '#000'; x.strokeRect(-4, -4, 8, 8); x.restore(); }); return; }
+      if (r.sub && r.prop === 'wave') {
+        const c = o, wv = E.waves[c.source], R0 = r.r; if (!wv || !wv.length || !c.src_dur || !R0) return;
+        const a = tx2(R0.start), b = tx2(R0.start + R0.len), mid = (r.y0 + r.y1) / 2, hh = r.h / 2 - 3, n = wv.length, i0 = Math.floor(c.in / c.src_dur * n), i1 = Math.ceil(c.out / c.src_dur * n), bw = (b - a) / Math.max(1, i1 - i0);
+        x.fillStyle = '#5fa36a'; for (let k = i0; k < i1; k++) { const hg = Math.max(.5, (wv[k] || 0) * hh); x.fillRect(a + (k - i0) * bw, mid - hg, Math.max(.6, bw - .2), hg * 2); }
+        return;
+      }
+      if (r.sub) { keysOf(o, pSub(r.prop)[0]).forEach(k => { const xx = tx2(o.s + k.t), yy = (r.y0 + r.y1) / 2, sk = E.selKey && E.selKey.id === r.id && E.selKey.prop === r.prop && Math.abs(E.selKey.t - k.t) < 1e-3; x.save(); x.translate(xx, yy); x.rotate(Math.PI / 4); x.fillStyle = sk ? '#2d8ceb' : (k.ease === 'hold' ? '#e8920d' : k.ease && k.ease !== 'lin' ? '#e4d84c' : '#bdbdbd'); x.fillRect(-4, -4, 8, 8); x.strokeStyle = '#111'; x.strokeRect(-4, -4, 8, 8); x.restore(); }); return; }
       x.globalAlpha = o && (o.hidden || (soloOn() && TRANSFORMABLE.concat('fx').includes(r.type) && !o.solo)) ? .35 : 1;
-      if (r.type === 'video') {
-        let acc = 0;
-        clips().forEach((c, i) => {
-          const L = clipLen(c), a = tx2(acc), b = tx2(acc + L), sel = s && s.type === 'video' && s.id === c.id;
-          rr(x, a, b, r.y0 + 2, r.y1 - 3, sel ? '#7fa8c9' : (i % 2 ? '#93b6b2' : '#a9cbc7'));
-          const wv = E.waves[c.source];
-          if (wv && wv.length && c.src_dur) { x.save(); x.beginPath(); x.rect(a, r.y0 + 2, b - a, r.y1 - r.y0 - 5); x.clip(); x.fillStyle = 'rgba(30,50,60,.45)'; const mid = (r.y0 + r.y1) / 2 + 3, hh = (r.y1 - r.y0) / 2 - 6, n = wv.length, i0 = Math.floor(c.in / c.src_dur * n), i1 = Math.ceil(c.out / c.src_dur * n), bw = Math.max(1, (b - a) / Math.max(1, i1 - i0)); for (let k = i0; k < i1; k++) { const hgt = Math.max(1, (wv[k] || 0) * hh); x.fillRect(a + (k - i0) * bw, mid - hgt, Math.max(1, bw - .3), hgt * 2); } x.restore(); }
-          x.save(); x.beginPath(); x.rect(a, r.y0, b - a, r.h); x.clip(); x.fillStyle = '#0d1a1a'; x.font = '11px Segoe UI'; x.fillText(c.name + ((c.speed || 1) !== 1 ? `  ${Math.round(c.speed * 100)}%` : ''), a + 5, r.y0 + 14); x.restore();
-          if (sel) { x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.strokeRect(a + .5, r.y0 + 2.5, b - a - 1, r.y1 - r.y0 - 5); }
-          if (E.dragClip && E.dragClip.ins === i) { x.fillStyle = '#2d8ceb'; x.fillRect(a - 2, r.y0, 4, r.h); }
-          acc += L;
-        });
-        if (E.dragClip && E.dragClip.ins === clips().length) { x.fillStyle = '#2d8ceb'; x.fillRect(tx2(acc) - 2, r.y0, 4, r.h); }
-        if (fx().transition.type !== 'none') { let a2 = 0; clips().slice(0, -1).forEach(c => { a2 += clipLen(c); x.save(); x.translate(tx2(a2), (r.y0 + r.y1) / 2); x.rotate(Math.PI / 4); x.fillStyle = LABEL.fx; x.fillRect(-5, -5, 10, 10); x.restore(); }); }
-      } else if (r.type === 'cap') E.tlCaps().forEach(c => rr(x, tx2(c.s), tx2(c.e), r.y0 + 3, r.y1 - 4, c.words.some(w => w.p < .55) ? '#e8920d' : LABEL.cap));
-      else if (r.type === 'music') bar(r, o.s || 0, D, o.name, LABEL.music, s && s.type === 'music');
-      else if (r.type === 'zoom') fx().zooms.forEach(z => { const a = tx2(z.t), b = Math.max(a + 6, tx2(z.t + (+z.d || .8))); rr(x, a, b, r.y0 + 3, r.y1 - 3, s && s.type === 'zoom' && s.id === z.id ? '#fff' : LABEL.zoom); });
+      if (r.type === 'video') { if (r.r) bar(r, r.r.start, r.r.start + r.r.len, LABEL.video, s && s.type === 'video' && s.id === o.id); if (E.dragClip && E.dragClip.id === o.id && E.dragClip.ghost != null) { x.strokeStyle = '#2d8ceb'; x.setLineDash([4, 3]); x.strokeRect(tx2(E.dragClip.ghost) + .5, r.y0 + 2.5, tx2(r.r.len) - tx2(0), r.h - 5); x.setLineDash([]); } }
+      else if (r.type === 'cap') E.tlCaps().forEach(c => rr(x, tx2(c.s), tx2(c.e), r.y0 + 2, r.y1 - 3, c.words.some(w => w.p < .55) ? '#c98a2e' : shade(LABEL.cap, .8)));
+      else if (r.type === 'music') bar(r, o.s || 0, D, LABEL.music, s && s.type === 'music');
+      else if (r.type === 'zoom') fx().zooms.forEach(z => { const a = tx2(z.t), b = Math.max(a + 6, tx2(z.t + (+z.d || .8))); rr(x, a, b, r.y0 + 2, r.y1 - 3, s && s.type === 'zoom' && s.id === z.id ? shade(LABEL.zoom, 1.15) : shade(LABEL.zoom, .78)); });
       else if (o) {
-        bar(r, o.s, o.e, r.name, o.solid ? LABEL.solid : LABEL[r.type], s && s.type === r.type && s.id === r.id);
-        if (!(E.open[r.id] || E.reveal[r.id])) { const ts = new Set(); Object.values(o.kf || {}).forEach(a => a.forEach(k => ts.add(+k.t.toFixed(3)))); ts.forEach(t => { x.fillStyle = '#e4d84c'; x.save(); x.translate(tx2(o.s + t), r.y1 - 6); x.rotate(Math.PI / 4); x.fillRect(-2.5, -2.5, 5, 5); x.restore(); }); }
+        bar(r, o.s, o.e, o.solid ? LABEL.solid : LABEL[r.type], s && s.type === r.type && s.id === r.id);
+        if (!(E.open[r.id] || E.reveal[r.id])) { const ts = new Set(); Object.values(o.kf || {}).forEach(a => a.forEach(k => ts.add(+k.t.toFixed(3)))); ts.forEach(t => { x.fillStyle = '#e4d84c'; x.save(); x.translate(tx2(o.s + t), (r.y0 + r.y1) / 2); x.rotate(Math.PI / 4); x.fillRect(-3, -3, 6, 6); x.restore(); }); }
         if (o.locked) { x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(tx2(o.s), r.y0 + 2, tx2(o.e) - tx2(o.s), r.h - 5); }
       }
       x.globalAlpha = 1;
     });
+    // geçiş işaretleri (klip sınırlarında)
+    if (fx().transition.type !== 'none') { let a2 = 0; clips().slice(0, -1).forEach(c => { a2 += clipLen(c); x.fillStyle = 'rgba(142,44,154,.55)'; x.fillRect(tx2(a2) - 1, sy + RULER, 2, H); }); }
+    if (E.dragClip && E.dragClip.at != null) { x.fillStyle = '#2d8ceb'; x.fillRect(tx2(E.dragClip.at) - 1, sy + RULER, 3, H); }
     // cetvel (yapışkan)
-    x.fillStyle = '#262626'; x.fillRect(0, sy, W, RULER);
-    const wa = p.work || { a: 0, b: D };
-    x.fillStyle = '#5f6c7d'; x.fillRect(tx2(wa.a), sy, tx2(wa.b) - tx2(wa.a), 6); x.fillStyle = '#9aa8ba'; x.fillRect(tx2(wa.a) - 2, sy, 4, 6); x.fillRect(tx2(wa.b) - 2, sy, 4, 6);
-    const F = fps(), step = [1 / F, .25, .5, 1, 2, 5, 10, 15, 30, 60, 120].find(q => q * pps() > 60) || 300;
-    x.font = '10px Consolas, monospace';
-    for (let t = 0; t <= D + 1e-6; t += step) { const xx = tx2(t); x.fillStyle = '#9a9a9a'; x.fillRect(xx, sy + 16, 1, 10); x.fillText(step < 1 ? E.tc(t).slice(-5) : KS.fmt(t), xx + 3, sy + 17); }
-    x.fillStyle = '#555'; for (let t = 0; t <= D; t += step / 5) x.fillRect(tx2(t), sy + 21, 1, 5);
-    (p.markers || []).forEach(m => { const xx = tx2(m.t); x.fillStyle = '#e4d84c'; x.beginPath(); x.moveTo(xx - 5, sy + 7); x.lineTo(xx + 5, sy + 7); x.lineTo(xx, sy + 14); x.closePath(); x.fill(); });
+    x.fillStyle = '#262626'; x.fillRect(0, sy, W, RULER); x.fillStyle = '#1a1a1a'; x.fillRect(0, sy + RULER - 1, W, 1);
+    x.fillStyle = '#4a4a4a'; x.fillRect(tx2(wa.a), sy + 1, tx2(wa.b) - tx2(wa.a), 7); x.fillStyle = '#7d7d7d'; x.fillRect(tx2(wa.a), sy + 1, 3, 7); x.fillRect(tx2(wa.b) - 3, sy + 1, 3, 7);
+    const F = fps(), step = [1 / F, 2 / F, 5 / F, .25, .5, 1, 2, 5, 10, 15, 30, 60, 120].find(q => q * pps() > 70) || 300;
+    x.font = '10px "Segoe UI", system-ui'; x.fillStyle = '#9a9a9a';
+    for (let t = 0; t <= D + 1e-6; t += step) { const xx = tx2(t); x.fillRect(xx, sy + 14, 1, 11); x.fillText(step < 1 ? E.tc(t).slice(-5) : (t >= 60 ? KS.fmt(t) : String(Math.round(t)).padStart(2, '0') + 's'), xx + 3, sy + 20); }
+    x.fillStyle = '#4d4d4d'; for (let t = 0; t <= D; t += step / 5) x.fillRect(tx2(t), sy + 21, 1, 4);
+    (p.markers || []).forEach(m => { const xx = tx2(m.t); x.fillStyle = '#e4d84c'; x.beginPath(); x.moveTo(xx - 5, sy + 9); x.lineTo(xx + 5, sy + 9); x.lineTo(xx, sy + 16); x.closePath(); x.fill(); });
     const ph = tx2(E.T);
-    x.fillStyle = '#2d8ceb'; x.fillRect(ph - .5, sy, 1.5, H);
-    x.beginPath(); x.moveTo(ph - 6, sy + 8); x.lineTo(ph + 6, sy + 8); x.lineTo(ph + 6, sy + 18); x.lineTo(ph, sy + 25); x.lineTo(ph - 6, sy + 18); x.closePath(); x.fill();
+    x.fillStyle = '#2d8ceb'; x.fillRect(ph - .5, sy + 10, 1, H);
+    x.beginPath(); x.moveTo(ph - 5, sy + 9); x.lineTo(ph + 5, sy + 9); x.lineTo(ph + 5, sy + 18); x.lineTo(ph, sy + 24); x.lineTo(ph - 5, sy + 18); x.closePath(); x.fill();
     if (E.playing && (ph > scroll.scrollLeft + scroll.clientWidth - 40 || ph < scroll.scrollLeft)) scroll.scrollLeft = ph - 60;
-    $('#tlInfo').textContent = `${clips().length} klip · ${KS.fmt(total())}`;
+    $('#tlInfo').textContent = `${clips().length} klip · ${E.tc(total())}`;
   };
 
   const rowAt = (rows, y) => rows.find(r => y >= r.y0 && y < r.y1);
+  tlc.addEventListener('contextmenu', e => {
+    e.preventDefault(); if (!P()) return;
+    const rc = tlc.getBoundingClientRect(), r = rowAt(E.rows(), e.clientY - rc.top);
+    if (E.selKey) return E.ctx(e.clientX, e.clientY, [['Doğrusal', () => setEase('lin')], ['Easy Ease (F9)', () => setEase('ease')], ['Easy Ease Giriş (Shift+F9)', () => setEase('in')], ['Easy Ease Çıkış (Ctrl+Shift+F9)', () => setEase('out')], ['Hold (Ctrl+Alt+H)', () => setEase('hold')], null, ['Keyframe sil', E.deleteSel]]);
+    if (r && !r.sub && r.obj) { E.select(r.type === 'video' ? { type: 'video', id: r.obj.id } : { type: r.type, id: r.id }); E.layerMenu(e.clientX, e.clientY); }
+  });
   tlc.addEventListener('mousedown', e => {
-    if (!P()) return;
+    if (!P() || e.button !== 0) return;
     const rc = tlc.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top, rows = E.rows(), t = x2t(mx), near = tt => Math.abs(tx2(tt) - mx) < 6;
-    if (e.button !== 0) return;
     if (my < scroll.scrollTop + RULER) {
-      if (E.playing) E.pause(); E.seek(t);
+      if (E.playing) E.pause();
+      const wa = P().work;
+      if (my < scroll.scrollTop + 9 && wa && (near(wa.a) || near(wa.b))) { const k = near(wa.a) ? 'a' : 'b'; E.beginDrag(); const mv = ev => { P().work[k] = +x2t(ev.clientX - rc.left).toFixed(3); if (P().work.b - P().work.a < .1) P().work[k] = k === 'a' ? P().work.b - .1 : P().work.a + .1; E.drawTimeline(); }, up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); E.endDrag(); }; addEventListener('mousemove', mv); addEventListener('mouseup', up); return; }
+      E.seek(t);
       const mv = ev => E.seek(x2t(ev.clientX - rc.left)), up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
       addEventListener('mousemove', mv); addEventListener('mouseup', up); return;
     }
     const r = rowAt(rows, my); let drag = null;
-    if (r && r.sub) {
+    if (r && r.sub && r.prop !== 'wave') {
       const o = r.obj, k = keysOf(o, pSub(r.prop)[0]).find(q => near(o.s + q.t));
       if (k) { E.selKey = { type: r.type, id: r.id, prop: r.prop, t: k.t }; E.sel = { type: r.type, id: r.id }; drag = { kind: 'key', o, prop: r.prop, t0: k.t, mx0: mx }; } else { E.selKey = null; E.seek(t); }
-    } else if (r && r.type === 'video') {
-      let acc = 0;
-      for (const c of clips()) { const L = clipLen(c); if (near(acc) && acc > 0) { drag = { kind: 'cin', c, i0: c.in, mx0: mx }; break; } if (near(acc)) { drag = { kind: 'cin', c, i0: c.in, mx0: mx }; break; } if (near(acc + L)) { drag = { kind: 'cout', c, o0: c.out, mx0: mx }; break; } if (t >= acc && t < acc + L) { drag = { kind: 'cmove', c, mx0: mx }; E.sel = { type: 'video', id: c.id }; break; } acc += L; }
-      if (!drag) E.sel = null; E.seek(t);
+    } else if (r && r.type === 'video' && !r.sub) {
+      const c = r.obj, R0 = r.r; E.sel = { type: 'video', id: c.id }; E.selKey = null;
+      if (R0 && !c.locked) { if (near(R0.start)) drag = { kind: 'cin', c, i0: c.in, mx0: mx }; else if (near(R0.start + R0.len)) drag = { kind: 'cout', c, o0: c.out, mx0: mx }; else if (t >= R0.start && t <= R0.start + R0.len) drag = { kind: 'cmove', c, mx0: mx, s0: R0.start }; }
+      if (!drag) E.seek(t);
     } else if (r && r.type === 'zoom') { const z = fx().zooms.find(q => t >= q.t - 6 / pps() && t <= q.t + Math.max(6 / pps(), +q.d || .8)); if (z) { E.sel = { type: 'zoom', id: z.id }; drag = { kind: 'zoom', o: z, t0: z.t, mx0: mx }; } else E.seek(t); }
     else if (r && r.type === 'music' && r.obj) { E.sel = { type: 'music', id: 'music' }; drag = { kind: 'mus', o: r.obj, s0: r.obj.s || 0, mx0: mx }; }
     else if (r && r.type === 'cap') { const i = E.capAt(t); E.sel = { type: 'cap', id: 'cap' }; E.seek(t); if (i >= 0) { E.rt('subs'); setTimeout(() => { const row = $(`.cap[data-ci="${i}"]`); if (row) row.scrollIntoView({ block: 'center' }); }, 30); } }
-    else if (r && r.obj && r.obj.s != null) { const o = r.obj; E.sel = { type: r.type, id: r.id }; if (!o.locked) { if (near(o.s)) drag = { kind: 'oS', o }; else if (near(o.e)) drag = { kind: 'oE', o }; else if (t >= o.s && t <= o.e) drag = { kind: 'oM', o, s0: o.s, e0: o.e, mx0: mx }; } if (!drag) E.seek(t); }
-    else { E.sel = null; E.seek(t); }
+    else if (r && !r.sub && r.obj && r.obj.s != null) { const o = r.obj; E.sel = { type: r.type, id: r.id }; E.selKey = null; if (!o.locked) { if (near(o.s)) drag = { kind: 'oS', o }; else if (near(o.e)) drag = { kind: 'oE', o }; else if (t >= o.s && t <= o.e) drag = { kind: 'oM', o, s0: o.s, e0: o.e, mx0: mx }; } if (!drag) E.seek(t); }
+    else { E.sel = null; E.selKey = null; E.seek(t); }
     E.renderControls(); E.renderTlLayers(); E.renderProject(); E.drawTimeline(); E.drawGizmo();
     if (!drag) return;
     if (E.playing) E.pause(); E.beginDrag();
@@ -1030,17 +1181,22 @@
       if (d.kind === 'key') { const nt = +KS.clamp(d.t0 + dt, 0, d.o.e - d.o.s).toFixed(3); pSub(d.prop).forEach(k => { const q = (d.o.kf[k] || []).find(z => Math.abs(z.t - E.selKey.t) < 1e-3); if (q) q.t = nt; }); E.selKey.t = nt; }
       if (d.kind === 'cin') d.c.in = +KS.clamp(d.i0 + dt * (d.c.speed || 1), 0, d.c.out - .1).toFixed(3);
       if (d.kind === 'cout') d.c.out = +KS.clamp(d.o0 + dt * (d.c.speed || 1), d.c.in + .1, d.c.src_dur).toFixed(3);
-      if (d.kind === 'cmove' && Math.abs(m2 - d.mx0) > 5) { let acc = 0, ins = clips().length; for (let i = 0; i < clips().length; i++) { const L = clipLen(clips()[i]); if (t2 < acc + L / 2) { ins = i; break; } acc += L; } d.ins = ins; E.dragClip = { ins }; }
+      if (d.kind === 'cmove' && Math.abs(m2 - d.mx0) > 4) {
+        // klibi sürükleyerek sırasını değiştir: bırakılacak yer mavi çizgiyle gösterilir
+        const ghost = Math.max(0, d.s0 + dt), mid = ghost + clipLen(d.c) / 2, others = clips().filter(c => c !== d.c);
+        let acc = 0, ins = others.length; for (let i = 0; i < others.length; i++) { const L = clipLen(others[i]); if (mid < acc + L / 2) { ins = i; break; } acc += L; }
+        d.ins = ins; E.dragClip = { id: d.c.id, ghost, at: others.slice(0, ins).reduce((s2, c) => s2 + clipLen(c), 0) };
+      }
       if (d.kind === 'zoom') d.o.t = +KS.clamp(snapT(d.t0 + dt), 0, total() - .05).toFixed(3);
       if (d.kind === 'mus') d.o.s = +KS.clamp(snapT(d.s0 + dt), 0, total() - .2).toFixed(3);
       if (d.kind === 'oM') { const len = d.e0 - d.s0, s2 = KS.clamp(snapT(d.s0 + dt), 0, Math.max(0, total() - len)); d.o.s = +s2.toFixed(3); d.o.e = +(s2 + len).toFixed(3); }
-      if (d.kind === 'oS') { const ns = +KS.clamp(snapT(t2), 0, d.o.e - .05).toFixed(3), sh = ns - d.o.s; if (d.o.kf) Object.values(d.o.kf).forEach(a => a.forEach(k => k.t = +(k.t - sh).toFixed(3))); if (d.o.in != null && E.sel.type === 'pip') d.o.in = Math.max(0, (d.o.in || 0) + sh); d.o.s = ns; }
+      if (d.kind === 'oS') { const ns = +KS.clamp(snapT(t2), 0, d.o.e - .05).toFixed(3), sh = ns - d.o.s; if (d.o.kf) Object.values(d.o.kf).forEach(a => a.forEach(k => k.t = +(k.t - sh).toFixed(3))); if (E.sel.type === 'pip') d.o.in = Math.max(0, (d.o.in || 0) + sh); d.o.s = ns; }
       if (d.kind === 'oE') d.o.e = +KS.clamp(snapT(t2), d.o.s + .05, total()).toFixed(3);
-      E.render(); E.drawTimeline();
+      E.render(); E.drawTimeline(); if (d.kind !== 'cmove' && d.kind !== 'key') E.renderTlLayers();
     };
     const up = () => {
       removeEventListener('mousemove', mv); removeEventListener('mouseup', up);
-      if (drag.kind === 'cmove' && drag.ins != null) { const i = clips().indexOf(drag.c); let j = drag.ins; if (j > i) j--; if (j !== i) { clips().splice(i, 1); clips().splice(j, 0, drag.c); } }
+      if (drag.kind === 'cmove' && drag.ins != null) { const others = clips().filter(c => c !== drag.c); others.splice(drag.ins, 0, drag.c); P().clips = others; }
       E.dragClip = null; E.endDrag(); E.renderAll(); E.seek(Math.min(E.T, total()));
     };
     addEventListener('mousemove', mv); addEventListener('mouseup', up);
@@ -1048,12 +1204,11 @@
   tlc.addEventListener('mousemove', e => {
     if (!P() || e.buttons) return;
     const rc = tlc.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top, r = rowAt(E.rows(), my), near = tt => Math.abs(tx2(tt) - mx) < 6; let cur = 'default';
-    if (my < scroll.scrollTop + RULER) cur = 'col-resize';
-    else if (r && r.type === 'video') { let acc = 0; for (const c of clips()) { const L = clipLen(c); if (near(acc) || near(acc + L)) cur = 'ew-resize'; acc += L; } if (cur === 'default') cur = 'grab'; }
+    if (my < scroll.scrollTop + RULER) cur = (my < scroll.scrollTop + 9 && P().work && (near(P().work.a) || near(P().work.b))) ? 'ew-resize' : 'col-resize';
+    else if (r && !r.sub && r.type === 'video' && r.r) { if (near(r.r.start) || near(r.r.start + r.r.len)) cur = 'ew-resize'; else if (x2t(mx) >= r.r.start && x2t(mx) <= r.r.start + r.r.len) cur = 'grab'; }
     else if (r && !r.sub && r.obj && r.obj.s != null) { if (near(r.obj.s) || near(r.obj.e)) cur = 'ew-resize'; else if (x2t(mx) >= r.obj.s && x2t(mx) <= r.obj.e) cur = 'grab'; }
     tlc.style.cursor = cur;
   });
-  tlc.addEventListener('contextmenu', e => { e.preventDefault(); if (!E.selKey) return; E.ctx(e.clientX, e.clientY, [['Doğrusal', () => setEase('lin')], ['Easy Ease (F9)', () => setEase('ease')], ['Easy Ease Giriş (Shift+F9)', () => setEase('in')], ['Easy Ease Çıkış (Ctrl+Shift+F9)', () => setEase('out')], ['Hold (Ctrl+Alt+H)', () => setEase('hold')], null, ['Keyframe sil', E.deleteSel]]); });
   function setEase(kind) {
     const s = E.selKey, apply = (o, ft) => Object.values(o.kf || {}).forEach(a => a.forEach(k => { if (ft == null || Math.abs(k.t - ft) < 1e-3) k.ease = kind; }));
     if (s) { const o = listOf(s.type).find(q => q.id === s.id); if (o) E.change(() => apply(o, s.t)); return; }
@@ -1064,8 +1219,20 @@
     $$('.ctx-menu').forEach(m => m.remove());
     const m = document.createElement('div'); m.className = 'ctx-menu'; m.style.left = x + 'px'; m.style.top = y + 'px';
     items.forEach(it => { if (!it) { m.appendChild(document.createElement('hr')); return; } const d = document.createElement('div'); d.textContent = it[0]; d.onclick = () => { m.remove(); it[1](); }; m.appendChild(d); });
-    document.body.appendChild(m); setTimeout(() => addEventListener('mousedown', function h(ev) { if (!m.contains(ev.target)) { m.remove(); removeEventListener('mousedown', h); } }), 0);
+    document.body.appendChild(m);
+    const b = m.getBoundingClientRect(); if (b.bottom > innerHeight) m.style.top = Math.max(0, y - b.height) + 'px'; if (b.right > innerWidth) m.style.left = Math.max(0, x - b.width) + 'px';
+    setTimeout(() => addEventListener('mousedown', function h(ev) { if (!m.contains(ev.target)) { m.remove(); removeEventListener('mousedown', h); } }), 0);
   };
+
+  /* --- Render Sırası (dışa aktarma işleri) --- */
+  $$('#tlTabs [data-tt]').forEach(b => b.onclick = () => { $$('#tlTabs [data-tt]').forEach(x => x.classList.toggle('active', x === b)); $('#tlPane').hidden = b.dataset.tt !== 'tl'; $('#rqPane').hidden = b.dataset.tt !== 'rq'; E.renderRQ(); if (b.dataset.tt === 'tl') E.sizeTimeline(); });
+  E.renderRQ = () => {
+    const el = $('#rqPane'); if (el.hidden) return;
+    const jobs = (KS.state.jobs || []).filter(j => j.kind === 'aktar');
+    el.innerHTML = `<div class="rq-row hdr"><span>#</span><span>Kompozisyon</span><span>Durum</span><span>İlerleme</span><span></span></div>` + (jobs.length ? jobs.map((j, i) => `<div class="rq-row"><span>${i + 1}</span><span>${KS.esc(j.title)}</span><span>${{ calisiyor: 'İşleniyor', bekliyor: 'Sırada', bitti: 'Tamamlandı', hata: 'Hata', iptal: 'İptal' }[j.status] || j.status}</span><div class="rq-bar"><i style="width:${Math.round((j.progress || 0) * 100)}%"></i></div><span>${j.status === 'bitti' && j.result ? `<button class="ae-btn" data-rqopen="${i}">Klasörde göster</button>` : ''}</span></div>`).join('') : '<div class="hint" style="padding:12px">Render sırası boş. Ctrl+M ile dışa aktarınca burada görünür.</div>');
+    $$('[data-rqopen]', el).forEach(b => b.onclick = () => KS.api('/api/reveal', { path: jobs[+b.dataset.rqopen].result.path }));
+  };
+  KS.hooks.jobTick.push(() => E.renderRQ());
 
   /* =========================================================== proje pencereleri */
   E.newProjectDialog = () => {
@@ -1125,7 +1292,7 @@
     $$('#oQ .opt', md.el).forEach(b => b.onclick = () => { o.kalite = b.dataset.v; paint(); });
     $('#oLoud', md.el).onclick = e => { o.ses_dengele = !o.ses_dengele; e.currentTarget.classList.toggle('on', o.ses_dengele); };
     const ow = $('#oWork', md.el); if (ow) ow.onclick = e => { o.work = !o.work; e.currentTarget.classList.toggle('on', o.work); };
-    $('#oGo', md.el).onclick = async () => { md.close(); await E.flush(); const r = await KS.api(`/api/project/${P().id}/export`, { ...o, work: o.work && wa ? wa : null }); Object.assign(KS.state.settings, { cozunurluk: o.cozunurluk, fps: o.fps, kalite: o.kalite, ses_dengele: o.ses_dengele }); KS.trackJob(r.job); KS.openJobs(); KS.toast('Dışa aktarma başladı.'); };
+    $('#oGo', md.el).onclick = async () => { md.close(); await E.flush(); const r = await KS.api(`/api/project/${P().id}/export`, { ...o, work: o.work && wa ? wa : null }); Object.assign(KS.state.settings, { cozunurluk: o.cozunurluk, fps: o.fps, kalite: o.kalite, ses_dengele: o.ses_dengele }); KS.trackJob(r.job); $('#tlTabs [data-tt=rq]').click(); KS.toast('Render Sırasına eklendi, dışa aktarılıyor (MP4).'); };
     paint();
   };
 
@@ -1144,7 +1311,7 @@
     ['Efekt', [['Zoom vurgusu', '', () => E.addZoom(false)], ['Sarsıntılı zoom', '', () => E.addZoom(true)], null, ...Object.entries(KS.fx.LIST).slice(0, 14).map(([k, v]) => [v[0], '', () => E.addFx(k)]), null, ['Tüm efektler...', '', () => E.rt('fx')]]],
     ['Görünüm', [['Yakınlaştır', '.', () => E.zoomView(1.25)], ['Uzaklaştır', ',', () => E.zoomView(.8)], ['Sığdır', 'Shift+/', E.fit], null, ['Tam kalite', '', () => { $('#qualSel').value = '1'; $('#qualSel').onchange({ target: $('#qualSel') }); }], ['Yarım kalite', '', () => { $('#qualSel').value = '0.5'; $('#qualSel').onchange({ target: $('#qualSel') }); }], null, ['Paneli büyüt', '`', E.maxPanel]]],
     ['Pencere', [['Proje', '', () => E.lt('project')], ['Efekt Kontrolleri', 'F3', () => E.lt('controls')], ['Efektler ve Ön Ayarlar', '', () => E.rt('fx')], ['Altyazı', '', () => E.rt('subs')], ['Karakter', '', () => E.rt('style')]]],
-    ['Yardım', [['Klavye kısayolları', 'F1', shortcutsModal]]],
+    ['Yardım', [['Klavye kısayolları', 'F1', shortcutsModal], ['Güncellemeleri kontrol et...', '', () => KS.checkUpdate(true, true)], ['Ayarlar', '', () => KS.go('settings')]]],
   ];
   const mb = $('#aeMenubar');
   (() => {
@@ -1153,7 +1320,7 @@
     $$('.mi', mb).forEach(m => {
       m.onmousedown = e => { if (e.target.closest('[data-mj]')) return; const open = m.classList.contains('open'); $$('.mi', mb).forEach(x => x.classList.remove('open')); if (!open) m.classList.add('open'); };
       m.onmouseenter = () => { if ($('.mi.open', mb)) { $$('.mi', mb).forEach(x => x.classList.remove('open')); m.classList.add('open'); } };
-      $$('[data-mj]', m).forEach(d => d.onclick = () => { $$('.mi', mb).forEach(x => x.classList.remove('open')); const it = MENU()[+m.dataset.mi][1][+d.dataset.mj]; if (!P() && !['Yeni Proje...', 'Projeleri Aç...', 'İçe Aktar...', 'Klavye kısayolları'].includes(it[0])) return KS.toast('Önce bir proje aç', '', [], 1500); it[2](); });
+      $$('[data-mj]', m).forEach(d => d.onclick = () => { $$('.mi', mb).forEach(x => x.classList.remove('open')); const it = MENU()[+m.dataset.mi][1][+d.dataset.mj]; if (!P() && !['Yeni Proje...', 'Projeleri Aç...', 'İçe Aktar...', 'Klavye kısayolları', 'Güncellemeleri kontrol et...', 'Ayarlar'].includes(it[0])) return KS.toast('Önce bir proje aç', '', [], 1500); it[2](); });
     });
   })();
   addEventListener('mousedown', e => { if (!e.target.closest('#aeMenubar')) $$('.mi', mb).forEach(x => x.classList.remove('open')); });
@@ -1191,6 +1358,8 @@
       if (k === 'ArrowRight') { stop(); return E.seek(E.T + frame()); } if (k === 'ArrowLeft') { stop(); return E.seek(E.T - frame()); }
       return;
     }
+    if (sh && k === 'F5') { stop(); return E.snapshot(); }
+    if (alt && sh && kl === 'j') { stop(); return E.goTo(); }
     if (alt && sh && ['p', 's', 'r', 't'].includes(kl)) { stop(); return toggleKeyProp({ p: 'pos', s: 'scale', r: 'rot', t: 'op' }[kl]); }
     if (alt && code === 'BracketLeft') { stop(); return E.inOut('in', true); }
     if (alt && code === 'BracketRight') { stop(); return E.inOut('out', true); }
@@ -1221,6 +1390,7 @@
       case 'b': return setWork('a'); case 'n': return setWork('b');
       case 'i': { const o = selObj(); if (o && o.s != null) E.seek(o.s); else if (E.sel && E.sel.type === 'video') { const r = TL().find(q => q.c.id === E.sel.id); if (r) E.seek(r.start); } return; }
       case 'o': { const o = selObj(); if (o && o.e != null) E.seek(o.e - .001); else if (E.sel && E.sel.type === 'video') { const r = TL().find(q => q.c.id === E.sel.id); if (r) E.seek(r.start + r.len - .001); } return; }
+      case 'l': { const now = Date.now(), s = E.sel; if (now - (E._lastL || 0) < 450 && s && s.type === 'video') { E.open[s.id] = !E.open[s.id]; E.sizeTimeline(); E._lastL = 0; } else E._lastL = now; return; }
       case 'j': return jumpKey(-1); case 'k': return jumpKey(1);
       case 'escape': return E.select(null);
     }

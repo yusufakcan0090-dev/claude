@@ -129,8 +129,11 @@
   };
 
   /* ---------- izleyici klipleri ---------- */
+  F.clipSort = 'new';
+  $$('#clipSort button').forEach(b => b.onclick = () => { F.clipSort = b.dataset.s; $$('#clipSort button').forEach(x => x.classList.toggle('active', x === b)); F.selClips.clear(); F.renderClips(); });
   F.renderClips = () => {
     const g = $('#clipsGrid');
+    F.clips.sort(F.clipSort === 'pop' ? (a, b) => (b.views || 0) - (a.views || 0) : (a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     $('#cntClips').textContent = F.clips.length || '';
     if (!F.clips.length) { g.innerHTML = emptyHtml('Klip yok', 'Bu kanalda izleyicilerin kestiği klip bulunamadı.', KS.icon.film); return; }
     g.innerHTML = F.clips.map((c, i) => `
@@ -346,6 +349,11 @@
     });
   };
 
+  // açılışta yazı yazmadan son kanalın en yeni videoları ve klipleri otomatik gelsin
+  KS.hooks.state.push(() => {
+    if (F._auto || !KS.state.settings) return; F._auto = true;
+    if (!input.value.trim()) { input.value = KS.state.settings.son_kanal || 'rraenee'; input.dispatchEvent(new Event('input')); F.search(); }
+  });
   KS.hooks.state.push(() => {
     $('#cntProjects').textContent = (KS.state.projects || []).length || '';
     $('#cntMoments').textContent = (KS.state.analyses || []).length || '';

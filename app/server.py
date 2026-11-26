@@ -664,6 +664,25 @@ def api_pick_folder():
     return jsonify(path=pick_folder())
 
 
+@app.post("/api/snapshot")
+def api_snapshot():
+    import base64
+    d = request.get_json(force=True) or {}
+    data = (d.get("data") or "").split(",", 1)[-1]
+    if not data:
+        return jsonify(error="Görüntü yok"), 400
+    folder = Path(load_settings().get("cikti_klasoru") or str(Path.home() / "Videos"))
+    folder.mkdir(parents=True, exist_ok=True)
+    name = safe_name(d.get("name") or "kare", 80) + ".png"
+    out = folder / name
+    i = 2
+    while out.exists():
+        out = folder / f"{Path(name).stem}_{i}.png"
+        i += 1
+    out.write_bytes(base64.b64decode(data))
+    return jsonify(path=str(out), name=out.name)
+
+
 @app.post("/api/reveal")
 def api_reveal():
     path = (request.get_json(force=True) or {}).get("path", "")

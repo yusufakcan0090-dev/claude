@@ -169,12 +169,20 @@ def _kick_direct(slug):
                      "views": v.get("views") or v.get("viewer_count") or 0,
                      "timestamp": _ts(v.get("start_time") or v.get("created_at")),
                      "availability": "public", "channel": slug})
+    raw = []
+    for srt in ("date", "view"):
+        try:
+            d = _kick_get(f"https://kick.com/api/v2/channels/{slug}/clips?sort={srt}&time=all")
+            raw += d.get("clips") or (d.get("data") or {}).get("clips") or []
+        except Exception as e:
+            errs.append("klipler: " + _short(e))
+    seen = set()
     try:
-        d = _kick_get(f"https://kick.com/api/v2/channels/{slug}/clips?sort=view&time=all")
-        for c in d.get("clips") or (d.get("data") or {}).get("clips") or []:
+        for c in raw:
             cid = c.get("id")
-            if not cid:
+            if not cid or cid in seen:
                 continue
+            seen.add(cid)
             clips.append({"id": cid, "url": f"https://kick.com/{slug}/clips/{cid}",
                           "title": c.get("title") or "Klip", "duration": _ms_or_s(c.get("duration")),
                           "thumbnail": c.get("thumbnail_url"),
@@ -185,20 +193,41 @@ def _kick_direct(slug):
     return vids, clips, errs, ch
 
 
+def _merge(*lists):
+    out, seen = [], set()
+    for lst in lists:
+        for c in lst or []:
+            key = c.get("id") or c.get("url")
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(c)
+    return out
+
+
 def list_channel(text):
     slug = channel_slug(text)
     if not slug:
         raise ValueError("Kanal adı boş")
     res = {"slug": slug, "source": "kick", "title": slug, "videos": [], "clips": [], "errors": []}
     errs = []
-    try:
-        res["videos"] = _entries(f"https://kick.com/{slug}/videos")
-    except Exception as e:
-        errs.append("Yayın kayıtları: " + _short(e))
-    try:
-        res["clips"] = _entries(f"https://kick.com/{slug}/clips?sort=view&range=all")
-    except Exception as e:
-        errs.append("Klipler: " + _short(e))
+    from concurrent.futures import ThreadPoolExecutor
+    urls = {"videos": f"https://kick.com/{slug}/videos",
+            "pop": f"https://kick.com/{slug}/clips?sort=view&range=all",
+            "new": f"https://kick.com/{slug}/clips?sort=date&range=all"}
+    got = {}
+    with ThreadPoolExecutor(3) as ex:
+        futs = {k: ex.submit(_entries, u) for k, u in urls.items()}
+        for k, f in futs.items():
+            try:
+                got[k] = f.result()
+            except Exception as e:
+                got[k] = []
+                errs.append(("Yayın kayıtları: " if k == "videos" else "Klipler: ") + _short(e))
+    res["videos"] = got["videos"]
+    res["clips"] = _merge(got["new"], got["pop"])
+    if res["clips"]:
+        errs = [x for x in errs if not x.startswith("Klipler")]
     if not res["videos"] or not res["clips"]:
         try:
             v2, c2, e2, _ = _kick_direct(slug)
@@ -210,7 +239,7 @@ def list_channel(text):
         except RuntimeError:
             if not res["videos"] and not res["clips"]:
                 raise
-    res["clips"].sort(key=lambda c: c["views"] or 0, reverse=True)
+    res["clips"].sort(key=lambda c: c.get("timestamp") or 0, reverse=True)
     if not res["videos"] and not res["clips"]:
         detail = (" Ayrıntı: " + " | ".join(errs)) if errs else ""
         raise RuntimeError(f'"{slug}" kanalında video ya da klip bulunamadı. Kanal yayın kayıtlarını '
