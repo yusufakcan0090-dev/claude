@@ -12,11 +12,13 @@ Otomatik görev her çalıştığında güncellenir.
 | 2026-11-11 | Son dakika: Henry Gunther | 3370 | 2431 | 62.2 | – | 1 | 4 | 1 |
 | 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6553 | 5390 | 61.9 | – | 179 | 54 | 20 |
 | 2026-11-16 | Vidocq | 599 | 511 | 52.9 | – | 0 | 1 | 1 |
-| 2026-11-17 | Başkurdistan bayrağı | 3674 | 2912 | 61.9 | – | 58 | 71 | 12 |
+| 2026-11-17 | Başkurdistan bayrağı | 3706 | 2937 | 61.8 | – | 58 | 72 | 12 |
 | 2026-11-18 | Köpenick Yüzbaşısı | 1181 | 1026 | 55.9 | – | 0 | 3 | 1 |
-| 2026-11-20 | Tolstoy'un kaçışı | 18 | 7 | 41.7 | – | 0 | 0 | 1 |
-| 2026-11-21 | Pilâtre de Rozier balonu | 1569 | 1394 | 51.4 | – | 0 | 1 | 1 |
-| 2026-11-23 | Tataristan / Kazan | 1953 | 1591 | 47.2 | – | 7 | 12 | 2 |
+| 2026-11-20 | Tolstoy'un kaçışı | 19 | 8 | 38.5 | – | 0 | 0 | 1 |
+| 2026-11-21 | Pilâtre de Rozier balonu | 1573 | 1396 | 51.4 | – | 0 | 1 | 1 |
+| 2026-11-23 | Tataristan / Kazan | 2017 | 1637 | 47.1 | – | 7 | 14 | 2 |
+| 2026-11-24 | Witold Pilecki | 1558 | 1355 | 52.8 | – | 19 | 10 | 2 |
+| 2026-11-25 | Saha / Yakutistan | 2005 | 1695 | 61.8 | – | 0 | 8 | 2 |
 
 ## Notlar / çıkarımlar
 - 2026-11-05: İki yayın var, veri az. Retention %44–50 → video ~45 sn'de tutuldu (ses 1.1x hızlandırıldı, uzun duraklar kısaltıldı). Soru ile açılan Gök Bayrak daha iyi tuttu ve 9 paylaşım aldı: açılışta doğrudan çarpıcı iddia + ilk karede büyük yazı sürdürülüyor. IGRE28 (3 sn+) verisi henüz boş.
@@ -38,3 +40,4 @@ Otomatik görev her çalıştığında güncellenir.
 - 2026-11-22: Balon 1 günde 1.547 izlenme (%51.7) — Batı/Fransa yine orta grupta. Tolstoy Metricool'da sadece 16 izlenme gösteriyor (veri gecikmesi ya da Instagram dağıtımı kısıtladı; kullanıcı kontrol etmeli). Liderler hâlâ halk/bayrak videoları (Rusya 6.5K, Başkurdistan 3.6K). Halklar sırası #1 Tataristan seçildi; kanca: Aziz Vasil Katedrali = Kazan'ın düşüşü (1552) → Kul Şerif → Tatarlar yaşıyor → 2005 Kul Şerif Camii. 35.2 sn (ses 1.0x, 526 kredi). İlk kare: "BU KATEDRAL / BİR TÜRK ŞEHRİNİN DÜŞÜŞÜ İÇİN"; kapak: "1552'DE KAZAN DÜŞTÜ / BU KATEDRAL O GÜNÜN ANITI". Sıradaki halk: Saha (Yakutistan); hafta içi bir sonraki slot genel dünya tarihi olmalı.
 - 2026-11-23: Liderler değişmedi (Rusya 6.5K, Başkurdistan 3.6K, Gunther 3.4K; hepsi ~%62). Tolstoy hâlâ 17 izlenme (dağıtım sorunu olabilir). Pazartesi halk (Tataristan) olduğu için Salı genel dünya tarihi: Gunther tarzı dramatik/trajik tek kader + ihanet açısı seçildi → Witold Pilecki (Auschwitz'e gönüllü giren, komünist Polonya'da idam edilen subay). 35.6 sn (ses 1.1x, 543 kredi). İlk kare: "KENDİ İSTEĞİYLE / AUSCHWITZ'E"; kapak: "NAZİLERDEN KAÇTI, / KENDİ ÜLKESİ İDAM ETTİ". Nazi sembolü çizilmedi (tel örgü + kule). Sıradaki halk: Saha (Yakutistan), Çar/Cum slotlarından birinde.
 - 2026-11-24: Tataristan/Kazan 1 günde 1.953 izlenme, %47.2 retention (Başkurdistan'ın %62'sinin altında; açılış katedral silueti, bayrak geç geldi). Ders: halk videosunda bayrak İLK karede olsun. Bu yüzden Saha videosu bayrakla ve görsel bir soruyla açıldı ("BU GÜNEŞ NEDEN BEYAZ?"), Başkurdistan'daki isim tartışması kalıbı tekrarlandı (Yakut mu, Saha mı?). 33.6 sn (ses 1.0x, 457 kredi). Kapak: "EKSİ 67 DERECEDE YAŞAYAN / BİR TÜRK HALKI: SAHALAR". Çar 25 Kasım 18:00. Sıradaki halk: Çuvaşistan; Cuma slotu genel dünya tarihi olmalı. Tolstoy hâlâ 18 izlenme.
+- 2026-11-26: Saha 1 günde 2.005 izlenme, %61.8 retention — bayrakla açılış dersi işe yaradı (Kazan %47 idi), Başkurdistan seviyesine döndü. Pilecki 1.558 / %52.8 ama 19 paylaşım (genel konuların en çok paylaşılanı). Cuma slotu genel dünya tarihi (Pzt–Çar'da iki halk + Polonya olduğu için Fransa/WWII): yıl dönümüne denk gelen dramatik tek an → Toulon'da Fransız donanmasının kendini batırması (27 Kasım 1942). Gunther kalıbı: net saat (05.25) + tek emir ('Batırın!' x3). 34.8 sn (ses 1.05x, 565 kredi). İlk kare: "KENDİ DONANMASINI / BATIRDI"; kapak: "HİTLER FİLOYU İSTEDİ, / FRANSIZLAR BATIRDI". Gemi sayısı kaynaklarda 73/77 → '70'ten fazla'. Sıradaki halk: Çuvaşistan (Cmt ya da Pzt).
