@@ -1,10 +1,7 @@
 {
- "version": "1.3.2",
+ "version": "1.3.3",
  "date": "2026-11-26",
  "notes": [
-  "Altyazı görünümü kolayca düzenlenir: altyazıya tıkla, solda hazır stiller, yazı tipi, renkler, boyut, konum (Üst/Orta/Alt) açılır",
-  "Klip Bulucu'da Keşfet: isim yazmadan Komik anlar, Talk show, Podcast, Yayıncı anıları gibi 20'den fazla kategori",
-  "Kick'te bulunamayan tek kelime artık YouTube'da aranıyor",
-  "Zaman çizelgesinde orta tuşa (tekerleğe) basılı tutup sürükleyerek gezinme"
+  "Editördeyken soldaki menü (Bul / Editör / Ayarlar) artık görünüyor, geri dönmek kolay"
  ]
 }

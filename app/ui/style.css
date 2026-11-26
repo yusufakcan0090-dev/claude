@@ -712,7 +712,7 @@ input[type=range]::-webkit-slider-thumb{width:12px;height:12px;border:0;backgrou
 .toast{cursor:pointer}
 
 /* ================= AE görünümü v2 (After Effects 2024'e birebir yakın) ================= */
-body.on-editor .sidebar{display:none}
+body.on-editor .sidebar{width:56px;gap:8px;padding:8px 0}
 body.on-editor{background:#0e0e0e}
 #page-editor{padding:0;background:#0e0e0e;transform:none!important}
 #page-editor .ae{height:100%;display:grid;grid-template-rows:22px 34px 1fr var(--tlh,330px);font:11.5px/1.35 "Segoe UI",system-ui,sans-serif;color:#a9a9a9;background:#0e0e0e}
