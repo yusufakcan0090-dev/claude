@@ -84,96 +84,78 @@
 
   <!-- ======================= EDİTÖR ======================= -->
   <section class="page" id="page-editor">
-    <div class="editor-empty" id="editorEmpty">
-      <div class="empty-art"><i></i><i></i><i></i></div>
-      <h2>Henüz açık proje yok</h2>
-      <p>Klip Bulucu'dan bir an ya da klip hazırla, burada açılsın.</p>
-      <button class="btn primary glow" data-goto="finder">Klip Bulucu'ya git</button>
-    </div>
-
-    <div class="editor" id="editor" hidden>
-      <div class="ed-top">
-        <button class="icon-btn" id="edBack" title="Projelerim"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
-        <input id="edTitle" class="title-input" spellcheck="false">
-        <span class="save-state" id="saveState"><i></i>Kaydedildi</span>
+    <div class="ae">
+      <!-- menü çubuğu -->
+      <div class="ae-menubar" id="aeMenubar"></div>
+      <!-- araç çubuğu -->
+      <div class="ae-toolbar">
+        <div class="ae-tools" id="aeTools">
+          <button data-tool="select" title="Seçim aracı (V)"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-3 6z"/></svg></button>
+          <button data-tool="hand" title="El aracı (H)"><svg viewBox="0 0 24 24"><path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-.5A6.5 6.5 0 0 1 4 16l-1-3a1.5 1.5 0 0 1 2.6-1.4L8 14"/></svg></button>
+          <button data-tool="zoom" title="Büyüteç (Z) · Alt+tık uzaklaştırır"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/></svg></button>
+          <button data-tool="rotate" title="Döndürme aracı (W)"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          <span class="ae-sep"></span>
+          <button data-tool="rect" title="Dikdörtgen aracı (Q)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12"/></svg></button>
+          <button data-tool="ellipse" title="Elips aracı (Q)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6"/></svg></button>
+          <button data-tool="text" title="Yazı aracı (Ctrl+T)"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg></button>
+        </div>
+        <div class="ae-title"><input id="edTitle" spellcheck="false" title="Proje adı"><span class="save-state" id="saveState"><i></i>Kaydedildi</span></div>
         <div class="spacer"></div>
         <button class="icon-btn" id="undoBtn" title="Geri al (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
-        <button class="icon-btn" id="redoBtn" title="Yinele (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
-        <button class="icon-btn" id="helpBtn" title="Kısayollar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></button>
-        <button class="btn export-btn" id="exportBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Dışa Aktar</button>
+        <button class="icon-btn" id="redoBtn" title="Yinele (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+        <button class="btn export-btn" id="exportBtn" title="Dışa aktar (Ctrl+M)"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Dışa Aktar</button>
       </div>
 
-      <div class="ed-body">
-        <!-- sol: kadraj -->
-        <div class="panel ae-panel" id="layoutPanel">
-          <div class="ae-head"><span class="ae-tab active">Kadraj</span><span class="ae-tab dim">Kaynak</span><span class="spacer"></span><span class="ae-menu">≡</span></div>
-          <div class="panel-in">
-          <div class="mode-cards" id="modeCards">
-            <button data-mode="split" class="mode-card"><div class="mini split"><i></i><i></i></div><span>Yüz + Oyun</span></button>
-            <button data-mode="crop" class="mode-card"><div class="mini crop"><i></i></div><span>Tam Kırp</span></button>
-            <button data-mode="blur" class="mode-card"><div class="mini blur"><i></i></div><span>Bulanık Arka</span></button>
+      <div class="ae-body" id="aeBody">
+        <!-- sol: Proje / Efekt Kontrolleri -->
+        <div class="ae-panel ae-left">
+          <div class="ae-head" id="leftTabs"><button class="ae-tab active" data-lt="project">Proje</button><button class="ae-tab" data-lt="controls">Efekt Kontrolleri</button><span class="spacer"></span><span class="ae-menu">≡</span></div>
+          <div class="ae-pbody lt-panel active" id="lt-project"></div>
+          <div class="ae-pbody lt-panel" id="lt-controls"></div>
+        </div>
+        <!-- orta: kompozisyon -->
+        <div class="ae-panel ae-comp">
+          <div class="ae-head"><span class="ae-tab active" id="compTab">Kompozisyon</span><span class="spacer"></span><span class="ae-menu">≡</span></div>
+          <div class="comp-view" id="compView">
+            <div class="comp-stage" id="compStage"><canvas id="preview" width="540" height="960"></canvas><canvas id="gizmo"></canvas></div>
+            <div class="comp-empty" id="compEmpty" hidden>
+              <b>Kompozisyon boş</b><span>Video eklemek için dosyayı buraya sürükle ya da</span>
+              <button class="btn primary" id="emptyImport">İçe Aktar (Ctrl+I)</button>
+            </div>
           </div>
-          <div class="src-wrap" id="srcWrap">
-            <canvas id="srcCanvas"></canvas>
-            <div class="rect face" id="rectFace" data-r="face"><b>YÜZ</b><i class="h"></i></div>
-            <div class="rect game" id="rectGame" data-r="game"><b>OYUN</b><i class="h"></i></div>
-            <div class="rect crop" id="rectCrop" data-r="crop"><b>KADRAJ</b><i class="h"></i></div>
-          </div>
-          <div class="hint" id="layoutHint">Kutuları sürükle, köşeden büyüt.</div>
-          <div class="field" id="splitField">
-            <label>Yüz alanı <b id="splitVal">40%</b></label>
-            <input type="range" id="splitRange" min="20" max="60" step="1">
-          </div>
-          <button class="btn ghost sm full" id="layoutDefault">Bu kadrajı varsayılan yap</button>
+          <div class="comp-bar">
+            <select id="magSel" title="Büyütme (. ve ,)"><option value="fit">Sığdır</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100%</option><option value="2">200%</option></select>
+            <select id="qualSel" title="Önizleme kalitesi"><option value="1">Tam</option><option value="0.5">Yarım</option></select>
+            <button class="cb-btn" id="playBtn" title="Oynat / durdur (Boşluk)"><svg class="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 4h4v16H7zM13 4h4v16h-4z"/></svg></button>
+            <span class="cb-tc" id="tcCur">0:00:00:00</span>
+            <span class="spacer"></span>
+            <button class="cb-btn wide" id="compSettingsBtn" title="Kompozisyon ayarları (Ctrl+K)"><span id="compRes">1080×1920</span></button>
           </div>
         </div>
-
-        <!-- orta: önizleme -->
-        <div class="stage ae-panel">
-          <div class="ae-head"><span class="ae-tab active" id="compTab">Kompozisyon</span><span class="ae-tab dim" id="compRes">1080×1920</span><span class="spacer"></span><span class="ae-menu">≡</span></div>
-          <div class="phone"><canvas id="preview" width="540" height="960"></canvas><div class="phone-glow"></div></div>
-          <div class="transport glass">
-            <button class="icon-btn" id="prevSeg" title="Önceki parça"><svg viewBox="0 0 24 24"><path d="M19 20 9 12l10-8zM5 19V5"/></svg></button>
-            <button class="play-btn" id="playBtn" title="Oynat / Durdur (Boşluk)"><svg class="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 4h4v16H7zM13 4h4v16h-4z"/></svg></button>
-            <button class="icon-btn" id="nextSeg" title="Sonraki parça"><svg viewBox="0 0 24 24"><path d="m5 4 10 8-10 8zM19 5v14"/></svg></button>
-            <div class="tc"><b id="tcCur">00:00</b><span>/</span><span id="tcDur">00:00</span></div>
-          </div>
-        </div>
-
-        <!-- sağ: altyazı & stil -->
-        <div class="panel ae-panel right" id="rightPanel">
-          <div class="seg-tabs" id="rightTabs">
-            <button class="active" data-rt="subs">Altyazı</button>
-            <button data-rt="style">Stil</button>
-            <button data-rt="fx">Efekt</button>
-            <button data-rt="layers">Katman</button>
-            <i></i>
-          </div>
-          <div class="rt-panel active" id="rt-subs"></div>
-          <div class="rt-panel" id="rt-style"></div>
-          <div class="rt-panel" id="rt-fx"></div>
-          <div class="rt-panel" id="rt-layers"></div>
+        <!-- sağ: Efektler ve Ön Ayarlar / Altyazı / Karakter -->
+        <div class="ae-panel ae-right">
+          <div class="ae-head" id="rightTabs"><button class="ae-tab active" data-rt="fx">Efektler ve Ön Ayarlar</button><button class="ae-tab" data-rt="subs">Altyazı</button><button class="ae-tab" data-rt="style">Karakter</button></div>
+          <div class="ae-pbody rt-panel active" id="rt-fx"></div>
+          <div class="ae-pbody rt-panel" id="rt-subs"></div>
+          <div class="ae-pbody rt-panel" id="rt-style"></div>
         </div>
       </div>
 
-      <div class="timeline ae-panel" id="timeline">
-        <div class="ae-head"><span class="ae-tab active">Zaman Çizelgesi</span><span class="ae-tab dim" id="tlCompName">Kompozisyon</span><span class="spacer"></span><span class="ae-menu">≡</span></div>
+      <!-- zaman çizelgesi -->
+      <div class="ae-panel ae-timeline" id="timeline">
+        <div class="ae-head"><span class="ae-tab active" id="tlTab">Zaman Çizelgesi</span><span class="spacer"></span><span class="tl-info" id="tlInfo"></span><span class="ae-menu">≡</span></div>
         <div class="tl-tools">
           <div class="ae-tc" id="aeTc" title="Zaman (saat:dk:sn:kare)">0:00:00:00</div>
           <span class="ae-fps" id="aeFps">30 fps</span>
           <span class="tl-sep"></span>
-          <button class="tool" id="splitBtn" title="Bölmek için S"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></svg>Böl <kbd>S</kbd></button>
-          <button class="tool" id="delBtn" title="Seçili parçayı sil"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Sil <kbd>Del</kbd></button>
-          <button class="tool" id="addFileBtn2" title="Dosya ekle (Ctrl+O)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Dosya Ekle</button>
-          <button class="tool" id="addTextBtn" title="Yazı ekle (T)"><svg viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg>Yazı <kbd>T</kbd></button>
-          <button class="tool" id="addZoomBtn" title="Zoom ekle (Z)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/></svg>Zoom <kbd>Z</kbd></button>
-          <button class="tool magic" id="silenceBtn" title="Konuşma olmayan boşlukları otomatik kırp"><svg viewBox="0 0 24 24"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/></svg>Boşlukları Kırp</button>
-          <button class="tool" id="resetCutBtn" title="Tüm kesimleri geri al"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Sıfırla</button>
-          <div class="spacer"></div>
-          <span class="tl-info" id="tlInfo"></span>
-          <svg class="zoom-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></svg>
-          <input type="range" id="zoomRange" min="1" max="40" step="0.1" value="1" title="Timeline üzerinde fare tekerleğiyle de yakınlaşabilirsin">
-          <svg class="zoom-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/></svg>
+          <button class="tool" id="splitBtn" title="Katmanı böl (Ctrl+Shift+D)">Böl</button>
+          <button class="tool" id="delBtn" title="Sil (Delete)">Sil</button>
+          <button class="tool" id="dupBtn" title="Çoğalt (Ctrl+D)">Çoğalt</button>
+          <button class="tool magic" id="silenceBtn" title="Konuşma olmayan boşlukları kırp">Boşlukları Kırp</button>
+          <span class="spacer"></span>
+          <svg class="zoom-i" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+          <input type="range" id="zoomRange" min="1" max="60" step="0.1" value="1" title="Timeline yakınlaştırma (= / -, fare tekerleği)">
+          <svg class="zoom-i" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
         </div>
         <div class="tl-body">
           <div class="tl-layers" id="tlLayers"></div>
@@ -181,7 +163,7 @@
         </div>
       </div>
     </div>
-    <video id="srcVideo" class="vsrc" preload="auto" playsinline></video>
+    <div id="vidPool" class="vid-pool"></div>
     <audio id="musicAudio" preload="auto"></audio>
   </section>
 

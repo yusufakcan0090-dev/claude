@@ -1,7 +1,17 @@
 {
- "version": "1.1.2",
+ "version": "1.2.0",
  "date": "2026-11-26",
  "notes": [
-  "Altyazı çıkarma hatası düzeltildi (ses artık FFmpeg ile okunuyor)"
+  "Editör After Effects düzenine geçti: menüler, araçlar (V H Z W Q Ctrl+T), Proje / Efekt Kontrolleri paneli, katmanlı zaman çizelgesi",
+  "After Effects kısayolları: P S R T, Alt+Shift+P keyframe, F9 Easy Ease, Ctrl+Shift+D böl, B/N çalışma alanı ve dahası (F1)",
+  "Keyframe animasyonu: konum, ölçek, döndürme, opaklık",
+  "Yeni Proje (Ctrl+N): dikey / yatay / kare biçim seçimi, bir projede birden fazla video (sürükleyip sırala, kenarından kırp)",
+  "Üst video: tepki videosu ve yeşil ekran silme",
+  "Görüntüde fare tekerleği ile zoom, el aracı / orta tuş ile kaydırma",
+  "Videonun kendi siyah kenarları otomatik kesiliyor (ortadaki siyah çizgi gitti)",
+  "Efekt (ayar) katmanları artık üst videoların ve resimlerin de üstünde",
+  "Klip bulucuda indirilen klipleri açık projeye ekleme",
+  "Kick'te kanal bulunamama sorunu düzeltildi (elraenn)",
+  "Masaüstü kısayol simgesi düzeltildi, uyarılar kendiliğinden kapanıyor"
  ]
 }

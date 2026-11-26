@@ -82,10 +82,14 @@ KS.toast = (msg, type = '', actions = [], ms = 4500) => {
     b.onclick = () => { a.fn(); close(); };
     $('.ta', t).appendChild(b);
   });
-  const close = () => { t.classList.add('out'); setTimeout(() => t.remove(), 350); };
+  let closed = false;
+  const close = () => { if (closed) return; closed = true; t.classList.add('out'); setTimeout(() => t.remove(), 300); };
   t.querySelector('.icon-btn').onclick = close;
-  $('#toasts').appendChild(t);
-  if (ms) setTimeout(close, actions.length ? ms * 2 : ms);
+  t.addEventListener('click', e => { if (!e.target.closest('.ta')) close(); });
+  const box = $('#toasts');
+  box.appendChild(t);
+  [...box.children].filter(x => !x.classList.contains('out')).slice(0, -3).forEach(x => x.querySelector('.icon-btn').click());
+  setTimeout(close, ms ? (actions.length ? ms * 2 : ms) : 15000);
   return close;
 };
 
@@ -131,15 +135,18 @@ KS.refresh = async () => {
 
 /* ---------- işler ---------- */
 let jobsOpen = false, lastJobStatus = {}, pollTimer = null;
+KS._doneAt = {};
 const jobIcon = { indir: '⬇', analiz: '✨', an: '✂', altyazi: '💬', aktar: '🎬', guncelle: '🔄' };
 KS.renderJobs = () => {
-  const jobs = KS.state.jobs || [];
+  const now = Date.now() / 1000;
+  // bitenler 5 sn sonra listeden düşer; hiç iş yoksa kutu tamamen gizlenir
+  (KS.state.jobs || []).forEach(j => { if ((j.status === 'bitti' || j.status === 'hata') && !KS._doneAt[j.id]) KS._doneAt[j.id] = now; });
+  const jobs = (KS.state.jobs || []).filter(j => j.status === 'calisiyor' || j.status === 'bekliyor' || now - (KS._doneAt[j.id] || now) < 5);
   const dock = $('#jobsDock');
   const running = jobs.filter(j => j.status === 'calisiyor' || j.status === 'bekliyor');
-  dock.classList.toggle('has', jobs.length > 0);
-  dock.classList.toggle('idle', running.length === 0);
-  dock.classList.toggle('open', jobsOpen && jobs.length > 0);
-  $('#jobsPillText').textContent = running.length ? `${running.length} işlem sürüyor` : 'İşlemler tamam';
+  dock.classList.toggle('has', running.length > 0);
+  dock.classList.toggle('open', jobsOpen && running.length > 0);
+  $('#jobsPillText').textContent = running.length ? `${running.length} işlem sürüyor · %${Math.round(running.reduce((s, j) => s + j.progress, 0) / running.length * 100)}` : '';
   const list = $('#jobsList');
   const html = jobs.slice().reverse().map(j => `
     <div class="job ${j.status}" data-id="${j.id}">
@@ -150,6 +157,7 @@ KS.renderJobs = () => {
     </div>`).join('');
   if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
 };
+document.addEventListener('mousedown', e => { if (jobsOpen && !e.target.closest('#jobsDock')) { jobsOpen = false; KS.renderJobs(); } });
 $('#jobsPill').onclick = () => { jobsOpen = !jobsOpen; KS.renderJobs(); };
 $('#jobsList').onclick = e => {
   const c = e.target.closest('[data-cancel]');
@@ -268,18 +276,24 @@ KS.handleFile = async f => {
   if (f.error) return KS.toast(KS.esc(f.error), 'err');
   const ed = KS.editor;
   if (f.kind === 'video') {
-    const long = (f.duration || 0) > 180;
+    const long = (f.duration || 0) > 180, open = ed && ed.project;
     const md = KS.modal(`<h2>Video eklendi</h2><p class="msub">${KS.esc(f.name)} · ${KS.fmt(f.duration)}</p>
       <div class="big-choice">
         <button id="chA"><span class="e">✨</span><b>Anları Bul</b><small>Uzun yayın kaydıysa en iyi anları otomatik bulayım.</small></button>
-        <button id="chB"><span class="e">✂️</span><b>Direkt Düzenle</b><small>Zaten kısa bir kesitse direkt editörde aç.</small></button>
+        ${open ? `<button id="chC"><span class="e">➕</span><b>Açık projeye ekle</b><small>"${KS.esc(ed.project.title)}" videosunun sonuna eklenir.</small></button>
+        <button id="chD"><span class="e">🧩</span><b>Üst video olarak ekle</b><small>Tepki videosu / yeşil ekran gibi videonun üstüne.</small></button>` : ''}
+        <button id="chB"><span class="e">✂️</span><b>Yeni proje</b><small>Bu videoyla yeni bir proje aç.</small></button>
       </div>
       ${long ? '<p class="hint" style="margin-top:12px">İpucu: Bu video uzun, "Anları Bul" daha mantıklı.</p>' : ''}`);
-    $('#chA', md.el).onclick = () => { md.close(); setTimeout(() => KS.findMoments({ local: true, path: f.path, title: f.title }), 280); };
+    $('#chA', md.el).onclick = () => { md.close(); setTimeout(() => KS.findMoments({ local: true, path: f.path, title: f.title, project: open ? ed.project.id : undefined }), 280); };
+    if (open) {
+      $('#chC', md.el).onclick = () => { md.close(); KS.go('editor'); ed.addVideo(f, false); };
+      $('#chD', md.el).onclick = () => { md.close(); KS.go('editor'); ed.addVideo(f, true); };
+    }
     $('#chB', md.el).onclick = async () => {
       md.close();
       try {
-        const r = await KS.api('/api/local/project', { path: f.path, title: f.title });
+        const r = await KS.api('/api/local/project', { path: f.path, title: f.title, format: KS.state.settings.son_bicim });
         await KS.refresh();
         KS.kickJobs();
         KS.openProject(r.project);
@@ -339,7 +353,7 @@ document.addEventListener('keydown', e => {
   if (KS.modalOpen()) return;
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
   const k = e.key.toLowerCase();
-  if ((e.ctrlKey || e.metaKey) && k === 'o') { e.preventDefault(); KS.addFile(); return; }
+  if ((e.ctrlKey || e.metaKey) && (k === 'o' || (k === 'i' && KS.page !== 'editor'))) { e.preventDefault(); KS.addFile(); return; }
   if (typing) return;
   if (e.altKey && k === '1') { KS.go('finder'); e.preventDefault(); }
   if (e.altKey && k === '2') { KS.go('editor'); e.preventDefault(); }
@@ -406,12 +420,17 @@ KS.renderSettings = () => {
 };
 
 KS.shortcuts = [
-  ['Boşluk', 'Oynat / durdur'], ['S', 'Oynatma çizgisinden böl'], ['Delete', 'Seçili parçayı / katmanı sil'],
-  ['← →', '1 saniye ileri-geri'], ['Shift + ← →', '1 kare ileri-geri'], ['Home / End', 'Başa / sona git'],
-  ['Z', 'Buraya zoom ekle'], ['X', 'Buraya sarsıntılı zoom ekle'], ['T', 'Buraya yazı ekle'],
-  ['Ctrl + O', 'Dosya ekle (video / müzik / resim)'], ['Ctrl + Z / Ctrl + Y', 'Geri al / yinele'],
-  ['Ctrl + S', 'Kaydet'], ['Ctrl + E', 'Dışa aktar'], ['F', 'Sonraki şüpheli kelime'],
-  ['Tekerlek', 'Timeline yakınlaş / uzaklaş'], ['Shift + Tekerlek', 'Timeline yana kaydır'], ['+ / −', 'Timeline yakınlaştır'], ['Alt + 1/2/3', 'Bul / Editör / Ayarlar'],
+  ['V', 'Seçim aracı'], ['H', 'El aracı (kaydır)'], ['Z', 'Yakınlaştırma aracı (Alt ile uzaklaş)'], ['W', 'Döndürme aracı'], ['Q', 'Dikdörtgen / Elips aracı'], ['Ctrl + T', 'Yazı aracı'],
+  ['Boşluk', 'Oynat / durdur'], ['PageUp / PageDown', '1 kare geri / ileri'], ['Shift + PageUp / PageDown', '10 kare geri / ileri'], ['Home / End', 'Başa / sona git'],
+  ['I / O', 'Katmanın başına / sonuna git'], ['J / K', 'Önceki / sonraki keyframe veya işaret'], ['B / N', 'Çalışma alanı başı / sonu'], ['Num *', 'İşaret (marker) ekle'],
+  ['P S R T', 'Konum / Ölçek / Döndürme / Opaklık göster'], ['U', 'Animasyonlu özellikleri göster'], ['Alt + Shift + P/S/R/T', 'Keyframe ekle'],
+  ['F9', 'Easy Ease'], ['Shift + F9', 'Easy Ease giriş'], ['Ctrl + Shift + F9', 'Easy Ease çıkış'], ['Ctrl + Alt + H', 'Hold keyframe'],
+  ['Ctrl + Shift + D', 'Katmanı böl'], ['Ctrl + D', 'Çoğalt'], ['Delete', 'Sil'], ['[ / ]', 'Katmanın başını / sonunu buraya taşı'], ['Alt + [ / ]', 'Katmanı buradan kırp'],
+  ['Ctrl + ] / [', 'Katmanı bir öne / geri'], ['Ctrl + Shift + ] / [', 'En öne / en geriye'],
+  ['Ctrl + Alt + Shift + T', 'Yeni yazı katmanı'], ['Ctrl + Y', 'Yeni düz renk'], ['Ctrl + Alt + Y', 'Yeni ayar katmanı'],
+  ['Ctrl + N', 'Yeni proje'], ['Ctrl + I', 'İçe aktar'], ['Ctrl + K', 'Kompozisyon ayarları'], ['Ctrl + M', 'Dışa aktar'], ['Ctrl + S', 'Kaydet'],
+  ['Ctrl + Z / Ctrl + Shift + Z', 'Geri al / yinele'], ['= / −', 'Timeline yakınlaş / uzaklaş'], ['. / ,', 'Görüntüyü yakınlaş / uzaklaş'], ['Shift + /', 'Görüntüyü sığdır'],
+  ['Tekerlek (görüntüde)', 'İmlecin olduğu yere zoom'], ['Orta tuş / Boşluk + sürükle', 'Görüntüyü kaydır'], ['Ctrl + Tekerlek', 'Seçili yazıyı büyüt / küçült'], ['`', 'Paneli büyüt'], ['F1', 'Kısayollar'],
 ];
 KS.shortcutsHtml = () => `<div class="kbd-list">${KS.shortcuts.map(([k, d]) => `<span>${k.split(' ').map(x => /^[+/]$|^\/$/.test(x) ? x : `<kbd>${x}</kbd>`).join(' ')}</span><span style="color:var(--muted);font-size:13px">${d}</span>`).join('')}</div>`;
 

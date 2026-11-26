@@ -23,6 +23,63 @@ logging.getLogger("werkzeug").setLevel(logging.ERROR)  # her isteği kayda yazma
 import server  # noqa: E402
 
 
+def windows_fixes():
+    """Görev çubuğu/pencere ikonu ve Masaüstü kısayolunun ikonunu düzelt (Windows)."""
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Animeci.KesitStudyosu")
+    except Exception:
+        pass
+    root = Path(__file__).resolve().parent.parent
+    marker = root / "veri" / ".kisayol_v2"
+    if marker.exists():
+        return
+    try:
+        import subprocess
+        import tempfile
+        ico = root / "app" / "ui" / "icon.ico"
+        pyw = root / ".venv" / "Scripts" / "pythonw.exe"
+        main_py = root / "app" / "main.py"
+        ps = f"""
+$desk = [Environment]::GetFolderPath('Desktop')
+$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desk 'Kesit Studyosu.lnk'))
+$s.TargetPath = '{pyw}'
+$s.Arguments = '"{main_py}"'
+$s.WorkingDirectory = '{root}'
+$s.IconLocation = '{ico},0'
+$s.Description = 'Kesit Studyosu'
+$s.Save()
+"""
+        f = Path(tempfile.gettempdir()) / "ks_kisayol.ps1"
+        f.write_text(ps, encoding="utf-8-sig")
+        subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(f)],
+                       capture_output=True, timeout=30, creationflags=0x08000000)
+        marker.write_text("ok")
+    except Exception as e:
+        print("Kısayol güncellenemedi:", e)
+
+
+def _set_window_icon(win):
+    try:
+        import time as _t
+        from System import Action  # pythonnet (Windows)
+        from System.Drawing import Icon
+        ico = Icon(str(Path(__file__).resolve().parent / "ui" / "icon.ico"))
+        for _ in range(50):
+            if getattr(win, "native", None) is not None:
+                break
+            _t.sleep(0.1)
+        form = win.native
+
+        def _apply():
+            form.Icon = ico
+        form.Invoke(Action(_apply))
+    except Exception as e:
+        print("Pencere ikonu ayarlanamadı:", e)
+
+
 def free_port():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -33,6 +90,8 @@ def free_port():
 
 def _bind_drop(win):
     """Sürükle-bırak: dosyanın gerçek yolunu arayüze gönder."""
+    if sys.platform.startswith("win"):
+        _set_window_icon(win)
     try:
         import json
         from webview.dom import DOMEventHandler
@@ -48,6 +107,7 @@ def _bind_drop(win):
 
 
 def main():
+    threading.Thread(target=windows_fixes, daemon=True).start()
     port = free_port()
     th = threading.Thread(target=lambda: server.app.run(
         host="127.0.0.1", port=port, threaded=True, use_reloader=False), daemon=True)

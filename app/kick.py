@@ -110,24 +110,112 @@ def list_source(text):
     return {"single": _entry({**info, "url": info.get("webpage_url") or url})}
 
 
+def _kick_get(url):
+    """Kick'e tarayıcı gibi doğrudan sor (yt-dlp boş dönerse yedek yol)."""
+    from curl_cffi import requests as creq
+    r = creq.get(url, impersonate="chrome", timeout=25,
+                 headers={"Accept": "application/json", "Referer": "https://kick.com/"})
+    if r.status_code == 404:
+        raise LookupError("Kick'te böyle bir kanal yok")
+    r.raise_for_status()
+    return r.json()
+
+
+def _ms_or_s(v):
+    try:
+        v = float(v or 0)
+    except (TypeError, ValueError):
+        return 0
+    return v / 1000 if v > 36000 else v  # Kick süreyi bazen milisaniye verir
+
+
+def _ts(v):
+    if not v:
+        return 0
+    try:
+        from datetime import datetime
+        return int(datetime.fromisoformat(str(v).replace("Z", "+00:00").replace(" ", "T")).timestamp())
+    except Exception:
+        return 0
+
+
+def _kick_direct(slug):
+    vids, clips, errs = [], [], []
+    try:
+        ch = _kick_get(f"https://kick.com/api/v2/channels/{slug}")
+    except LookupError as e:
+        raise RuntimeError(f'"{slug}" adında bir Kick kanalı bulunamadı. Adı kanal linkindeki gibi yaz (kick.com/...).') from e
+    except Exception as e:
+        ch = None
+        errs.append("kanal: " + _short(e))
+    lst = []
+    for u in (f"https://kick.com/api/v2/channels/{slug}/videos", f"https://kick.com/api/v1/channels/{slug}"):
+        try:
+            d = _kick_get(u)
+            lst = d if isinstance(d, list) else (d.get("previous_livestreams") or d.get("data") or [])
+            if lst:
+                break
+        except Exception as e:
+            errs.append("videolar: " + _short(e))
+    for v in lst:
+        vid = (v.get("video") or {}).get("uuid") or v.get("uuid")
+        if not vid:
+            continue
+        th = v.get("thumbnail")
+        th = (th.get("src") or th.get("url")) if isinstance(th, dict) else th
+        vids.append({"id": vid, "url": f"https://kick.com/{slug}/videos/{vid}",
+                     "title": v.get("session_title") or v.get("title") or "Yayın",
+                     "duration": _ms_or_s(v.get("duration")), "thumbnail": th,
+                     "views": v.get("views") or v.get("viewer_count") or 0,
+                     "timestamp": _ts(v.get("start_time") or v.get("created_at")),
+                     "availability": "public", "channel": slug})
+    try:
+        d = _kick_get(f"https://kick.com/api/v2/channels/{slug}/clips?sort=view&time=all")
+        for c in d.get("clips") or (d.get("data") or {}).get("clips") or []:
+            cid = c.get("id")
+            if not cid:
+                continue
+            clips.append({"id": cid, "url": f"https://kick.com/{slug}/clips/{cid}",
+                          "title": c.get("title") or "Klip", "duration": _ms_or_s(c.get("duration")),
+                          "thumbnail": c.get("thumbnail_url"),
+                          "views": c.get("views") or c.get("view_count") or 0,
+                          "timestamp": _ts(c.get("created_at")), "availability": "public", "channel": slug})
+    except Exception as e:
+        errs.append("klipler: " + _short(e))
+    return vids, clips, errs, ch
+
+
 def list_channel(text):
     slug = channel_slug(text)
     if not slug:
         raise ValueError("Kanal adı boş")
     res = {"slug": slug, "source": "kick", "title": slug, "videos": [], "clips": [], "errors": []}
+    errs = []
     try:
         res["videos"] = _entries(f"https://kick.com/{slug}/videos")
     except Exception as e:
-        res["errors"].append("Yayın kayıtları alınamadı: " + _short(e))
+        errs.append("Yayın kayıtları: " + _short(e))
     try:
-        clips = _entries(f"https://kick.com/{slug}/clips")
-        clips.sort(key=lambda c: c["views"], reverse=True)
-        res["clips"] = clips
+        res["clips"] = _entries(f"https://kick.com/{slug}/clips?sort=view&range=all")
     except Exception as e:
-        res["errors"].append("Klipler alınamadı: " + _short(e))
-    if not res["videos"] and not res["clips"] and res["errors"]:
-        raise RuntimeError(" | ".join(res["errors"]) +
-                           " — Kanal adını kontrol et ya da GUNCELLE.bat ile yt-dlp'yi güncelle.")
+        errs.append("Klipler: " + _short(e))
+    if not res["videos"] or not res["clips"]:
+        try:
+            v2, c2, e2, _ = _kick_direct(slug)
+            if not res["videos"]:
+                res["videos"] = v2
+            if not res["clips"]:
+                res["clips"] = c2
+            errs += e2
+        except RuntimeError:
+            if not res["videos"] and not res["clips"]:
+                raise
+    res["clips"].sort(key=lambda c: c["views"] or 0, reverse=True)
+    if not res["videos"] and not res["clips"]:
+        detail = (" Ayrıntı: " + " | ".join(errs)) if errs else ""
+        raise RuntimeError(f'"{slug}" kanalında video ya da klip bulunamadı. Kanal yayın kayıtlarını '
+                           f'kapatmış olabilir. Bir yayın/klip linkini direkt yapıştırmayı dene ya da '
+                           f'GUNCELLE.bat çalıştır.' + detail)
     return res
 
 

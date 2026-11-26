@@ -64,6 +64,19 @@
   input.onkeydown = e => { if (e.key === 'Enter') F.search(); };
   $('#localBtn').onclick = KS.addFile;
 
+  /* indirilen klipler nereye gitsin? açık proje varsa sor */
+  F.target = () => new Promise(res => {
+    const ed = KS.editor;
+    if (!ed || !ed.project) return res(null);
+    const md = KS.modal(`<h2>Nereye eklensin?</h2><p class="msub">Editörde açık proje: <b>${KS.esc(ed.project.title)}</b></p>
+      <div class="big-choice"><button id="tgA"><span class="e">➕</span><b>Açık projeye ekle</b><small>Videonun sonuna eklenir.</small></button>
+      <button id="tgB"><span class="e">📁</span><b>Ayrı proje</b><small>Her klip kendi projesinde.</small></button></div>`);
+    let done = false; const fin = v => { if (done) return; done = true; md.close(); res(v); };
+    $('#tgA', md.el).onclick = () => fin(ed.project.id); $('#tgB', md.el).onclick = () => fin(null);
+    const t = setInterval(() => { if (!md.el.isConnected) { clearInterval(t); if (!done) { done = true; res(undefined); } } }, 300);
+  });
+  const dl = async body => { const project = await F.target(); if (project === undefined) return null; return KS.api('/api/kick/clip', { ...body, project }); };
+
   F.directLink = (url, type, title, info) => {
     const md = KS.modal(`<h2>${type === 'clip' ? 'Klip linki' : 'Video linki'}</h2><p class="msub" style="word-break:break-all">${KS.esc(title || url)}${info && info.duration ? ' · ' + KS.fmt(info.duration) : ''}</p>
       <div class="big-choice">
@@ -71,7 +84,7 @@
         <button id="dlB"><span class="e">✂️</span><b>İndir ve Düzenle</b><small>Kısa bir klipse direkt indirip editöre koyayım.</small></button>
       </div>`);
     $('#dlA', md.el).onclick = () => { md.close(); setTimeout(() => KS.findMoments({ url, title: title || 'Video' }), 280); };
-    $('#dlB', md.el).onclick = async () => { md.close(); const r = await KS.api('/api/kick/clip', { url, title: title || (type === 'clip' ? 'Kick klip' : 'Video') }); r.jobs.forEach(KS.trackJob); KS.openJobs(); };
+    $('#dlB', md.el).onclick = async () => { md.close(); await new Promise(r => setTimeout(r, 260)); const r = await dl({ url, title: title || (type === 'clip' ? 'Kick klip' : 'Video') }); if (!r) return; r.jobs.forEach(KS.trackJob); KS.openJobs(); };
   };
 
   F.renderRecent = () => {
@@ -109,7 +122,7 @@
     $$('[data-dl]', g).forEach(b => b.onclick = async e => {
       e.stopPropagation();
       const v = F.videos[+b.dataset.dl];
-      const r = await KS.api('/api/kick/clip', { url: v.url, title: v.title });
+      const r = await dl({ url: v.url, title: v.title }); if (!r) return;
       r.jobs.forEach(KS.trackJob); KS.openJobs();
       KS.toast('⬇ İndiriliyor, editörde hazır olacak.');
     });
@@ -145,7 +158,7 @@
   };
   $('#clipsDownload').onclick = async () => {
     const items = [...F.selClips].map(i => ({ url: F.clips[i].url, title: F.clips[i].title }));
-    const r = await KS.api('/api/kick/clip', { items });
+    const r = await dl({ items }); if (!r) return;
     r.jobs.forEach(KS.trackJob);
     F.selClips.clear(); F.renderClips(); KS.openJobs();
     KS.toast(`⬇ ${items.length} klip indiriliyor. Altyazıları da otomatik çıkacak.`);
@@ -221,7 +234,8 @@
     $('#mSelTop').onclick = () => { F.selMoments.clear(); a.moments.slice().sort((x, y) => y.score - x.score).slice(0, 5).forEach(m => F.selMoments.add(m.id)); F.renderMoments(); };
     $('#mGo').onclick = async () => {
       const ms = a.moments.filter(m => F.selMoments.has(m.id));
-      const r = await KS.api('/api/moments', { analysis: a.id, moments: ms });
+      const project = await F.target(); if (project === undefined) return;
+      const r = await KS.api('/api/moments', { analysis: a.id, moments: ms, project });
       r.jobs.forEach(KS.trackJob); KS.openJobs();
       KS.toast(`✂ ${ms.length} an yüksek kalitede indiriliyor. Altyazılar da otomatik çıkacak.`);
       F.selMoments.clear(); F.renderMoments();
@@ -320,7 +334,7 @@
         <span class="del"><button class="del-btn" data-pdel="${p.id}" title="Sil">${KS.icon.trash}</button></span>
         <div class="thumb"><img src="/thumb/${p.id}" loading="lazy" onerror="this.remove()">${badge(p)}<span class="badge br">${KS.fmt(p.duration)}</span>
           ${(p.exports || []).length ? `<span class="badge tr" style="right:46px">🎬 ${(p.exports || []).length}</span>` : ''}</div>
-        <div class="card-body"><div class="card-title">${KS.esc(p.title)}</div><div class="card-meta"><span>${KS.ago(p.updated || p.created)}</span><span>${{ an: 'Bulunan an', klip: 'Kick klip', yerel: 'Bilgisayardan' }[p.kind] || ''}</span></div></div>
+        <div class="card-body"><div class="card-title">${KS.esc(p.title)}</div><div class="card-meta"><span>${KS.ago(p.updated || p.created)}</span><span>${{ dikey: 'Dikey', yatay: 'Yatay', kare: 'Kare' }[p.format] || 'Dikey'} · ${p.clips ?? 1} klip</span></div></div>
       </div>`).join('');
     $$('[data-pid]', g).forEach(c => c.onclick = e => { if (!e.target.closest('[data-pdel]')) KS.openProject(c.dataset.pid); });
     $$('[data-pdel]', g).forEach(b => b.onclick = async e => {

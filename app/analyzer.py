@@ -145,6 +145,7 @@ def _curve(x, n=700):
 
 
 def waveform(path, n=1600):
+    n = int(n)
     """Editör timeline'ı için dalga formu (0-1)."""
     p = popen([FFMPEG, "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", "4000",
                "-f", "s16le", "pipe:1"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)

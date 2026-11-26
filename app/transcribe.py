@@ -147,32 +147,15 @@ def apply_fixes(words, user_fixes=None):
     return out
 
 
-def _load_audio(path, start=None, end=None):
-    """Sesi FFmpeg ile 16 kHz mono olarak okur (PyAV sürüm sorunlarından bağımsız)."""
-    import subprocess
-    import numpy as np
-    from core import FFMPEG, NO_WINDOW
-    cmd = [FFMPEG, "-v", "error"]
-    if start is not None:
-        cmd += ["-ss", f"{start:.3f}", "-t", f"{max(0.1, end - start):.3f}"]
-    cmd += ["-i", str(path), "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "pipe:1"]
-    r = subprocess.run(cmd, capture_output=True, creationflags=NO_WINDOW)
-    if r.returncode != 0:
-        raise RuntimeError("Ses okunamadı: " + r.stderr.decode("utf-8", "replace")[-200:])
-    return np.frombuffer(r.stdout, dtype=np.float32).copy()
-
-
 def transcribe(job, path, duration, lo=0.0, hi=1.0):
     s = load_settings()
     model = get_model(job)
     names = s.get("ipucu_isimler") or ""
     prompt = ("Merhaba arkadaşlar, bugün yayındayız. Evet, gerçekten çok güzel oldu! "
               + (f"İsimler: {names}." if names else ""))
-    job.set(lo, f"Ses hazırlanıyor ({_device})...")
-    audio = _load_audio(path)
     job.set(lo, f"Konuşma yazıya dökülüyor ({_device})...")
     segments, info = model.transcribe(
-        audio, language="tr", word_timestamps=True, vad_filter=True,
+        str(path), language="tr", word_timestamps=True, vad_filter=True,
         vad_parameters={"min_silence_duration_ms": 400}, beam_size=5, best_of=5,
         initial_prompt=prompt, condition_on_previous_text=True, temperature=[0.0, 0.2, 0.4])
     words = []
@@ -190,6 +173,43 @@ def transcribe(job, path, duration, lo=0.0, hi=1.0):
             job.set(lo + (hi - lo) * f, f"Konuşma yazıya dökülüyor %{int(f*100)}")
     words = apply_fixes(words, s.get("duzeltmeler"))
     return words
+
+
+def transcribe_range(job, path, start, end, lo=0.0, hi=1.0):
+    """Videonun sadece start..end aralığını yazıya döker (uzun videoların tamamını değil).
+    Dönen kelime zamanları kaynak videonun zamanındadır."""
+    import subprocess
+    import numpy as np
+    from core import FFMPEG, NO_WINDOW
+    s = load_settings()
+    model = get_model(job)
+    job.set(lo, f"Ses hazırlanıyor ({_device})...")
+    r = subprocess.run([FFMPEG, "-v", "error", "-ss", f"{start:.3f}", "-t", f"{max(0.1, end - start):.3f}",
+                        "-i", str(path), "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "pipe:1"],
+                       capture_output=True, creationflags=NO_WINDOW)
+    audio = np.frombuffer(r.stdout, dtype=np.float32)
+    if audio.size < 1600:
+        return []
+    names = s.get("ipucu_isimler") or ""
+    prompt = ("Merhaba arkadaşlar, bugün yayındayız. Evet, gerçekten çok güzel oldu! "
+              + (f"İsimler: {names}." if names else ""))
+    dur = audio.size / 16000
+    segments, info = model.transcribe(
+        audio, language="tr", word_timestamps=True, vad_filter=True,
+        vad_parameters={"min_silence_duration_ms": 400}, beam_size=5, best_of=5,
+        initial_prompt=prompt, condition_on_previous_text=True, temperature=[0.0, 0.2, 0.4])
+    words = []
+    for seg in segments:
+        if job.cancelled:
+            raise RuntimeError("İptal edildi")
+        for w in seg.words or []:
+            t = w.word.strip()
+            if t:
+                words.append({"w": t, "s": round(start + w.start, 3), "e": round(start + w.end, 3),
+                              "p": round(float(w.probability), 3)})
+        f = min(1, seg.end / dur)
+        job.set(lo + (hi - lo) * f, f"Konuşma yazıya dökülüyor %{int(f * 100)}")
+    return apply_fixes(words, s.get("duzeltmeler"))
 
 
 def chunk_words(words, max_words=3, max_chars=18):

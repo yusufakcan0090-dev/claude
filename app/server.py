@@ -9,6 +9,7 @@ from flask import Flask, abort, jsonify, request, send_file, send_from_directory
 import analyzer
 import exporter
 import kick
+import model
 import transcribe
 import updater
 from core import (ANALIZ, APP, CACHE, FFMPEG, IS_WIN, JOBS, PROJELER, load_settings,
@@ -22,6 +23,9 @@ app = Flask(__name__, static_folder=None)
 
 
 # ================================================================ projeler
+_plock = __import__("threading").RLock()
+
+
 def project_path(pid):
     if not pid.isalnum():
         abort(400)
@@ -32,6 +36,22 @@ def load_project(pid):
     p = read_json(project_path(pid))
     if not p:
         abort(404)
+    changed = False
+    if p.get("version") != 2:
+        p = model.migrate(p)
+        changed = True
+    for c in (p.get("clips") or []) + (p.get("overlays") or []):
+        if "content" not in c and Path(c.get("source", "")).exists():
+            try:
+                c["content"] = model.detect_content(c["source"], c.get("src_dur") or 0, c["width"], c["height"])
+            except Exception:
+                c["content"] = None
+            if c in (p.get("clips") or []) and c.get("layout"):
+                cw, ch = model.content_size(c)
+                c["layout"] = model.fix_layout(c["layout"], p.get("format", "dikey"), cw, ch)
+            changed = True
+    if changed:
+        save_project(p)
     return p
 
 
@@ -41,143 +61,188 @@ def save_project(p):
     write_json(project_path(p["id"]), p)
 
 
-def create_project(source, title, kind, meta=None):
-    info = probe(source)
-    if not info["duration"]:
-        raise RuntimeError("Video okunamadı: " + str(source))
-    s = load_settings()
-    pid = new_id("p")
-    layout = dict(exporter.DEFAULT_LAYOUT)
-    layout.update(s.get("varsayilan_duzen") or {})
-    style = dict(exporter.DEFAULT_STYLE)
-    style.update(s.get("varsayilan_stil") or {})
-    p = {
-        "id": pid, "title": title or Path(source).stem, "kind": kind, "source": str(source),
-        "created": time.time(), "duration": info["duration"], "width": info["width"],
-        "height": info["height"], "fps": info["fps"], "has_audio": info["has_audio"],
-        "segments": [{"start": 0.0, "end": round(info["duration"], 3)}],
-        "layout": layout, "style": style, "words": [], "captions": [],
-        "subs_status": "yok", "exports": [], "meta": meta or {},
-    }
+def default_style():
+    st = dict(exporter.DEFAULT_STYLE)
+    st.update(load_settings().get("varsayilan_stil") or {})
+    return st
+
+
+def create_project(source=None, title=None, kind="yerel", meta=None, fmt="dikey"):
+    p = {"id": new_id("p"), "version": 2, "title": title or (Path(source).stem if source else "Yeni proje"),
+         "kind": kind, "format": fmt if fmt in model.FORMATS else "dikey", "created": time.time(),
+         "clips": [], "overlays": [], "style": default_style(), "effects": {}, "media": {},
+         "exports": [], "meta": meta or {}}
+    if source:
+        p["clips"].append(model.new_clip(source, p["format"], load_settings().get("varsayilan_duzen")))
     save_project(p)
     return p
 
 
+def add_clip(pid, source, trim=None):
+    """Projenin sonuna video ekle. trim=(in, out) verilirse o aralık kullanılır."""
+    with _plock:
+        p = load_project(pid)
+        c = model.new_clip(source, p.get("format", "dikey"), load_settings().get("varsayilan_duzen"))
+        if trim:
+            c["in"], c["out"] = round(max(0.0, trim[0]), 3), round(min(c["src_dur"], trim[1]), 3)
+        p["clips"].append(c)
+        save_project(p)
+    return p, c
+
+
 def project_summary(p):
-    return {k: p.get(k) for k in ("id", "title", "kind", "created", "updated", "duration",
-                                  "subs_status", "exports", "width", "height")}
+    clips = p.get("clips") or []
+    subs = "yok"
+    if clips:
+        st = [c.get("subs_status", "yok") for c in clips]
+        subs = "calisiyor" if "calisiyor" in st else ("hazir" if all(s == "hazir" for s in st) else ("hata" if "hata" in st else "yok"))
+    return {"id": p["id"], "title": p.get("title"), "kind": p.get("kind"), "created": p.get("created"),
+            "updated": p.get("updated"), "duration": model.total_duration(p), "subs_status": subs,
+            "exports": p.get("exports", []), "format": p.get("format", "dikey"), "clips": len(clips)}
 
 
 def all_projects():
     out = []
     for f in PROJELER.glob("*/proje.json"):
         p = read_json(f)
-        if p:
-            out.append(project_summary(p))
-    out.sort(key=lambda p: p.get("created") or 0, reverse=True)
+        if not p:
+            continue
+        if p.get("version") != 2:
+            try:
+                p = load_project(p["id"])
+            except Exception:
+                continue
+        out.append(project_summary(p))
+    out.sort(key=lambda p: p.get("updated") or p.get("created") or 0, reverse=True)
     return out
 
 
 # ================================================================ işler
-def job_transcribe(job, pid):
+def job_transcribe(job, pid, clip_ids=None):
     p = load_project(pid)
-    p["subs_status"] = "calisiyor"
-    save_project(p)
-    try:
-        words = transcribe.transcribe(job, p["source"], p["duration"])
-    except Exception:
+    targets = [c for c in p["clips"] if (clip_ids is None and not c.get("captions")) or (clip_ids and c["id"] in clip_ids)]
+    targets = [c for c in targets if c.get("has_audio")]
+    if not targets:
+        job.set(1, "Altyazı çıkarılacak video yok")
+        return {"project": pid, "flagged": 0}
+    with _plock:
         p = load_project(pid)
-        p["subs_status"] = "hata"
+        for c in p["clips"]:
+            if c["id"] in {t["id"] for t in targets}:
+                c["subs_status"] = "calisiyor"
         save_project(p)
-        raise
-    p = load_project(pid)
-    p["words"] = words
-    mw = int((p.get("style") or {}).get("maxWords") or 3)
-    p["captions"] = transcribe.chunk_words(words, max_words=mw)
-    p["subs_status"] = "hazir"
-    save_project(p)
-    flagged = sum(1 for w in words if w.get("p", 1) < 0.55)
-    job.set(1, f"Altyazı hazır · {len(words)} kelime" + (f" · {flagged} şüpheli" if flagged else ""))
+    flagged = total = 0
+    for n, t in enumerate(targets):
+        lo, hi = n / len(targets), (n + 1) / len(targets)
+        try:
+            words = transcribe.transcribe_range(job, t["source"], max(0.0, t["in"] - 0.3),
+                                                min(t["src_dur"], t["out"] + 0.3), lo, hi)
+            status = "hazir"
+        except Exception:
+            words, status = None, "hata"
+            if len(targets) == 1:
+                with _plock:
+                    p = load_project(pid)
+                    for c in p["clips"]:
+                        if c["id"] == t["id"]:
+                            c["subs_status"] = "hata"
+                    save_project(p)
+                raise
+        with _plock:
+            p = load_project(pid)
+            mw = int((p.get("style") or {}).get("maxWords") or 3)
+            for c in p["clips"]:
+                if c["id"] == t["id"]:
+                    c["subs_status"] = status
+                    if words is not None:
+                        c["words"] = words
+                        c["captions"] = transcribe.chunk_words(words, max_words=mw)
+                        flagged += sum(1 for w in words if w.get("p", 1) < 0.55)
+                        total += len(words)
+            save_project(p)
+    job.set(1, f"Altyazı hazır · {total} kelime" + (f" · {flagged} şüpheli" if flagged else ""))
     return {"project": pid, "flagged": flagged}
 
 
-def start_transcribe(pid, title):
-    return JOBS.start("altyazi", "Altyazı: " + title, job_transcribe, pid, heavy=True)
+def start_transcribe(pid, title, clip_ids=None):
+    return JOBS.start("altyazi", "Altyazı: " + title, job_transcribe, pid, clip_ids, heavy=True)
 
 
-def _after_project(p):
-    if load_settings().get("oto_altyazi") and p.get("has_audio"):
-        start_transcribe(p["id"], p["title"])
+def _after_add(p, clip=None):
+    if load_settings().get("oto_altyazi"):
+        if clip is None or clip.get("has_audio"):
+            start_transcribe(p["id"], p["title"], [clip["id"]] if clip else None)
 
 
-def job_download_clip(job, url, title):
+def _place(job, path, title, kind, meta, target=None, trim=None):
+    """İndirilen videoyu yeni projeye ya da var olan projeye koy."""
+    if target:
+        try:
+            p, c = add_clip(target, path, trim)
+            _after_add(p, c)
+            return {"project": p["id"], "added": True}
+        except Exception:
+            pass  # proje silinmişse yeni proje aç
+    p = create_project(path, title, kind, meta, (load_settings().get("son_bicim") or "dikey"))
+    if trim:
+        c = p["clips"][0]
+        c["in"], c["out"] = round(trim[0], 3), round(min(c["src_dur"], trim[1]), 3)
+        save_project(p)
+    _after_add(p)
+    return {"project": p["id"], "added": False}
+
+
+def job_download_clip(job, url, title, target=None):
     path, info = kick.download(job, url, title, 0, 0.95)
-    job.set(0.97, "Proje hazırlanıyor...")
-    p = create_project(path, title or info.get("title"), "klip", {"url": url})
-    _after_project(p)
-    job.set(1, "İndirildi, editörde hazır")
-    return {"project": p["id"]}
+    job.set(0.97, "Projeye ekleniyor...")
+    r = _place(job, path, title or info.get("title"), "klip", {"url": url}, target)
+    job.set(1, "Projeye eklendi" if r["added"] else "İndirildi, editörde hazır")
+    return r
 
 
 def job_analyze(job, src, title, local, mode="orta", count=20):
-    s = load_settings()
     cfg = analyzer.MODES.get(mode, analyzer.MODES["orta"])
     aid = new_id("a")
-    if local:
-        path = src
-    else:
-        path, _ = kick.download(job, src, title, 0, 0.55, preview=True)
+    path = src if local else kick.download(job, src, title, 0, 0.55, preview=True)[0]
     info = probe(path)
     job.set(0.56 if not local else 0.02, "Ses analiz ediliyor...")
     db = analyzer.energy_curve(job, path, info["duration"], 0.56 if not local else 0.02, 0.97)
     moments, curve = analyzer.find_moments(db, info["duration"], before=cfg["before"], after=cfg["after"],
                                            max_count=int(count), max_len=cfg["max_len"], ext=cfg["ext"])
-    data = {"id": aid, "title": title, "source": src, "local": local, "preview": path, "mode": mode,
-            "duration": info["duration"], "moments": moments, "curve": curve,
-            "created": time.time()}
-    write_json(ANALIZ / f"{aid}.json", data)
+    write_json(ANALIZ / f"{aid}.json", {"id": aid, "title": title, "source": src, "local": local, "preview": path,
+                                        "mode": mode, "duration": info["duration"], "moments": moments,
+                                        "curve": curve, "created": time.time()})
     job.set(1, f"{len(moments)} an bulundu")
     return {"analysis": aid, "count": len(moments)}
 
 
-def job_moment(job, aid, m):
+def job_moment(job, aid, m, target=None):
     a = read_json(ANALIZ / f"{aid}.json")
     if not a:
         raise RuntimeError("Analiz bulunamadı")
     start, end = float(m["start"]), float(m["end"])
-    title = f"{a['title']} - {m.get('label', 'An')} {int(start//60)}.{int(start%60):02d}"
-    pad = 1.5
+    title = f"{a['title']} - {m.get('label', 'An')} {int(start // 60)}.{int(start % 60):02d}"
     if a["local"]:
-        from core import INDIRILEN
-        out = INDIRILEN / f"{safe_name(a['title'], 40)}_{int(start)}-{int(end)}_{new_id()}.mp4"
-        job.set(0.1, "Parça kesiliyor...")
-        r = run([FFMPEG, "-y", "-ss", f"{max(0, start - pad):.2f}", "-i", a["source"],
-                 "-t", f"{end - start + 2 * pad:.2f}", "-map", "0:v:0", "-map", "0:a?",
-                 "-c", "copy", "-avoid_negative_ts", "make_zero", str(out)])
-        if r.returncode != 0 or not out.exists():
-            raise RuntimeError("Parça kesilemedi: " + r.stderr[-300:])
-        path = str(out)
+        # bilgisayardaki video: kopyalamaya gerek yok, aralığı direkt kullan
+        r = _place(job, a["source"], title, "an", {"analysis": aid, "moment": m}, target, (start, end))
     else:
-        path, _ = kick.download(job, a["source"], title, 0, 0.95,
-                                section=(max(0, start - pad), end + pad))
-    p = create_project(path, title, "an", {"analysis": aid, "moment": m})
-    # baştaki/sondaki fazlalığı kırp (indirme anahtar kareden başlayabilir)
-    real = p["duration"]
-    extra = max(0.0, real - (end - start))
-    lead = min(pad, extra / 2) if extra > 0.5 else 0.0
-    p["segments"] = [{"start": round(lead, 3), "end": round(min(real, lead + end - start), 3)}]
-    save_project(p)
-    _after_project(p)
-    job.set(1, "An hazır, editörde aç")
-    return {"project": p["id"]}
+        pad = 1.5
+        path, _ = kick.download(job, a["source"], title, 0, 0.95, section=(max(0, start - pad), end + pad))
+        real = model.media_info(path)["src_dur"]
+        extra = max(0.0, real - (end - start))
+        lead = min(pad, extra / 2) if extra > 0.5 else 0.0
+        r = _place(job, path, title, "an", {"analysis": aid, "moment": m}, target, (lead, lead + end - start))
+    job.set(1, "Projeye eklendi" if r["added"] else "An hazır, editörde aç")
+    return r
 
 
 def job_export(job, pid, opts):
     p = load_project(pid)
     res = exporter.export(job, p, opts)
-    p = load_project(pid)
-    p.setdefault("exports", []).append({**res, "time": time.time()})
-    save_project(p)
+    with _plock:
+        p = load_project(pid)
+        p.setdefault("exports", []).append({**res, "time": time.time()})
+        save_project(p)
     return res
 
 
@@ -199,10 +264,21 @@ def ui_files(f):
     return resp
 
 
-@app.route("/media/project/<pid>")
-def media_project(pid):
-    p = load_project(pid)
-    return send_file(p["source"], conditional=True)
+def _find(p, key, oid):
+    o = next((x for x in p.get(key) or [] if x.get("id") == oid), None)
+    if not o or not Path(o.get("source", "")).exists():
+        abort(404)
+    return o
+
+
+@app.route("/media/clip/<pid>/<cid>")
+def media_clip(pid, cid):
+    return send_file(_find(load_project(pid), "clips", cid)["source"], conditional=True)
+
+
+@app.route("/media/overlay/<pid>/<oid>")
+def media_overlay(pid, oid):
+    return send_file(_find(load_project(pid), "overlays", oid)["source"], conditional=True)
 
 
 @app.route("/media/analysis/<aid>")
@@ -213,22 +289,17 @@ def media_analysis(aid):
     return send_file(a["preview"], conditional=True)
 
 
-@app.route("/media/export")
-def media_export():
-    path = request.args.get("path", "")
-    pid = request.args.get("pid", "")
-    p = load_project(pid)
-    if not any(e.get("path") == path for e in p.get("exports", [])) or not Path(path).exists():
-        abort(404)
-    return send_file(path, conditional=True)
-
-
 @app.route("/thumb/<pid>")
 def thumb(pid):
     p = load_project(pid)
     out = CACHE / f"{pid}.jpg"
-    t = (p.get("segments") or [{"start": 0}])[0]["start"] + 1
-    thumbnail(p["source"], out, t=min(t, max(0, p["duration"] - 0.5)))
+    clips = p.get("clips") or []
+    if not clips:
+        abort(404)
+    c = clips[0]
+    if out.exists() and out.stat().st_mtime < (p.get("updated") or 0) - 5 and request.args.get("r"):
+        out.unlink(missing_ok=True)
+    thumbnail(c["source"], out, t=min(float(c["in"]) + 1, max(0, float(c["out"]) - 0.3)))
     if not out.exists():
         abort(404)
     return send_file(out)
@@ -310,8 +381,9 @@ def api_kick_list():
 def api_kick_clip():
     d = request.get_json(force=True) or {}
     items = d.get("items") or [{"url": d.get("url"), "title": d.get("title")}]
+    target = d.get("project")
     jobs = [JOBS.start("indir", "Klip: " + (it.get("title") or "")[:40], job_download_clip,
-                       it["url"], it.get("title") or "Kick klip").id for it in items if it.get("url")]
+                       it["url"], it.get("title") or "Kick klip", target).id for it in items if it.get("url")]
     return jsonify(jobs=jobs)
 
 
@@ -366,9 +438,9 @@ def api_analysis_del(aid):
 @app.post("/api/moments")
 def api_moments():
     d = request.get_json(force=True) or {}
-    aid = d.get("analysis")
+    aid, target = d.get("analysis"), d.get("project")
     jobs = [JOBS.start("an", f"An indir: {m.get('label','')} {int(float(m['start'])//60)}dk",
-                       job_moment, aid, m).id for m in d.get("moments") or []]
+                       job_moment, aid, m, target).id for m in d.get("moments") or []]
     return jsonify(jobs=jobs)
 
 
@@ -380,9 +452,44 @@ def api_local_project():
         return jsonify(error="Dosya bulunamadı"), 400
     if file_kind(path) != "video":
         return jsonify(error="Bu bir video dosyası değil"), 400
-    p = create_project(path, d.get("title") or Path(path).stem, "yerel")
-    _after_project(p)
+    if d.get("project"):
+        p, c = add_clip(d["project"], path)
+        _after_add(p, c)
+        return jsonify(project=p["id"], clip=c["id"])
+    p = create_project(path, d.get("title") or Path(path).stem, "yerel", fmt=d.get("format") or "dikey")
+    _after_add(p)
     return jsonify(project=p["id"])
+
+
+@app.post("/api/project/new")
+def api_project_new():
+    d = request.get_json(force=True) or {}
+    fmt = d.get("format") if d.get("format") in model.FORMATS else "dikey"
+    save_settings({"son_bicim": fmt})
+    p = create_project(None, (d.get("title") or "").strip() or "Yeni proje", "bos", fmt=fmt)
+    return jsonify(project=p["id"])
+
+
+@app.post("/api/project/<pid>/overlay")
+def api_add_overlay(pid):
+    d = request.get_json(force=True) or {}
+    path = d.get("path")
+    if not path or file_kind(path) != "video":
+        return jsonify(error="Video dosyası değil"), 400
+    info = model.media_info(path)
+    with _plock:
+        p = load_project(pid)
+        total = model.total_duration(p) or info["src_dur"]
+        s0 = min(max(0.0, float(d.get("at") or 0)), max(0.0, total - 0.5))
+        green = any(k in Path(path).stem.lower() for k in ("green", "yesil", "yeşil", "chroma"))
+        ov = {"id": new_id("o"), **info, "s": round(s0, 3), "e": round(min(total, s0 + info["src_dur"]), 3),
+              "in": 0.0, "x": 0.55, "y": 0.06, "w": 0.4, "opacity": 1.0, "volume": 1.0 if info["has_audio"] else 0,
+              "chroma": green, "chroma_color": "#00FF00", "similarity": 0.3}
+        if green:
+            ov.update(x=0.0, y=0.0, w=1.0)
+        p.setdefault("overlays", []).append(ov)
+        save_project(p)
+    return jsonify(overlay=ov)
 
 
 @app.get("/api/project/<pid>")
@@ -394,41 +501,53 @@ def api_project(pid):
 def api_project_save(pid):
     cur = load_project(pid)
     d = request.get_json(force=True) or {}
-    for k in ("title", "segments", "layout", "style", "captions", "effects", "media"):
-        if k in d:
-            cur[k] = d[k]
-    save_project(cur)
+    with _plock:
+        cur = load_project(pid)
+        for k in ("title", "format", "clips", "overlays", "style", "effects", "media"):
+            if k in d:
+                cur[k] = d[k]
+        save_project(cur)
     return jsonify(ok=True, updated=cur["updated"])
 
 
 @app.delete("/api/project/<pid>")
 def api_project_delete(pid):
-    p = load_project(pid)
     import shutil
+    from core import INDIRILEN
+    p = load_project(pid)
     shutil.rmtree(PROJELER / pid, ignore_errors=True)
     (CACHE / f"{pid}.jpg").unlink(missing_ok=True)
-    if d := request.args.get("dosya"):
-        if d == "1" and p.get("kind") in ("klip", "an"):
-            Path(p["source"]).unlink(missing_ok=True)
+    if request.args.get("dosya") == "1":
+        used = set()
+        for f in PROJELER.glob("*/proje.json"):
+            q = read_json(f) or {}
+            used |= {c.get("source") for c in q.get("clips") or []} | {o.get("source") for o in q.get("overlays") or []}
+        for c in p.get("clips") or []:
+            src = Path(c["source"])
+            if str(src) not in used and INDIRILEN in src.parents:
+                src.unlink(missing_ok=True)
     return jsonify(ok=True)
 
 
 @app.post("/api/project/<pid>/transcribe")
 def api_project_transcribe(pid):
     p = load_project(pid)
-    j = start_transcribe(pid, p["title"])
+    ids = (request.get_json(silent=True) or {}).get("clips")
+    j = start_transcribe(pid, p["title"], ids)
     return jsonify(job=j.id)
 
 
 @app.post("/api/project/<pid>/rechunk")
 def api_rechunk(pid):
-    p = load_project(pid)
     mw = int((request.get_json(force=True) or {}).get("maxWords") or 3)
-    words = [w for c in p.get("captions") or [] for w in c.get("words") or []] or p.get("words") or []
-    p["captions"] = transcribe.chunk_words(words, max_words=mw)
-    p.setdefault("style", {})["maxWords"] = mw
-    save_project(p)
-    return jsonify(captions=p["captions"])
+    with _plock:
+        p = load_project(pid)
+        for c in p.get("clips") or []:
+            words = [w for cap in c.get("captions") or [] for w in cap.get("words") or []] or c.get("words") or []
+            c["captions"] = transcribe.chunk_words(words, max_words=mw)
+        p.setdefault("style", {})["maxWords"] = mw
+        save_project(p)
+    return jsonify(clips=[{"id": c["id"], "captions": c["captions"]} for c in p["clips"]])
 
 
 def parse_cube(path):
@@ -479,13 +598,18 @@ def api_lut_data(pid):
     return jsonify(size=size, data=[round(x, 4) for x in data])
 
 
-@app.get("/api/project/<pid>/wave")
-def api_wave(pid):
+@app.get("/api/project/<pid>/wave/<cid>")
+def api_wave(pid, cid):
+    """Klibin kaynağının dalga formu (saniyede 20 nokta), önbellekli."""
     p = load_project(pid)
-    f = PROJELER / pid / "wave.json"
+    c = next((x for x in (p.get("clips") or []) + (p.get("overlays") or []) if x["id"] == cid), None)
+    if not c:
+        abort(404)
+    f = Path(str(model.words_cache_path(c["source"])).replace("words_", "wave_"))
     w = read_json(f)
     if w is None:
-        w = analyzer.waveform(p["source"]) if p.get("has_audio") else []
+        n = max(50, min(40000, int(float(c.get("src_dur") or 10) * 20)))
+        w = analyzer.waveform(c["source"], n) if c.get("has_audio") else []
         write_json(f, w)
     return jsonify(w)
 
@@ -514,11 +638,13 @@ def api_fixes():
     out = {"duzeltmeler": fixes}
     pid = d.get("project")
     if pid:
-        p = load_project(pid)
-        for c in p.get("captions") or []:
-            c["words"] = transcribe.apply_fixes(c.get("words") or [], fixes)
-        save_project(p)
-        out["captions"] = p["captions"]
+        with _plock:
+            p = load_project(pid)
+            for c in p.get("clips") or []:
+                for cap in c.get("captions") or []:
+                    cap["words"] = transcribe.apply_fixes(cap.get("words") or [], fixes)
+            save_project(p)
+        out["clips"] = [{"id": c["id"], "captions": c["captions"]} for c in p["clips"]]
     return jsonify(out)
 
 

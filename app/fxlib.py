@@ -229,14 +229,26 @@ def build(kind, inp, out, D, I, p, c):
         chain(f"eq=brightness='-1*max(0,1-abs(t-{D / 2:.3f})/{D / 2:.3f})':eval=frame")
     elif kind == "tr_white":
         chain(f"eq=brightness='1*max(0,1-abs(t-{D / 2:.3f})/{D / 2:.3f})':eval=frame")
-    elif kind == "tr_zoom":
-        chain(f"zoompan=z='1+0.45*sin(PI*min(1,it/{D:.3f}))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={c.fps:g}")
-    elif kind == "tr_slide":
-        chain(f"zoompan=z=1.35:x='iw/2-(iw/zoom/2)+(it-{D / 2:.3f})/{D:.3f}*iw*0.22':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={c.fps:g},"
-              f"dblur=angle=0:radius={W // 18}")
-    elif kind == "tr_swirl":
-        chain(f"zoompan=z='1+0.5*sin(PI*min(1,it/{D:.3f}))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={c.fps:g},"
-              f"rotate=a='1.2*sin(PI*min(1,t/{D:.3f}))':c=black,gblur=sigma='{W / 120:.1f}'")
+    elif kind in ("tr_zoom", "tr_slide", "tr_swirl"):
+        # piksel piksel hesaplanır (zoompan kullanmaz: zoompan bellekte kare biriktiriyordu)
+        env = f"sin(PI*min(1,T/{D:.3f}))"
+        if kind == "tr_zoom":
+            Z = f"(1+0.45*{env})"
+            sx, sy = f"(W/2+(X-W/2)/{Z})", f"(H/2+(Y-H/2)/{Z})"
+        elif kind == "tr_slide":
+            off = f"((T-{D / 2:.3f})/{D:.3f}*W*0.35)"
+            sx, sy = f"(W/2+(X-W/2)/1.3+{off})", f"(H/2+(Y-H/2)/1.3)"
+        else:
+            Z = f"(1+0.5*{env})"
+            ang = f"(1.4*{env}*(1-hypot(X-W/2,Y-H/2)/hypot(W/2,H/2)))"
+            dx, dy = f"((X-W/2)/{Z})", f"((Y-H/2)/{Z})"
+            sx = f"(W/2+{dx}*cos({ang})-{dy}*sin({ang}))"
+            sy = f"(H/2+{dx}*sin({ang})+{dy}*cos({ang}))"
+        cx, cy = f"clip({sx},0,W-1)", f"clip({sy},0,H-1)"
+        g = f"geq=lum='lum({cx},{cy})':cb='cb({cx},{cy})':cr='cr({cx},{cy})'"
+        extra = f",dblur=angle=0:radius={W // 18}" if kind == "tr_slide" else (",gblur=sigma=1.5" if kind == "tr_swirl" else "")
+        hw, hh = max(2, W // 4 * 2), max(2, H // 4 * 2)  # yarım çözünürlükte hesapla (4 kat hızlı)
+        chain(f"scale={hw}:{hh},format=yuv444p,{g},scale={W}:{H}:flags=bicubic{extra},format=yuv420p")
     elif kind == "tr_glitch":
         return build("glitch", inp, out, D, 1.0, p, c)
     else:
