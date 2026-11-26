@@ -70,11 +70,12 @@ def default_style():
 
 def create_project(source=None, title=None, kind="yerel", meta=None, fmt="dikey"):
     p = {"id": new_id("p"), "version": 2, "title": title or (Path(source).stem if source else "Yeni proje"),
-         "kind": kind, "format": fmt if fmt in model.FORMATS else "dikey", "created": time.time(),
+         "kind": kind, "format": fmt if model.valid_format(fmt) else "dikey", "created": time.time(),
          "clips": [], "overlays": [], "style": default_style(), "effects": {}, "media": {},
          "exports": [], "meta": meta or {}}
     if source:
         p["clips"].append(model.new_clip(source, p["format"], load_settings().get("varsayilan_duzen")))
+        model.apply_kaynak(p, p["clips"][-1])
     save_project(p)
     return p
 
@@ -87,6 +88,7 @@ def add_clip(pid, source, trim=None):
         if trim:
             c["in"], c["out"] = round(max(0.0, trim[0]), 3), round(min(c["src_dur"], trim[1]), 3)
         p["clips"].append(c)
+        model.apply_kaynak(p, c)
         save_project(p)
     return p, c
 
@@ -551,8 +553,8 @@ def job_convert_local(job, path, target, title, fmt):
 @app.post("/api/project/new")
 def api_project_new():
     d = request.get_json(force=True) or {}
-    fmt = d.get("format") if d.get("format") in model.FORMATS else "dikey"
-    save_settings({"son_bicim": fmt})
+    fmt = d.get("format") if model.valid_format(d.get("format")) else "dikey"
+    save_settings({"son_bicim": "kaynak" if fmt.startswith("kaynak") else fmt})
     p = create_project(None, (d.get("title") or "").strip() or "Yeni proje", "bos", fmt=fmt)
     return jsonify(project=p["id"])
 
@@ -593,8 +595,13 @@ def api_project_save(pid):
         for k in ("title", "format", "clips", "overlays", "style", "effects", "media"):
             if k in d:
                 cur[k] = d[k]
+        if not model.valid_format(cur.get("format")):
+            cur["format"] = "dikey"
+        if cur.get("format") == "kaynak" and cur.get("clips"):
+            c0 = cur["clips"][0]
+            cur["format"] = f"kaynak:{c0['width']}x{c0['height']}"
         save_project(cur)
-    return jsonify(ok=True, updated=cur["updated"])
+    return jsonify(ok=True, updated=cur["updated"], format=cur["format"])
 
 
 @app.delete("/api/project/<pid>")

@@ -6,7 +6,12 @@
   const giz = $('#gizmo'), gctx = giz.getContext('2d');
   let PW = 540, PH = 960, BW = 1080, BH = 1920, K = .5;
 
-  const FORMATS = { dikey: [1080, 1920, 'Dikey 9:16'], yatay: [1920, 1080, 'Yatay 16:9'], kare: [1080, 1080, 'Kare 1:1'] };
+  const FORMATS = { dikey: [1080, 1920, 'Dikey 9:16'], yatay: [1920, 1080, 'Yatay 16:9'], kare: [1080, 1080, 'Kare 1:1'], kaynak: [1080, 1920, 'Orijinal Boyut'] };
+  /* 'kaynak:1080x1440' = orijinal biçim: videonun kendi çözünürlüğü, hiç değiştirilmez */
+  const fmtInfo = f => { const m = /^kaynak:(\d+)x(\d+)$/.exec(f || ''); if (m) { const w = +m[1] - (+m[1] % 2), h = +m[2] - (+m[2] % 2); return [w, h, `Orijinal ${w}×${h}`]; } return FORMATS[f] || FORMATS.dikey; };
+  const isKaynak = f => /^kaynak/.test(f || '');
+  KS.fmtInfo = fmtInfo;
+  const fmtBtns = () => Object.entries(FORMATS).map(([k, v]) => k === 'kaynak' ? `<button class="opt" data-v="kaynak"><b>Orijinal</b><small>Videonun kendi boyutu</small></button>` : `<button class="opt" data-v="${k}"><b>${v[2].split(' ')[0]}</b><small>${v[2].split(' ')[1]} · ${v[0]}×${v[1]}</small></button>`).join('');
   const DEF_STYLE = { font: 'poppins-black', size: 92, color: '#FFFFFF', hl: '#FFE14D', outline: '#000000', outlineW: 9, shadow: true, y: 68, upper: true, karaoke: true, anim: true, maxWords: 3 };
   const DEF_FX = { preset: 'none', bright: 0, contrast: 0, sat: 0, temp: 0, vignette: false, grain: false, glow: false, rgb: false, sharpen: false, mirror: false, fadeIn: false, fadeOut: false, zooms: [], texts: [], shapes: [], hide: {}, fxLayers: [], transition: { type: 'none', d: .4 }, lut: null };
   const FONT_CSS = { anton: 'Anton', poppins: 'PoppinsXB', 'poppins-black': 'PoppinsBlk', bangers: 'Bangers' };
@@ -143,7 +148,7 @@
     const ps = KS.state.projects || [], last = ps.find(p => p.id === KS.state.settings.son_proje) || ps.slice().sort((a, b) => (b.updated || b.created || 0) - (a.updated || a.created || 0))[0];
     if (last) KS.openProject(last.id); else E.showNoProject();
   }, 40);
-  E.setFormat = () => { const f = FORMATS[P().format] || FORMATS.dikey; BW = f[0]; BH = f[1]; E.resizeCanvas(); };
+  E.setFormat = () => { const f = fmtInfo(P().format); BW = f[0]; BH = f[1]; E.resizeCanvas(); };
   E.resizeCanvas = () => { K = .5 * E.qual; PW = Math.round(BW * K); PH = Math.round(BH * K); prev.width = PW; prev.height = PH; };
   E.showNoProject = () => {
     $('#lt-project').innerHTML = `<div class="comp-empty" style="position:static;padding:30px 10px"><b>Açık proje yok</b><span>Yeni bir proje oluştur ya da var olanı aç.</span>
@@ -158,7 +163,7 @@
     E.renderProject(); E.renderControls(); E.renderFx(); E.renderSubs(); E.renderStyle();
     E.sizeTimeline(); E.updateUndo();
     $('#compTab').textContent = 'Kompozisyon: ' + (P().title || '').slice(0, 40); $('#compCrumb').textContent = P().title; $('#tlTab').textContent = P().title;
-    $('#compRes').textContent = `${BW}×${BH} · ${(FORMATS[P().format] || FORMATS.dikey)[2]}`;
+    $('#compRes').textContent = `${BW}×${BH} · ${fmtInfo(P().format)[2]}`;
     
     $('#compEmpty').hidden = clips().length > 0;
     E.renderInfo(); E.updSubsBtn && E.updSubsBtn();
@@ -186,7 +191,7 @@
   E.flush = async () => {
     clearTimeout(saveT); if (!P() || !$('#saveState').classList.contains('dirty')) return;
     const body = {}; KEYS.forEach(k => { if (P()[k] !== undefined) body[k] = P()[k]; });
-    try { await KS.api('/api/project/' + P().id, body); $('#saveState').classList.remove('dirty'); $('#saveState').lastChild.textContent = 'Kaydedildi'; }
+    try { const sr = await KS.api('/api/project/' + P().id, body); if (sr && sr.format && P() && sr.format !== P().format) { P().format = sr.format; E.setFormat(); E.fit(); E.render(); } $('#saveState').classList.remove('dirty'); $('#saveState').lastChild.textContent = 'Kaydedildi'; }
     catch (e) { $('#saveState').lastChild.textContent = 'Kaydedilemedi!'; }
   };
   window.addEventListener('beforeunload', () => E.flush());
@@ -597,7 +602,7 @@
     const selIt = vis.find(it => it.sel && s && s.type === it.sel.type && s.id === it.sel.id) || vis.find(it => it.cur);
     let meta = '';
     if (selIt && selIt.c) meta = `<b>${KS.esc(selIt.name)}</b>${selIt.c.width} x ${selIt.c.height} (1,00)<br>Δ ${E.tc(selIt.c.src_dur)}, ${(+selIt.c.fps || 30).toFixed(2)} fps<br>Milyonlarca Renk<br>H.264${selIt.c.has_audio ? '<br>48,000 kHz / Stereo' : ''}`;
-    else if (selIt && selIt.kind === 'comp') meta = `<b>${KS.esc(p.title)}</b>${BW} x ${BH} (1,00)<br>Δ ${E.tc(total())}, ${fps().toFixed(2)} fps<br>${(FORMATS[p.format] || FORMATS.dikey)[2]}`;
+    else if (selIt && selIt.kind === 'comp') meta = `<b>${KS.esc(p.title)}</b>${BW} x ${BH} (1,00)<br>Δ ${E.tc(total())}, ${fps().toFixed(2)} fps<br>${fmtInfo(p.format)[2]}`;
     else if (selIt) meta = `<b>${KS.esc(selIt.name)}</b>${selIt.info}${selIt.dur ? '<br>Δ ' + E.tc(selIt.dur) : ''}`;
     const pre = E.pjSearch || '';
     el.innerHTML = `<div class="pj-info"><div class="pj-thumb" style="background-image:url(/thumb/${p.id}?r=${Math.round(p.updated || 0)})"></div><div class="pj-meta">${meta}</div></div>
@@ -991,6 +996,7 @@
       const r = await KS.api('/api/local/project', { path: f.path, title: f.title, project: P().id });
       if (r.job) { close(); KS.trackJob(r.job); KS.toast('MP4 olmayan video: önce MP4\'e çevriliyor, bitince projeye eklenecek.'); return; }
       const fresh = await KS.api('/api/project/' + P().id), c = fresh.clips.find(q => q.id === r.clip); close();
+      if (fresh.format && fresh.format !== P().format) { P().format = fresh.format; E.setFormat(); }
       if (c) { const first = !clips().length; clips().push(c); E.loadWave(c); E.renderAll(); E.fit(); E.seek(first ? 0 : E.T); KS.kickJobs(); }
     } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
   };
@@ -1310,7 +1316,7 @@
     let fmt = KS.state.settings.son_bicim || 'dikey';
     const md = KS.modal(`<h2>Yeni Kompozisyon</h2><p class="msub">Ad ve biçim seç. Biçimi sonra Kompozisyon Ayarları'ndan (Ctrl+K) değiştirebilirsin.</p>
       <div class="field"><label>Kompozisyon adı</label><input class="inp" id="npName" value="Kompozisyon ${(KS.state.projects || []).length + 1}"></div>
-      <div class="opt-group" style="margin-top:12px"><label>Biçim</label><div class="opts" id="npFmt">${Object.entries(FORMATS).map(([k, v]) => `<button class="opt" data-v="${k}"><b>${v[2].split(' ')[0]}</b><small>${v[2].split(' ')[1]} · ${v[0]}×${v[1]}</small></button>`).join('')}</div></div>
+      <div class="opt-group" style="margin-top:12px"><label>Biçim</label><div class="opts" id="npFmt">${fmtBtns()}</div></div>
       <div class="mfoot"><button class="btn ghost" data-close>Vazgeç</button><button class="btn primary" id="npGo">Tamam</button></div>`);
     const paint = () => $$('#npFmt .opt', md.el).forEach(b => b.classList.toggle('active', b.dataset.v === fmt)); paint();
     $$('#npFmt .opt', md.el).forEach(b => b.onclick = () => { fmt = b.dataset.v; paint(); });
@@ -1318,10 +1324,10 @@
     $('#npGo', md.el).onclick = async () => { md.close(); const r = await KS.api('/api/project/new', { title: nm.value, format: fmt }); KS.state.settings.son_bicim = fmt; await KS.refresh(); KS.openProject(r.project); };
   };
   E.compSettings = () => {
-    if (!P()) return; let fmt = P().format || 'dikey';
+    if (!P()) return; let fmt = isKaynak(P().format) ? 'kaynak' : (P().format || 'dikey');
     const md = KS.modal(`<h2>Kompozisyon Ayarları</h2><p class="msub">Biçim değişince kadrajlar yeni biçime göre ayarlanır.</p>
       <div class="field"><label>Ad</label><input class="inp" id="csName" value="${KS.esc(P().title)}"></div>
-      <div class="opt-group" style="margin-top:12px"><label>Biçim</label><div class="opts" id="csFmt">${Object.entries(FORMATS).map(([k, v]) => `<button class="opt" data-v="${k}"><b>${v[2].split(' ')[0]}</b><small>${v[2].split(' ')[1]} · ${v[0]}×${v[1]}</small></button>`).join('')}</div></div>
+      <div class="opt-group" style="margin-top:12px"><label>Biçim</label><div class="opts" id="csFmt">${fmtBtns()}</div></div>
       <div class="summary"><span>Süre: <b>${KS.fmt(total())}</b></span><span>Kare hızı: <b>${fps()} fps</b></span><span>Klip: <b>${clips().length}</b></span></div>
       <div class="mfoot"><button class="btn ghost" data-close>Vazgeç</button><button class="btn primary" id="csGo">Tamam</button></div>`);
     const paint = () => $$('#csFmt .opt', md.el).forEach(b => b.classList.toggle('active', b.dataset.v === fmt)); paint();
@@ -1329,6 +1335,7 @@
     $('#csName', md.el).onkeydown = e => e.stopPropagation();
     $('#csGo', md.el).onclick = () => {
       const nm = $('#csName', md.el).value.trim(); md.close();
+      const c0 = clips()[0]; if (fmt === 'kaynak' && c0) fmt = `kaynak:${c0.width}x${c0.height}`; else if (fmt === 'kaynak' && isKaynak(P().format)) fmt = P().format;
       E.change(() => { if (nm) P().title = nm; if (P().format !== fmt) { P().format = fmt; E.setFormat(); clips().forEach(c => { c.layout = Object.assign({}, c.layout || {}, { mode: fmt === 'dikey' ? ((c.layout || {}).mode === 'split' ? 'split' : 'blur') : 'fit' }); fixLayout(c); }); } });
       $('#edTitle').value = P().title; E.setFormat(); E.fit(); E.renderAll(); E.render();
     };
@@ -1337,7 +1344,7 @@
     await KS.refresh(); const list = KS.state.projects || [];
     const md = KS.modal(`<h2>Projeler</h2><p class="msub">${list.length} proje</p>
       <div class="proj-list" style="max-height:52vh;overflow:auto"><div class="proj-hdr" style="grid-template-columns:64px 1fr 90px 60px 28px"><span></span><span>Ad</span><span>Biçim</span><span>Süre</span><span></span></div>
-      ${list.map(p => `<div class="proj-item" style="grid-template-columns:64px 1fr 90px 60px 28px;padding:4px 6px" data-open="${p.id}"><img src="/thumb/${p.id}" style="width:60px;height:34px;object-fit:cover;background:#111" onerror="this.style.visibility='hidden'"><span>${KS.esc(p.title)}<br><small style="color:#888">${p.clips} klip · ${KS.ago(p.updated || p.created)}</small></span><span>${(FORMATS[p.format] || FORMATS.dikey)[2]}</span><span>${KS.fmt(p.duration)}</span><button class="del-btn" data-del="${p.id}">${KS.icon.trash}</button></div>`).join('') || '<div class="hint" style="padding:10px">Henüz proje yok.</div>'}</div>
+      ${list.map(p => `<div class="proj-item" style="grid-template-columns:64px 1fr 90px 60px 28px;padding:4px 6px" data-open="${p.id}"><img src="/thumb/${p.id}" style="width:60px;height:34px;object-fit:cover;background:#111" onerror="this.style.visibility='hidden'"><span>${KS.esc(p.title)}<br><small style="color:#888">${p.clips} klip · ${KS.ago(p.updated || p.created)}</small></span><span>${fmtInfo(p.format)[2]}</span><span>${KS.fmt(p.duration)}</span><button class="del-btn" data-del="${p.id}">${KS.icon.trash}</button></div>`).join('') || '<div class="hint" style="padding:10px">Henüz proje yok.</div>'}</div>
       <div class="mfoot"><button class="btn ghost" data-close>Kapat</button><button class="btn primary" id="pdNew">Yeni Proje</button></div>`, { wide: true });
     $$('[data-open]', md.el).forEach(d => d.onclick = e => { if (e.target.closest('[data-del]')) return; md.close(); KS.openProject(d.dataset.open); });
     $$('[data-del]', md.el).forEach(b => b.onclick = async e => { e.stopPropagation(); if (!await KS.confirm('Projeyi sil?', 'Düzenlemeler silinecek. Dışa aktardığın videolar silinmez.', 'Sil', true)) return; await KS.api('/api/project/' + b.dataset.del + '?dosya=1', undefined, 'DELETE'); if (P() && P().id === b.dataset.del) E.close(); await KS.refresh(); E.projectsDialog(); });
@@ -1360,8 +1367,8 @@
   E.exportDialog = () => {
     if (!P()) return KS.toast('Önce bir proje aç', 'err'); if (!clips().length) return KS.toast('Önce video ekle', 'err');
     const s = KS.state.settings, o = { cozunurluk: +s.cozunurluk || 1080, fps: String(s.fps || 'kaynak'), kalite: s.kalite || 'yuksek', ses_dengele: s.ses_dengele !== false, work: false }, src = fps(), wa = P().work;
-    const md = KS.modal(`<h2>Dışa Aktar</h2><p class="msub">${BW}×${BH} · ${(FORMATS[P().format] || FORMATS.dikey)[2]} · ${KS.fmt(total())}</p>
-      <div class="opt-group"><label>Çözünürlük</label><div class="opts" id="oRes">${[[720, '720p', 'Hızlı'], [1080, '1080p', 'Full HD'], [1440, '2K', '1440p']].map(([v, a, b]) => `<button class="opt" data-v="${v}"><b>${a}</b><small>${b}</small></button>`).join('')}</div></div>
+    const md = KS.modal(`<h2>Dışa Aktar</h2><p class="msub">${BW}×${BH} · ${fmtInfo(P().format)[2]} · ${KS.fmt(total())}</p>
+      ${isKaynak(P().format) ? `<div class="opt-group"><label>Çözünürlük</label><div class="note" style="margin:0">Orijinal boyut: <b>${BW}×${BH}</b>. Videonun çözünürlüğüne dokunulmaz.</div></div>` : `<div class="opt-group"><label>Çözünürlük</label><div class="opts" id="oRes">${[[720, '720p', 'Hızlı'], [1080, '1080p', 'Full HD'], [1440, '2K', '1440p']].map(([v, a, b]) => `<button class="opt" data-v="${v}"><b>${a}</b><small>${b}</small></button>`).join('')}</div></div>`}
       <div class="opt-group"><label>Kare hızı</label><div class="opts" id="oFps">${[['kaynak', 'Orijinal', src + ' FPS'], ['30', '30', 'FPS'], ['60', '60', 'FPS'], ['90', '90', 'FPS']].map(([v, a, b]) => `<button class="opt" data-v="${v}"><b>${a}</b><small>${b}</small></button>`).join('')}</div></div>
       <div class="note" id="fpsNote" hidden></div>
       <div class="opt-group"><label>Kalite</label><div class="opts" id="oQ"><button class="opt" data-v="yuksek"><b>Yüksek</b><small>Önerilen</small></button><button class="opt" data-v="normal"><b>Normal</b><small>Küçük dosya</small></button></div></div>

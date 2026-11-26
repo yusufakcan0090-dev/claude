@@ -1,12 +1,8 @@
 {
- "version": "1.6.0",
+ "version": "1.6.1",
  "date": "2026-11-26",
  "notes": [
-  "Akıllı arama: ne yazarsan yaz (yanlış yazsan da) en uygun Kick kanalını bulur, YouTube sonuçlarıyla birlikte gösterir; benzer kanallar önerilir",
-  "Kalite Artır'a yeni ayarlar: yüz netleştirme (yapay zekâ), yapay zekâ gücü, detay, kenar yumuşatma, renk bandı giderme, sıcaklık, gamma, gölgeler / parlak alanlar, vinyet, film greni, otomatik renk",
-  "Çıktı ve ses: dosya kalitesi, H.264 / H.265, sadece bir aralığı işleme, ses temizleme ve dengeleme",
-  "Biçim: Reels 9:16 (doldur / bulanık arka), 4:5, kare",
-  "İşlem sırasında yüzde ve kalan süre görünüyor; düğmelerin ezilmesi düzeltildi",
-  "MOV, MKV, AVI otomatik MP4'e çevriliyor"
+  "Yeni biçim: Orijinal — video kendi çözünürlüğünde (ör. 1080×1440) dışa aktarılır, boyutuna hiç dokunulmaz",
+  "Yeni projede ya da Kompozisyon Ayarları'nda (Ctrl+K) 'Orijinal' seç; seçim hatırlanır"
  ]
 }

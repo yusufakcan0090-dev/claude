@@ -358,7 +358,7 @@
         <span class="del"><button class="del-btn" data-pdel="${p.id}" title="Sil">${KS.icon.trash}</button></span>
         <div class="thumb"><img src="/thumb/${p.id}" loading="lazy" onerror="this.remove()">${badge(p)}<span class="badge br">${KS.fmt(p.duration)}</span>
           ${(p.exports || []).length ? `<span class="badge tr" style="right:46px">🎬 ${(p.exports || []).length}</span>` : ''}</div>
-        <div class="card-body"><div class="card-title">${KS.esc(p.title)}</div><div class="card-meta"><span>${KS.ago(p.updated || p.created)}</span><span>${{ dikey: 'Dikey', yatay: 'Yatay', kare: 'Kare' }[p.format] || 'Dikey'} · ${p.clips ?? 1} klip</span></div></div>
+        <div class="card-body"><div class="card-title">${KS.esc(p.title)}</div><div class="card-meta"><span>${KS.ago(p.updated || p.created)}</span><span>${/^kaynak/.test(p.format || '') ? 'Orijinal' : ({ dikey: 'Dikey', yatay: 'Yatay', kare: 'Kare' }[p.format] || 'Dikey')} · ${p.clips ?? 1} klip</span></div></div>
       </div>`).join('');
     $$('[data-pid]', g).forEach(c => c.onclick = e => { if (!e.target.closest('[data-pdel]')) KS.openProject(c.dataset.pid); });
     $$('[data-pdel]', g).forEach(b => b.onclick = async e => {

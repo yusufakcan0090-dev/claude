@@ -22,11 +22,41 @@ FORMATS = {"dikey": (1080, 1920), "yatay": (1920, 1080), "kare": (1080, 1080)}
 FORMAT_NAMES = {"dikey": "Dikey 9:16", "yatay": "Yatay 16:9", "kare": "Kare 1:1"}
 
 
+def kaynak_size(fmt):
+    """'kaynak:1080x1440' -> (1080, 1440). Orijinal biçim: videonun kendi boyutu, hiç değişmez."""
+    if isinstance(fmt, str) and fmt.startswith("kaynak:"):
+        try:
+            w, h = fmt[7:].lower().split("x")
+            w, h = int(w), int(h)
+            if 16 <= w <= 8192 and 16 <= h <= 8192:
+                return w - w % 2, h - h % 2
+        except Exception:
+            pass
+    return None
+
+
+def valid_format(fmt):
+    return fmt in FORMATS or fmt == "kaynak" or kaynak_size(fmt) is not None
+
+
+def apply_kaynak(p, c):
+    """Biçim 'kaynak' ise (henüz video yoktu) ilk videonun boyutunu biçim yap."""
+    if p.get("format") == "kaynak" and c:
+        p["format"] = f"kaynak:{c['width']}x{c['height']}"
+        c["layout"] = default_layout(p["format"], *content_size(c))
+
+
 def base_size(fmt):
+    k = kaynak_size(fmt)
+    if k:
+        return k
     return FORMATS.get(fmt, FORMATS["dikey"])
 
 
 def out_size(fmt, short_side):
+    k = kaynak_size(fmt)
+    if k:
+        return k  # orijinal: çözünürlüğe dokunma
     W, H = base_size(fmt)
     k = short_side / min(W, H)
     w, h = int(round(W * k)), int(round(H * k))
