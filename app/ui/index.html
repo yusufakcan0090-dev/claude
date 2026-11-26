@@ -53,6 +53,7 @@
 
     <div class="tabs" id="finderTabs">
       <button class="tab active" data-tab="videos">Videolar <b id="cntVideos"></b></button>
+      <button class="tab" data-tab="shorts">Shorts <b id="cntShorts"></b></button>
       <button class="tab" data-tab="clips">İzleyici Klipleri <b id="cntClips"></b></button>
       <button class="tab" data-tab="moments">✨ Bulunan Anlar <b id="cntMoments"></b></button>
       <button class="tab" data-tab="projects">Projelerim <b id="cntProjects"></b></button>
@@ -62,6 +63,9 @@
     <div class="tab-panels">
       <div class="tab-panel active" id="tab-videos">
         <div class="grid cards" id="videosGrid"></div>
+      </div>
+      <div class="tab-panel" id="tab-shorts">
+        <div class="grid cards shorts" id="shortsGrid"></div>
       </div>
       <div class="tab-panel" id="tab-clips">
         <div class="clip-sort" id="clipSort"><button data-s="new" class="active">En yeni</button><button data-s="pop">En çok izlenen</button></div>

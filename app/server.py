@@ -334,7 +334,26 @@ def api_system():
     except Exception:
         info["ytdlp"] = None
     info.update(transcribe.device_info())
+    info["gpu_name"] = gpu_name()
+    n = info["gpu_name"].lower()
+    info["vendor"] = "nvidia" if ("nvidia" in n or info.get("gpu")) else "amd" if ("amd" in n or "radeon" in n) else "intel" if "intel" in n else ""
     return jsonify(info)
+
+
+_GPU_NAME = None
+
+
+def gpu_name():
+    """Ekran kartının adı (NVIDIA / AMD / Intel)."""
+    global _GPU_NAME
+    if _GPU_NAME is None:
+        _GPU_NAME = ""
+        try:
+            r = run(["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_VideoController).Name -join ' | '"], timeout=15)
+            _GPU_NAME = (r.stdout or "").strip()
+        except Exception:
+            pass
+    return _GPU_NAME
 
 
 @app.get("/api/update/check")

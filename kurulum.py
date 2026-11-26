@@ -71,12 +71,12 @@ def gpu():
         print("  Kontrol edilemedi:", e)
 
 
-def model():
-    step("3/3  Turkce altyazi modeli (ilk seferde ~3 GB)")
+def model(name="large-v3"):
+    step("3/3  Turkce altyazi modeli (" + ("~3 GB" if name == "large-v3" else "~1.6 GB") + ")")
     try:
         from faster_whisper import download_model
         print("  Indiriliyor... (ilerleme gorunmeyebilir, pencereyi kapatma)", flush=True)
-        download_model("large-v3")
+        download_model(name)
         print("  Model hazir.")
         return True
     except Exception as e:
@@ -86,7 +86,17 @@ def model():
 
 
 if __name__ == "__main__":
+    vendor = sys.argv[sys.argv.index("--gpu") + 1] if "--gpu" in sys.argv else "nvidia"
     ok = ffmpeg()
     gpu()
-    model()
+    # NVIDIA yoksa işlemcide hızlı çalışan "turbo" modeli kullanılır
+    name = "large-v3" if vendor == "nvidia" else "turbo"
+    try:
+        sys.path.insert(0, str(ROOT / "app"))
+        from core import load_settings, save_settings
+        if vendor != "nvidia" and load_settings().get("whisper_model") == "large-v3":
+            save_settings({"whisper_model": "turbo"})
+    except Exception:
+        pass
+    model(name)
     print("\n" + ("KURULUM TAMAM!" if ok else "Kurulum eksik kaldi, yukaridaki hatalara bak."))

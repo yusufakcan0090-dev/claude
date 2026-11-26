@@ -130,8 +130,35 @@ KS.modalOpen = () => $('#modalRoot').classList.contains('show');
 KS.refresh = async () => {
   const s = await KS.api('/api/state');
   Object.assign(KS.state, s);
+  KS.applyTheme();
   KS.hooks.state.forEach(f => f());
+  if (!KS._tourChecked) { KS._tourChecked = true; if (!KS.state.settings.tur_goruldu) setTimeout(() => KS.tour(), 900); }
   KS.renderJobs();
+};
+
+/* ---------- görünüm (tema) ---------- */
+KS.applyTheme = () => { document.documentElement.dataset.tema = (KS.state.settings || {}).tema || 'koyu'; };
+
+/* ---------- nasıl kullanılır (4 adım) ---------- */
+KS.tour = () => {
+  const steps = [
+    ['🔎', 'Videoyu bul', 'Klip Bulucu\'da Kick kanal adı yaz (<b>rraenee</b>), bir link yapıştır ya da <b>Keşfet</b>\'ten bir kategoriye tıkla. Bilgisayarındaki videoyu pencereye sürükleyip bırakabilirsin.'],
+    ['✨', 'Anları bul ya da indir', 'Uzun yayında <b>Anları Bul</b>\'a bas, en iyi kısımları kendisi seçer. Kısa video ve klipleri <b>⬇</b> ile indir; hepsi editöre gelir.'],
+    ['💬', 'Altyazı ve düzenleme', 'Editörde sağ üstteki <b>Altyazı Oluştur</b>\'a bas. Sağdaki <b>Altyazı Stili</b>\'nden renk, yazı tipi ve konum seç. Efektler için <b>Efektler ve Ön Ayarlar</b>\'da bir efekte çift tıkla.'],
+    ['🎬', 'Dışa aktar', 'Sağ üstteki <b>Dışa Aktar</b>\'a (Ctrl+M) bas, kaliteyi seç. Video MP4 olarak <b>Videolar</b> klasörüne kaydedilir.'],
+  ];
+  let i = 0;
+  const md = KS.modal('<div id="tourBox"></div>');
+  const draw = () => {
+    const [ic, t, d] = steps[i];
+    $('#tourBox', md.el).innerHTML = `<div class="tour"><div class="tour-ic">${ic}</div><div class="tour-n">Adım ${i + 1} / ${steps.length}</div><h2>${t}</h2><p>${d}</p>
+      <div class="tour-dots">${steps.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="mfoot"><button class="btn ghost" id="tSkip">${i ? 'Geri' : 'Atla'}</button><button class="btn primary" id="tNext">${i === steps.length - 1 ? 'Başla' : 'İleri'}</button></div></div>`;
+    $('#tSkip', md.el).onclick = () => { if (i) { i--; draw(); } else done(); };
+    $('#tNext', md.el).onclick = () => { if (i < steps.length - 1) { i++; draw(); } else done(); };
+  };
+  const done = () => { md.close(); KS.api('/api/settings', { tur_goruldu: true }).then(r => KS.state.settings = r).catch(() => { }); };
+  draw();
 };
 
 /* ---------- işler ---------- */
@@ -258,7 +285,7 @@ KS.loadSystem = async () => {
     KS.state.system = s;
     const chip = $('#gpuChip');
     chip.className = 'gpu-chip ' + (s.gpu ? 'ok' : 'warn');
-    $('span', chip).textContent = s.gpu ? 'NVIDIA hazır' : 'GPU yok';
+    $('span', chip).textContent = s.gpu ? 'NVIDIA hazır' : s.vendor === 'amd' ? 'AMD hazır' : s.vendor === 'intel' ? 'Intel' : 'GPU yok';
     chip.title = s.gpu ? 'Altyazı ekran kartında hızlı çalışacak' : 'Ekran kartı bulunamadı, altyazı işlemciyle (yavaş) çalışır';
   } catch (e) { }
 };
@@ -374,6 +401,7 @@ KS.renderSettings = () => {
   $('#settingsGrid').innerHTML = `<div class="st-wrap">
     <div class="st-sec"><h3>Genel</h3>
       ${row('Kayıt klasörü', KS.esc(s.cikti_klasoru || ''), '<button class="btn ghost sm" id="setOutOpen">Aç</button><button class="btn ghost sm" id="setOutBtn">Değiştir</button>')}
+      ${row('Görünüm', 'Programın renkleri', `<div class="seg" id="setTheme">${[['koyu', 'Koyu'], ['dahakoyu', 'Daha koyu'], ['acik', 'Açık']].map(([v, n]) => `<button data-v="${v}" class="${(s.tema || 'koyu') === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
       ${row('Güncelleme', up.available ? `Yeni sürüm hazır: v${KS.esc(up.latest)}` : (up.current ? `v${KS.esc(up.current)} · güncel` : KS.esc(($('#verTag') || {}).textContent || 'Kontrol edilmedi')), `<button class="btn ${up.available ? 'primary' : 'ghost'} sm" id="setUpd">${up.available ? 'Güncelle' : 'Kontrol et'}</button>`)}
     </div>
     <div class="st-sec"><h3>Altyazı</h3>
@@ -386,8 +414,9 @@ KS.renderSettings = () => {
       </details>
     </div>
     <div class="st-sec"><h3>Yardım</h3>
+      ${row('Nasıl kullanılır?', '4 adımda kısa anlatım', '<button class="btn ghost sm" id="setTour">Göster</button>')}
       ${row('Klavye kısayolları', 'After Effects ile aynı', '<button class="btn ghost sm" id="setKeys">Göster</button>')}
-      <div class="st-sys"><span class="${sys.gpu ? 'ok' : 'no'}">● Ekran kartı ${sys.gpu ? 'hazır' : 'yok'}</span><span class="${sys.ffmpeg ? 'ok' : 'no'}">● FFmpeg ${sys.ffmpeg ? 'hazır' : 'yok'}</span><span class="${sys.ytdlp ? 'ok' : 'no'}">● İndirici ${sys.ytdlp ? 'hazır' : 'yok'}</span></div>
+      <div class="st-sys"><span class="${sys.gpu || sys.vendor ? 'ok' : 'no'}" title="${KS.esc(sys.gpu_name || '')}">● Ekran kartı: ${sys.gpu ? 'NVIDIA (hızlı altyazı)' : sys.vendor === 'amd' ? 'AMD' : sys.vendor === 'intel' ? 'Intel' : 'yok'}</span><span class="${sys.ffmpeg ? 'ok' : 'no'}">● FFmpeg ${sys.ffmpeg ? 'hazır' : 'yok'}</span><span class="${sys.ytdlp ? 'ok' : 'no'}">● İndirici ${sys.ytdlp ? 'hazır' : 'yok'}</span></div>
     </div></div>`;
   const save = patch => KS.api('/api/settings', patch).then(r => { KS.state.settings = r; });
   $('#setOutBtn').onclick = async () => { const r = await KS.api('/api/pick_folder', {}); if (r.path) { await save({ cikti_klasoru: r.path }); KS.renderSettings(); } };
@@ -396,6 +425,8 @@ KS.renderSettings = () => {
   $$('#setModel button').forEach(b => b.onclick = () => save({ whisper_model: b.dataset.v }).then(KS.renderSettings));
   $('#setNames').onchange = e => save({ ipucu_isimler: e.target.value });
   $('#setAuto').onclick = () => save({ oto_altyazi: !s.oto_altyazi }).then(KS.renderSettings);
+  $$('#setTheme button').forEach(b => b.onclick = () => save({ tema: b.dataset.v }).then(() => { KS.applyTheme(); KS.renderSettings(); }));
+  $('#setTour').onclick = () => KS.tour();
   $('#setKeys').onclick = () => KS.modal(`<h2>Klavye Kısayolları</h2><p class="msub">After Effects ile aynı</p>${KS.shortcutsHtml()}<div class="mfoot"><button class="btn primary" data-close>Tamam</button></div>`, { wide: true });
   $('#fixAdd').onclick = async () => {
     const x = $('#fixA').value.trim(), y = $('#fixB').value.trim();

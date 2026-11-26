@@ -62,6 +62,8 @@ DEFAULT_SETTINGS = {
     "fps": "kaynak",            # kaynak | 30 | 60 | 90
     "ses_dengele": True,
     "oto_altyazi": False,
+    "tema": "koyu",
+    "tur_goruldu": False,
     "son_kanal": "",
     "varsayilan_stil": None,
     "varsayilan_duzen": None,

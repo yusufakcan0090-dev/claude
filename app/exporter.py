@@ -626,11 +626,19 @@ def build_command(project, opts, s, out, encoder):
               "-cq", "18" if kalite == "yuksek" else "23", "-b:v", "0", "-profile:v", "high"]
         if max(OW, OH) >= 2500:
             c += ["-maxrate", "60M", "-bufsize", "120M"]
+    elif encoder == "amf":  # AMD ekran kartı
+        q = "18" if kalite == "yuksek" else "23"
+        c += ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", q, "-qp_p", q, "-qp_b", q, "-profile:v", "high"]
+    elif encoder == "qsv":  # Intel ekran kartı
+        c += ["-c:v", "h264_qsv", "-preset", "slower", "-global_quality", "20" if kalite == "yuksek" else "25", "-profile:v", "high"]
     else:
         c += ["-c:v", "libx264", "-preset", "medium", "-crf", "18" if kalite == "yuksek" else "22", "-profile:v", "high"]
     c += ["-r", f"{out_fps:g}", "-t", f"{total:.3f}", "-movflags", "+faststart", str(out)]
     label = f"{OW}x{OH}" + ("" if fps_opt == "kaynak" else f" · {fps_opt} FPS")
     return c, total, label
+
+
+_ENC_OK = None  # bu bilgisayarda çalışan kodlayıcı (NVIDIA / AMD / Intel / işlemci)
 
 
 def export(job, project, opts=None):
@@ -644,17 +652,24 @@ def export(job, project, opts=None):
         return run_ffmpeg_progress(cmd, total, lambda f: job.set(f, f"Dışa aktarılıyor %{int(f * 100)} · {label}"),
                                    cancel, cwd=str(ROOT))
 
-    job.set(0.01, "Dışa aktarma başlıyor (NVIDIA)...")
-    code, err = run_with("nvenc")
-    if code != 0:
+    global _ENC_OK
+    names = {"nvenc": "NVIDIA", "amf": "AMD", "qsv": "Intel", "x264": "işlemci"}
+    order = ([_ENC_OK] if _ENC_OK else []) + [e for e in ("nvenc", "amf", "qsv", "x264") if e != _ENC_OK]
+    code, err = 1, ""
+    for enc in order:
+        job.set(0.01, f"Dışa aktarma başlıyor ({names[enc]})...")
+        code, err = run_with(enc)
+        if code == 0:
+            _ENC_OK = enc
+            break
         if job.cancelled:
             out.unlink(missing_ok=True)
             raise RuntimeError("İptal edildi")
-        job.set(0.01, "NVIDIA kodlayıcı açılmadı, işlemci ile aktarılıyor...")
-        code, err = run_with("x264")
-        if code != 0:
-            out.unlink(missing_ok=True)
-            lines = [l for l in err.strip().splitlines() if "rror" in l or "nvalid" in l] or err.strip().splitlines() or ["bilinmeyen hata"]
-            raise RuntimeError("Dışa aktarma başarısız: " + lines[-1][-300:])
+        out.unlink(missing_ok=True)
+        if enc == _ENC_OK:
+            _ENC_OK = None
+    if code != 0:
+        lines = [l for l in err.strip().splitlines() if "rror" in l or "nvalid" in l] or err.strip().splitlines() or ["bilinmeyen hata"]
+        raise RuntimeError("Dışa aktarma başarısız: " + lines[-1][-300:])
     job.set(1, "Hazır! " + out.name)
     return {"path": str(out), "name": out.name, "folder": str(out.parent)}

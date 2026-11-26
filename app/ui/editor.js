@@ -213,7 +213,10 @@
     const r = clipAt(E.T); if (!r) return;
     const v = vidFor('clip', r.c), want = r.c.in + (E.T - r.start) * (r.c.speed || 1);
     v.playbackRate = r.c.speed || 1; v.volume = KS.clamp(r.c.volume ?? 1, 0, 1);
-    if (force || Math.abs(v.currentTime - want) > .25) v.currentTime = want;
+    if (force || Math.abs(v.currentTime - want) > .25) {
+      if (v.seeking && !E.playing) { v._want = want; if (!v._wq) { v._wq = true; v.addEventListener('seeked', () => { v._wq = false; if (v._want != null && Math.abs(v.currentTime - v._want) > .02) { const w2 = v._want; v._want = null; v.currentTime = w2; } }, { once: true }); } }
+      else { v._want = null; v.currentTime = want; }
+    }
     pool.forEach(o => { if (o !== v && !o.dataset.pip && !o.paused) o.pause(); });
     E.activeVid = v; E.activeClip = r;
     for (const ov of P().overlays) {
@@ -291,6 +294,7 @@
   function zoomAt(T) { let z = 1, sh = 0; for (const q of fx().zooms) { const a = q.t, b = a + (+q.d || .8); if (T >= a && T <= b) { z += Math.max((+q.z || 1.25) - 1, q.shake ? .06 : 0) * Math.min(1, (T - a) / .12, (b - T) / .2); if (q.shake) sh = 1; } } return { z, sh }; }
   const soloOn = () => E.layers().some(l => l.obj && l.obj.solo);
   const visible = l => !(l.obj && l.obj.hidden) && (!soloOn() || (l.obj && l.obj.solo) || !TRANSFORMABLE.concat('fx').includes(l.type));
+  const baseC = document.createElement('canvas'), baseX = baseC.getContext('2d'); let baseOk = false;
   E.boxes = [];
   const chromaC = document.createElement('canvas'), chromaX = chromaC.getContext('2d', { willReadFrequently: true });
   E.render = () => {
@@ -306,7 +310,10 @@
         if (z !== 1 || f.mirror) { x.translate(PW / 2, PH / 2); x.scale(z * (f.mirror ? -1 : 1), z); x.translate(-PW / 2 + (sh ? Math.sin(T * 53) * PW * .012 : 0), -PH / 2 + (sh ? Math.cos(T * 47) * PH * .008 : 0)); }
         drawClip(x, r.c, v, fxFilter(f)); x.restore();
         if (f.lut && KS.fx.lut) KS.fx.applyLut(x, PW, PH, (f.lut.mix ?? 100) / 100);
-      }
+        // son iyi kareyi sakla: oynatma çizgisi sürüklenirken video kare ararken ekran kararmasın
+        if (baseC.width !== PW || baseC.height !== PH) { baseC.width = PW; baseC.height = PH; }
+        baseX.clearRect(0, 0, PW, PH); baseX.drawImage(prev, 0, 0); baseOk = true;
+      } else if (baseOk && baseC.width === PW && baseC.height === PH) x.drawImage(baseC, 0, 0);
     }
     if (f.glow) { x.save(); x.globalCompositeOperation = 'screen'; x.globalAlpha = .38; x.filter = 'blur(9px)'; x.drawImage(prev, 0, 0); x.restore(); }
     if (f.rgb) { x.save(); x.globalCompositeOperation = 'screen'; x.globalAlpha = .22; x.drawImage(prev, -3, 0); x.drawImage(prev, 3, 0); x.restore(); }
@@ -1384,7 +1391,7 @@
     ['Efekt', [['Zoom vurgusu', '', () => E.addZoom(false)], ['Sarsıntılı zoom', '', () => E.addZoom(true)], null, ...Object.entries(KS.fx.LIST).slice(0, 14).map(([k, v]) => [v[0], '', () => E.addFx(k)]), null, ['Tüm efektler...', '', () => E.rt('fx')]]],
     ['Görünüm', [['Yakınlaştır', '.', () => E.zoomView(1.25)], ['Uzaklaştır', ',', () => E.zoomView(.8)], ['Sığdır', 'Shift+/', E.fit], null, ['Tam kalite', '', () => { $('#qualSel').value = '1'; $('#qualSel').onchange({ target: $('#qualSel') }); }], ['Yarım kalite', '', () => { $('#qualSel').value = '0.5'; $('#qualSel').onchange({ target: $('#qualSel') }); }], null, ['Paneli büyüt', '`', E.maxPanel]]],
     ['Pencere', [['Proje', '', () => E.lt('project')], ['Efekt Kontrolleri', 'F3', () => E.lt('controls')], ['Efektler ve Ön Ayarlar', '', () => E.rt('fx')], ['Altyazı', '', () => E.rt('subs')], ['Altyazı Stili', '', () => E.rt('style')]]],
-    ['Yardım', [['Klavye kısayolları', 'F1', shortcutsModal], ['Güncellemeleri kontrol et...', '', () => KS.checkUpdate(true, true)], ['Ayarlar', '', () => KS.go('settings')]]],
+    ['Yardım', [['Nasıl kullanılır?', '', () => KS.tour()], ['Klavye kısayolları', 'F1', shortcutsModal], ['Güncellemeleri kontrol et...', '', () => KS.checkUpdate(true, true)], ['Ayarlar', '', () => KS.go('settings')]]],
   ];
   const mb = $('#aeMenubar');
   (() => {
@@ -1393,7 +1400,7 @@
     $$('.mi', mb).forEach(m => {
       m.onmousedown = e => { if (e.target.closest('[data-mj]')) return; const open = m.classList.contains('open'); $$('.mi', mb).forEach(x => x.classList.remove('open')); if (!open) m.classList.add('open'); };
       m.onmouseenter = () => { if ($('.mi.open', mb)) { $$('.mi', mb).forEach(x => x.classList.remove('open')); m.classList.add('open'); } };
-      $$('[data-mj]', m).forEach(d => d.onclick = () => { $$('.mi', mb).forEach(x => x.classList.remove('open')); const it = MENU()[+m.dataset.mi][1][+d.dataset.mj]; if (!P() && !['Yeni Proje...', 'Projeleri Aç...', 'İçe Aktar...', 'Klavye kısayolları', 'Güncellemeleri kontrol et...', 'Ayarlar'].includes(it[0])) return KS.toast('Önce bir proje aç', '', [], 1500); it[2](); });
+      $$('[data-mj]', m).forEach(d => d.onclick = () => { $$('.mi', mb).forEach(x => x.classList.remove('open')); const it = MENU()[+m.dataset.mi][1][+d.dataset.mj]; if (!P() && !['Yeni Proje...', 'Projeleri Aç...', 'İçe Aktar...', 'Klavye kısayolları', 'Güncellemeleri kontrol et...', 'Ayarlar', 'Nasıl kullanılır?'].includes(it[0])) return KS.toast('Önce bir proje aç', '', [], 1500); it[2](); });
     });
   })();
   addEventListener('mousedown', e => { if (!e.target.closest('#aeMenubar')) $$('.mi', mb).forEach(x => x.classList.remove('open')); });

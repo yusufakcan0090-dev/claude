@@ -72,7 +72,11 @@ def get_model(job=None):
         errors = []
         for device, ctype in (("cuda", "float16"), ("cuda", "int8_float16"), ("cpu", "int8")):
             try:
-                m = WhisperModel(name, device=device, compute_type=ctype)
+                # NVIDIA yoksa (AMD / Intel) işlemcide büyük model çok yavaş: hızlı "turbo" modeli kullan
+                mname = "turbo" if (device == "cpu" and name == "large-v3") else name
+                if job and device == "cpu":
+                    job.set(None, "NVIDIA ekran kartı yok, altyazı işlemciyle çıkarılıyor (biraz daha yavaş)...")
+                m = WhisperModel(mname, device=device, compute_type=ctype)
                 # GPU gerçekten çalışıyor mu dene
                 if device == "cuda":
                     import numpy as np

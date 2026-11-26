@@ -98,10 +98,26 @@ def list_source(text):
             except Exception:
                 pass  # böyle bir kanal yoksa YouTube'da ara
         q = text if _is_turkish(text) else text + " türkçe"
-        vids = _turkish_only(_entries(f"ytsearch60:{q}", 60))
-        return {"slug": text, "source": "youtube-arama", "title": f"YouTube: {text}", "videos": vids, "clips": [], "errors": []}
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(2) as ex:
+            fv = ex.submit(_entries, f"ytsearch60:{q}", 60)
+            fs = ex.submit(_entries, f"ytsearch40:{q} shorts", 40)
+            vids = _turkish_only(fv.result())
+            try:
+                shorts = _turkish_only(_only_shorts(fs.result()))
+            except Exception:
+                shorts = []
+        shorts = _merge(shorts, [v for v in vids if _is_short(v)])
+        ids = {s["id"] for s in shorts}
+        vids = [v for v in vids if v["id"] not in ids]
+        return {"slug": text, "source": "youtube-arama", "title": f"YouTube: {text}", "videos": vids, "shorts": shorts, "clips": [], "errors": []}
     url = text
+    shorts = []
     if re.search(r"youtube\.com/(@[\w.-]+|channel/[\w-]+|c/[\w-]+|user/[\w-]+)/?$", url, re.I):
+        try:
+            shorts = _entries(url.rstrip("/") + "/shorts", 60)
+        except Exception:
+            shorts = []
         url = url.rstrip("/") + "/videos"
     if re.search(r"twitch\.tv/[\w]+/?$", url, re.I):
         url = url.rstrip("/") + "/videos?filter=archives"
@@ -110,7 +126,7 @@ def list_source(text):
     if info.get("_type") == "playlist" or info.get("entries") is not None:
         vids = [_entry(e) for e in info.get("entries") or [] if e and e.get("_type") != "playlist"]
         return {"slug": info.get("title") or url, "source": "liste", "title": info.get("title") or "",
-                "videos": vids, "clips": [], "errors": []}
+                "videos": vids, "shorts": shorts, "clips": [], "errors": []}
     return {"single": _entry({**info, "url": info.get("webpage_url") or url})}
 
 
@@ -174,12 +190,21 @@ def _kick_direct(slug):
                      "timestamp": _ts(v.get("start_time") or v.get("created_at")),
                      "availability": "public", "channel": slug})
     raw = []
-    for srt in ("date", "view"):
+    for u in (f"https://kick.com/api/v2/channels/{slug}/clips?cursor=0&sort=date&time=all",
+              f"https://kick.com/api/v2/channels/{slug}/clips?cursor=0&sort=view&time=all",
+              f"https://kick.com/api/v2/channels/{slug}/clips?sort=view&time=month",
+              f"https://kick.com/api/v2/channels/{slug}/clips"):
         try:
-            d = _kick_get(f"https://kick.com/api/v2/channels/{slug}/clips?sort={srt}&time=all")
-            raw += d.get("clips") or (d.get("data") or {}).get("clips") or []
+            d = _kick_get(u)
+            got = d.get("clips") if isinstance(d, dict) else d
+            if isinstance(d, dict) and not got:
+                got = (d.get("data") or {}).get("clips") if isinstance(d.get("data"), dict) else d.get("data")
+            raw += got or []
+            if len(raw) >= 40:
+                break
         except Exception as e:
             errs.append("klipler: " + _short(e))
+            print("[kick] klip yolu başarısız:", u, e, file=sys.stderr, flush=True)
     seen = set()
     try:
         for c in raw:
@@ -225,6 +250,15 @@ def _turkish_only(vids):
     if len(tr) >= 5:
         return tr
     return [v for v in vids if not _non_latin(v.get("title"))] or vids
+
+
+def _is_short(v):
+    u = (v.get("url") or "").lower()
+    return "/shorts/" in u or (0 < (v.get("duration") or 0) <= 60)
+
+
+def _only_shorts(vids):
+    return [v for v in vids if _is_short(v) or (0 < (v.get("duration") or 0) <= 180)]
 
 
 def _merge(*lists):
@@ -274,6 +308,12 @@ def list_channel(text):
             if not res["videos"] and not res["clips"]:
                 raise
     res["clips"].sort(key=lambda c: c.get("timestamp") or 0, reverse=True)
+    res.setdefault("shorts", [])
+    if errs:
+        print(f"[kick] {slug}:", " | ".join(errs), file=sys.stderr, flush=True)
+    if res["videos"] and not res["clips"]:
+        errs = [f'"{slug}" kanalında izleyici klibi bulunamadı. Kanal adı doğru mu? (ör. rraenee)']
+    res["errors"] = errs if (not res["clips"] or not res["videos"]) else []
     if not res["videos"] and not res["clips"]:
         detail = (" Ayrıntı: " + " | ".join(errs)) if errs else ""
         raise RuntimeError(f'"{slug}" kanalında video ya da klip bulunamadı. Kanal yayın kayıtlarını '

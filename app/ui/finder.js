@@ -30,7 +30,7 @@
     if (/kick\.com\/[\w-]+\/videos\/[0-9a-f-]{36}/i.test(q)) return F.directLink(q, 'vod');
     if (/clip_[\w-]+/i.test(q)) return F.directLink(q, 'clip');
     $('#videosGrid').innerHTML = skel(8);
-    $('#clipsGrid').innerHTML = skel(8);
+    $('#clipsGrid').innerHTML = skel(8); $('#shortsGrid').innerHTML = skel(8);
     F.tab('videos');
     $('#searchBtn').disabled = true;
     try {
@@ -40,14 +40,14 @@
         return F.directLink(r.single.url, r.single.duration && r.single.duration < 90 ? 'clip' : 'other', r.single.title, r.single);
       }
       F.source = r.source; F.listTitle = r.title;
-      F.slug = r.slug; F.videos = r.videos; F.clips = r.clips; F.selClips.clear();
+      F.slug = r.slug; F.videos = r.videos; F.shorts = r.shorts || []; F.clips = r.clips; F.selClips.clear();
       KS.state.settings.son_kanal = r.slug;
-      F.renderVideos(); F.renderClips(); F.renderRecent();
+      F.renderVideos(); F.renderShorts(); F.renderClips(); F.renderRecent();
       if (!r.videos.length && r.clips.length) F.tab('clips');
       if (r.errors.length) KS.toast(KS.esc(r.errors.join(' · ')), 'err', [], 7000);
     } catch (e) {
       $('#videosGrid').innerHTML = emptyHtml('Kanal bulunamadı', KS.esc(e.message));
-      $('#clipsGrid').innerHTML = '';
+      $('#clipsGrid').innerHTML = ''; $('#shortsGrid').innerHTML = '';
     } finally { $('#searchBtn').disabled = false; }
   };
   $('#searchBtn').onclick = F.search;
@@ -108,14 +108,15 @@
   };
 
   /* ---------- yayın kayıtları ---------- */
-  F.renderVideos = () => {
-    const g = $('#videosGrid');
-    $('#cntVideos').textContent = F.videos.length || '';
-    if (!F.videos.length) {
+  F.renderVideos = (list = F.videos, gid = 'videosGrid', cid = 'cntVideos', isShort = false) => {
+    const g = $('#' + gid);
+    $('#' + cid).textContent = list.length || '';
+    if (!list.length) {
+      if (isShort) { g.innerHTML = emptyHtml('Shorts yok', 'YouTube\'da bir şey ara ya da bir YouTube kanal linki yapıştır, kısa videolar burada çıkar.'); return; }
       g.innerHTML = emptyHtml('Ne arıyorsun?', 'Kick kanal adı yaz (<b>rraenee</b>), YouTube/Twitch linki yapıştır<br>ya da YouTube\'da ara (<b>okan bayülgen kesit</b>, <b>yayıncı anıları</b>).<br>Bilgisayarındaki videoyu da ekleyebilirsin.');
       return;
     }
-    g.innerHTML = F.videos.map((v, i) => `
+    g.innerHTML = list.map((v, i) => `
       <div class="card" style="animation-delay:${Math.min(i, 12) * .04}s" data-i="${i}">
         <div class="thumb">${v.thumbnail ? `<img src="${KS.esc(v.thumbnail)}" loading="lazy" onerror="this.remove()">` : ''}
           <span class="badge br">${KS.fmt(v.duration)}</span>
@@ -123,23 +124,26 @@
         <div class="card-body">
           <div class="card-title">${KS.esc(v.title)}</div>
           <div class="card-meta">${v.channel ? `<span>${KS.esc(v.channel)}</span>` : ''}${v.timestamp ? `<span>${KS.ago(v.timestamp)}</span>` : ''}${v.views ? `<span>👁 ${KS.num(v.views)}</span>` : ''}</div>
-          <div class="card-actions"><button class="btn primary glow sm" style="flex:1" data-an="${i}">${KS.icon.spark}Anları Bul</button>
-            ${v.duration && v.duration < 600 ? `<button class="btn ghost sm" data-dl="${i}" title="Kısa video: direkt indir ve düzenle">${KS.icon.down}</button>` : ''}</div>
+          <div class="card-actions">${isShort ? `<button class="btn primary glow sm" style="flex:1" data-dl="${i}">${KS.icon.down}İndir ve Düzenle</button>` : `<button class="btn primary glow sm" style="flex:1" data-an="${i}">${KS.icon.spark}Anları Bul</button>`}
+            ${!isShort && v.duration && v.duration < 600 ? `<button class="btn ghost sm" data-dl="${i}" title="Kısa video: direkt indir ve düzenle">${KS.icon.down}</button>` : ''}</div>
         </div>
       </div>`).join('');
     $$('[data-an]', g).forEach(b => b.onclick = e => {
       e.stopPropagation();
-      const v = F.videos[+b.dataset.an];
+      const v = list[+b.dataset.an];
       KS.findMoments({ url: v.url, title: v.title });
     });
     $$('[data-dl]', g).forEach(b => b.onclick = async e => {
       e.stopPropagation();
-      const v = F.videos[+b.dataset.dl];
+      const v = list[+b.dataset.dl];
       const r = await dl({ url: v.url, title: v.title }); if (!r) return;
       r.jobs.forEach(KS.trackJob); KS.openJobs();
       KS.toast('⬇ İndiriliyor, editörde hazır olacak.');
     });
-  };
+  }
+  F.shorts = [];
+  F.renderShorts = () => F.renderVideos(F.shorts, 'shortsGrid', 'cntShorts', true);
+;
 
   /* ---------- izleyici klipleri ---------- */
   F.clipSort = 'new';
