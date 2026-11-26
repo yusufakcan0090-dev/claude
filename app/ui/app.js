@@ -232,6 +232,8 @@ KS.onJobFinished = j => {
     ], 8000);
   } else if (j.kind === 'analiz') {
     KS.toast(`✨ <b>${r.count} an bulundu</b>`, 'ok', [{ label: 'Göster', primary: true, fn: () => { KS.go('finder'); KS.finder.showAnalysis(r.analysis); } }]);
+  } else if (j.kind === 'indir' && r.project && r.open) {
+    KS.openProject(r.project); KS.toast('MP4 hazır, editörde açıldı.', 'ok');
   } else if ((j.kind === 'an' || j.kind === 'indir') && r.project) {
     KS.toast('✂ <b>Klip hazır</b> — ' + KS.esc(j.title.replace(/^.*?: /, '')), 'ok', [{ label: 'Editörde aç', primary: true, fn: () => KS.openProject(r.project) }]);
   } else if (j.kind === 'altyazi') {
@@ -317,6 +319,7 @@ KS.handleFile = async f => {
         if (long) KS.toast(`Uzun bir video (${KS.fmt(f.duration)}). İstersen en iyi anlarını otomatik bulayım.`, '', moments, 8000);
       } else {
         const r = await KS.api('/api/local/project', { path: f.path, title: f.title, format: KS.state.settings.son_bicim });
+        if (r.job) { KS.trackJob(r.job); KS.toast('MP4 olmayan video: önce MP4\'e çevriliyor, bitince editörde açılacak.'); return; }
         await KS.refresh(); KS.kickJobs(); await KS.openProject(r.project);
         if (long) KS.toast(`Uzun bir video (${KS.fmt(f.duration)}). İstersen en iyi anlarını otomatik bulayım.`, '', moments, 8000);
       }

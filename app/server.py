@@ -13,7 +13,7 @@ import model
 import transcribe
 import updater
 import enhance
-from core import (ANALIZ, APP, CACHE, FFMPEG, IS_WIN, JOBS, PROJELER, load_settings,
+from core import (ANALIZ, APP, CACHE, FFMPEG, FFPROBE, INDIRILEN, IS_WIN, JOBS, PROJELER, load_settings,
                   new_id, popen, probe, read_json, run, safe_name, save_settings,
                   thumbnail, write_json)
 
@@ -472,6 +472,11 @@ def api_local_project():
         return jsonify(error="Dosya bulunamadı"), 400
     if file_kind(path) != "video":
         return jsonify(error="Bu bir video dosyası değil"), 400
+    if needs_mp4(path):
+        # MOV, MKV, AVI vb. önce MP4'e çevrilir (editörde oynasın, her yerde açılsın)
+        j = JOBS.start("indir", "MP4'e çevriliyor: " + Path(path).name[:40], job_convert_local, path,
+                       d.get("project"), d.get("title") or Path(path).stem, d.get("format") or "dikey")
+        return jsonify(job=j.id)
     if d.get("project"):
         p, c = add_clip(d["project"], path)
         _after_add(p, c)
@@ -479,6 +484,68 @@ def api_local_project():
     p = create_project(path, d.get("title") or Path(path).stem, "yerel", fmt=d.get("format") or "dikey")
     _after_add(p)
     return jsonify(project=p["id"])
+
+
+def needs_mp4(path):
+    """Tarayıcının (editör önizlemesi) oynatamayacağı dosya mı? MP4 + H.264 değilse çevrilir."""
+    ext = Path(path).suffix.lower()
+    try:
+        r = run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt",
+                 "-of", "csv=p=0", str(path)], timeout=30)
+        codec, _, pix = (r.stdout or "").strip().partition(",")
+    except Exception:
+        codec, pix = "", ""
+    if ext in (".mp4", ".m4v") and codec in ("h264", "av1") and pix.startswith("yuv420p"):
+        return False
+    if ext == ".webm" and codec in ("vp8", "vp9", "av1"):
+        return False
+    return True
+
+
+def job_convert_local(job, path, target, title, fmt):
+    from core import run_ffmpeg_progress
+    src = Path(path)
+    info = probe(src)
+    out = INDIRILEN / (safe_name(src.stem, 80) + ".mp4")
+    i = 2
+    while out.exists():
+        out = INDIRILEN / f"{safe_name(src.stem, 80)}_{i}.mp4"
+        i += 1
+    INDIRILEN.mkdir(parents=True, exist_ok=True)
+    r = run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt", "-of", "csv=p=0", str(src)], timeout=30)
+    codec, _, pix = (r.stdout or "").strip().partition(",")
+    tries = []
+    if codec == "h264" and pix.startswith("yuv420p"):
+        tries.append(["-c:v", "copy"])  # sadece kabı değiştir, anında biter
+    tries += [["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "17", "-pix_fmt", "yuv420p"],
+              ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "17", "-qp_p", "17", "-pix_fmt", "yuv420p"],
+              ["-c:v", "h264_qsv", "-global_quality", "18", "-pix_fmt", "nv12"],
+              ["-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p"]]
+    err = ""
+    for v in tries:
+        cmd = [FFMPEG, "-y", "-i", str(src), "-map", "0:v:0", "-map", "0:a:0?", *v, "-c:a", "aac", "-b:a", "192k",
+               "-movflags", "+faststart", str(out)]
+        code, err = run_ffmpeg_progress(cmd, info["duration"] or 1, lambda p: job.set(0.02 + 0.9 * p, f"MP4'e çevriliyor %{int(p * 100)}"), lambda: job.cancelled)
+        if code == 0 and out.exists() and out.stat().st_size > 1000:
+            break
+        out.unlink(missing_ok=True)
+        if job.cancelled:
+            raise RuntimeError("İptal edildi")
+    else:
+        raise RuntimeError("MP4'e çevrilemedi: " + (err or "")[-200:])
+    job.set(0.95, "Projeye ekleniyor...")
+    if target:
+        try:
+            p, c = add_clip(target, str(out))
+            _after_add(p, c)
+            job.set(1, "Projeye eklendi")
+            return {"project": p["id"], "added": True, "mp4": str(out)}
+        except Exception:
+            pass
+    p = create_project(str(out), title, "yerel", fmt=fmt)
+    _after_add(p)
+    job.set(1, "MP4 hazır, editörde açılıyor")
+    return {"project": p["id"], "added": False, "mp4": str(out), "open": True}
 
 
 @app.post("/api/project/new")

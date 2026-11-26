@@ -989,6 +989,7 @@
       if (asOverlay && clips().length) { const r = await KS.api(`/api/project/${P().id}/overlay`, { path: f.path, at: E.T }); P().overlays.unshift(r.overlay); E.renderAll(); E.select({ type: 'pip', id: r.overlay.id }); E.render(); return; }
       const close = KS.toast('Video ekleniyor...', '', [], 0);
       const r = await KS.api('/api/local/project', { path: f.path, title: f.title, project: P().id });
+      if (r.job) { close(); KS.trackJob(r.job); KS.toast('MP4 olmayan video: önce MP4\'e çevriliyor, bitince projeye eklenecek.'); return; }
       const fresh = await KS.api('/api/project/' + P().id), c = fresh.clips.find(q => q.id === r.clip); close();
       if (c) { const first = !clips().length; clips().push(c); E.loadWave(c); E.renderAll(); E.fit(); E.seek(first ? 0 : E.T); KS.kickJobs(); }
     } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
