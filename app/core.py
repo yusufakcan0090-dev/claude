@@ -61,7 +61,7 @@ DEFAULT_SETTINGS = {
     "cozunurluk": 1080,         # 720 | 1080 | 1440 (2K)
     "fps": "kaynak",            # kaynak | 30 | 60 | 90
     "ses_dengele": True,
-    "oto_altyazi": True,
+    "oto_altyazi": False,
     "son_kanal": "",
     "varsayilan_stil": None,
     "varsayilan_duzen": None,

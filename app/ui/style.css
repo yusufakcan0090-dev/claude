@@ -978,3 +978,7 @@ body.on-editor{background:#0e0e0e}
 .cs-chk{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .cs-foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .cs-prev{width:100%;display:block;border-radius:6px;border:1px solid #333;background:#000}
+.ae-ws #subsBtn{color:#fff;background:#2d8ceb;margin-left:6px;border-radius:5px;margin:4px 0 4px 8px;padding:0 12px}
+.ae-ws #subsBtn:hover{background:#4aa0f0}
+.ae-ws #subsBtn.busy{background:#3a3a3a;color:#aaa}
+.cs-make{display:flex;flex-direction:column;gap:6px;align-items:stretch;padding:10px;border:1px dashed #3a3a3a;border-radius:6px;color:#aaa;font-size:12px;text-align:center}
