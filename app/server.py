@@ -12,6 +12,7 @@ import kick
 import model
 import transcribe
 import updater
+import enhance
 from core import (ANALIZ, APP, CACHE, FFMPEG, IS_WIN, JOBS, PROJELER, load_settings,
                   new_id, popen, probe, read_json, run, safe_name, save_settings,
                   thumbnail, write_json)
@@ -681,6 +682,56 @@ def api_defaults():
 @app.post("/api/pick_folder")
 def api_pick_folder():
     return jsonify(path=pick_folder())
+
+
+@app.post("/api/kalite/preview")
+def api_kalite_preview():
+    d = request.get_json(force=True) or {}
+    path = d.get("path") or ""
+    if not Path(path).exists():
+        return jsonify(error="Video bulunamadı"), 400
+    try:
+        key, W, H, ai = enhance.preview(path, float(d.get("t") or 0), d.get("opts") or {})
+        return jsonify(key=key, w=W, h=H, ai=ai)
+    except Exception as e:
+        return jsonify(error=str(e)[:300]), 400
+
+
+@app.get("/media/kalite/<key>/<name>")
+def media_kalite(key, name):
+    if name not in ("once.jpg", "sonra.jpg") or not key.isalnum():
+        return "", 404
+    return send_file(CACHE / "kalite" / key / name, max_age=0)
+
+
+@app.post("/api/kalite/start")
+def api_kalite_start():
+    d = request.get_json(force=True) or {}
+    path = d.get("path") or ""
+    if not Path(path).exists():
+        return jsonify(error="Video bulunamadı"), 400
+    opts = d.get("opts") or {}
+    save_settings({"kalite_ayar": opts})
+    j = JOBS.start("kalite", "Kalite: " + Path(path).stem[:40], enhance.process, path, opts, heavy=True)
+    return jsonify(job=j.id)
+
+
+@app.get("/api/kalite/info")
+def api_kalite_info():
+    p = request.args.get("path") or ""
+    if not Path(p).exists():
+        return jsonify(error="Video bulunamadı"), 400
+    i = probe(p)
+    return jsonify(path=p, name=Path(p).name, duration=i["duration"], width=i["width"], height=i["height"], fps=i["fps"],
+                   opts=enhance.settings(), ai_tools=bool(enhance.tool_path("realesrgan")))
+
+
+@app.get("/media/kalite_src")
+def media_kalite_src():
+    p = request.args.get("path") or ""
+    if not Path(p).exists():
+        return "", 404
+    return send_file(p, conditional=True)
 
 
 @app.post("/api/snapshot")

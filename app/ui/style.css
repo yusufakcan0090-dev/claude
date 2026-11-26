@@ -1001,3 +1001,37 @@ html[data-tema=acik] :is(canvas,video,img,.pj-thumb,.proj-prev,.sw,.ae-color,.la
 .tour-dots{display:flex;gap:6px;justify-content:center;margin:16px 0 4px}
 .tour-dots i{width:8px;height:8px;border-radius:50%;background:#444}
 .tour-dots i.on{background:#2d8ceb;width:22px;border-radius:4px}
+
+/* ================= Kalite Artır ================= */
+#page-kalite{display:none;flex-direction:column}
+#page-kalite.active{display:flex}
+.kq-src{display:flex;align-items:center;gap:10px}
+.kq-name{font-size:13px;color:var(--muted);max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kq{flex:1;min-height:0;display:grid;grid-template-columns:1fr 330px;gap:14px}
+.kq-main{display:flex;flex-direction:column;gap:8px;min-height:0}
+.kq-view{position:relative;flex:1;min-height:320px;background:#111;border:1px solid #2c2c2c;border-radius:8px;overflow:hidden;cursor:ew-resize;user-select:none}
+.kq-stage{position:absolute}
+.kq-stage img{position:absolute;left:0;top:0;max-width:none;display:block}
+.kq-before{position:absolute;left:0;top:0;height:100%;overflow:hidden}
+.kq-handle{position:absolute;top:0;bottom:0;width:2px;background:#fff;transform:translateX(-1px);pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.6)}
+.kq-handle i{position:absolute;top:50%;left:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.kq-handle i::before{content:"◀ ▶";position:absolute;inset:0;display:grid;place-items:center;font-size:10px;color:#222;letter-spacing:-1px}
+.kq-tag{position:absolute;top:10px;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 8px;border-radius:5px;background:rgba(0,0,0,.65);color:#fff;pointer-events:none}
+.kq-tag.l{left:10px}.kq-tag.r{right:10px;background:rgba(45,140,235,.85)}
+.kq-load{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:#ddd;font-size:13px}
+.kq-load .spin{width:34px;height:34px;border:3px solid #444;border-top-color:#2d8ceb;border-radius:50%;animation:kqspin 1s linear infinite}
+@keyframes kqspin{to{transform:rotate(360deg)}}
+.kq-empty{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;color:#999;text-align:center;padding:20px;cursor:default}
+.kq-empty b{color:#ddd;font-size:15px}.kq-drop{font-size:46px}
+.kq-bar{display:flex;align-items:center;gap:10px;font-size:12px;color:#aaa}
+.kq-bar input[type=range]{flex:1}
+.kq-side{background:#232323;border:1px solid #2e2e2e;border-radius:8px;padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.kq-h{font-size:11px;font-weight:600;color:#8a8a8a;text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.kq-seg{flex-wrap:wrap}
+.kq-seg button{flex:1;padding:6px 6px}
+.kq-note{color:#8a8a8a;font-size:11.5px;line-height:1.4}
+.kq-sl>div{display:flex;justify-content:space-between;font-size:12.5px;color:#cfcfcf;margin-bottom:3px}
+.kq-sl b{color:#3c95ec;font-weight:500}
+.kq-sl input{width:100%}
+.kq-chk{font-size:12.5px}
+.kq-go{margin-top:8px;height:44px;font-size:15px}

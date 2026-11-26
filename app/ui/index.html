@@ -20,6 +20,9 @@
     <button class="nav-btn" data-page="editor" title="Editör">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 4v5M16 4v5M10 13l5 2.5-5 2.5z"/></svg><span>Editör</span>
     </button>
+    <button class="nav-btn" data-page="kalite" title="Kalite Artır">
+      <svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4z"/><path d="M18 15l.8 2 2 .8-2 .7-.8 2-.8-2-2-.7 2-.8z"/></svg><span>Kalite</span>
+    </button>
     <button class="nav-btn" data-page="settings" title="Ayarlar">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Ayarlar</span>
     </button>
@@ -189,6 +192,24 @@
   </section>
 
   <!-- ======================= AYARLAR ======================= -->
+  <section class="page" id="page-kalite">
+    <header class="page-head"><div><h1>Kalite Artır</h1><p class="sub">Yapay zekâ ile netleştir, pikselleşmeyi gider, çizgileri keskinleştir, FPS artır.</p></div>
+      <div class="kq-src"><span id="kqName" class="kq-name">Video seçilmedi</span><button class="btn ghost" id="kqPick">Video Seç</button></div></header>
+    <div class="kq">
+      <div class="kq-main">
+        <div class="kq-view" id="kqView">
+          <div class="kq-empty" id="kqEmpty"><div class="kq-drop">✨</div><b>Bir video sürükle ya da "Video Seç"e bas</b><span>Önce / sonra karşılaştırması burada görünecek. Ortadaki çizgiyi kaydır, tekerlekle yakınlaştır.</span></div>
+          <div class="kq-stage" id="kqStage" hidden><img id="kqAfter" draggable="false"><div class="kq-before" id="kqBeforeWrap"><img id="kqBefore" draggable="false"></div></div>
+          <div class="kq-handle" id="kqHandle" hidden><i></i></div>
+          <span class="kq-tag l" id="kqTagL" hidden>ÖNCE</span><span class="kq-tag r" id="kqTagR" hidden>SONRA</span>
+          <div class="kq-load" id="kqLoad" hidden><div class="spin"></div><span id="kqLoadT">Önizleme hazırlanıyor...</span></div>
+        </div>
+        <div class="kq-bar"><span id="kqTime">0:00</span><input type="range" id="kqT" min="0" max="100" step="0.1" value="0"><span id="kqDur">0:00</span>
+          <div class="seg" id="kqZoom"><button data-z="1" class="on">Sığdır</button><button data-z="2">2x</button><button data-z="4">4x</button></div></div>
+      </div>
+      <div class="kq-side" id="kqSide"></div>
+    </div>
+  </section>
   <section class="page" id="page-settings">
     <header class="page-head" style="max-width:720px;margin:0 auto 14px"><div><h1>Ayarlar</h1></div></header>
     <div class="settings-grid" id="settingsGrid"></div>
@@ -206,5 +227,6 @@
 <script src="/ui/finder.js"></script>
 <script src="/ui/fx.js"></script>
 <script src="/ui/editor.js"></script>
+<script src="/ui/kalite.js"></script>
 </body>
 </html>

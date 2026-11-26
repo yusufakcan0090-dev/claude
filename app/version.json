@@ -1,8 +1,10 @@
 {
- "version": "1.4.1",
+ "version": "1.5.0",
  "date": "2026-11-26",
  "notes": [
-  "Kick'ten yayın ve izleyici kliplerini çekme düzeltildi (Cloudflare engeline karşı tarayıcı gibi bağlanıyor, birkaç farklı yol deniyor)",
-  "Kick sorunları için ayrıntılı kayıt tutuluyor"
+  "Yeni: Kalite Artır bölümü (soldaki ✨ Kalite). Yapay zekâ ile netleştirme ve büyütme (Hızlı / En iyi / Anime / Klasik), pikselleşme ve gürültü giderme, keskinlik, renk-ışık, FPS artırma (60/90/120, yapay zekâ ara kare)",
+  "Önce / sonra önizleme: ortadaki çizgiyi kaydır, tekerlekle 8 kata kadar yakınlaştır",
+  "NVIDIA, AMD ve Intel ekran kartlarında çalışır; yapay zekâ aracı ilk kullanımda bir kere indirilir",
+  "Editörde klibe sağ tık > Kaliteyi Artır"
  ]
 }

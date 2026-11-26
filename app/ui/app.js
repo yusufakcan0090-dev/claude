@@ -67,6 +67,7 @@ KS.go = page => {
   $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
   if (page === 'settings') KS.renderSettings();
   if (page === 'editor' && KS.editor) KS.editor.onShow();
+  if (page === 'kalite' && KS.kalite) setTimeout(KS.kalite.layout, 30);
 };
 $$('.nav-btn').forEach(b => b.onclick = () => KS.go(b.dataset.page));
 document.addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (g) KS.go(g.dataset.goto); });
@@ -303,6 +304,7 @@ KS.addFile = async () => {
 
 KS.handleFile = async f => {
   if (f.error) return KS.toast(KS.esc(f.error), 'err');
+  if (KS.page === 'kalite' && f.kind === 'video' && KS.kalite) return KS.kalite.load(f.path);
   const ed = KS.editor;
   if (f.kind === 'video') {
     // video direkt eklenir: açık proje varsa ona, yoksa yeni projeye

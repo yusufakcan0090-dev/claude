@@ -1144,7 +1144,7 @@
     const items = [['Katmanı Böl', E.split], ['Çoğalt', E.duplicate], ['Sil', E.deleteSel], null];
     if (TRANSFORMABLE.includes(s.type) || s.type === 'fx') items.push(['Öne Getir', () => E.layerOrder('front')], ['Bir Öne', () => E.layerOrder('up')], ['Bir Geri', () => E.layerOrder('down')], ['En Geriye', () => E.layerOrder('back')], null);
     if (TRANSFORMABLE.includes(s.type)) items.push(['Dönüştürmeyi Sıfırla', () => { const o = selObj(); if (o) E.change(() => { o.tf = {}; o.kf = {}; }); }]);
-    if (s.type === 'video') items.push(['Bu klibin altyazısını çıkar', () => E.transcribe([s.id])], ['Boşlukları Kırp', () => $('#silenceBtn').click()]);
+    if (s.type === 'video') items.push(['✨ Kaliteyi Artır...', () => { const c = selObj(); KS.go('kalite'); KS.kalite.load(c.source); }], ['Bu klibin altyazısını çıkar', () => E.transcribe([s.id])], ['Boşlukları Kırp', () => $('#silenceBtn').click()]);
     const o = selObj(); if (o && s.type !== 'music') items.push([o.hidden ? 'Göster' : 'Gizle', () => E.change(() => o.hidden = !o.hidden)], [o.locked ? 'Kilidi Aç' : 'Kilitle', () => E.change(() => o.locked = !o.locked)]);
     E.ctx(x, y, items);
   };
