@@ -61,7 +61,7 @@
           ${o.bas || o.bit ? '<button class="btn ghost sm" data-set="tum">Tüm videoyu işle</button>' : ''}</div>
         <div class="kq-h">Ses</div>${chk('ses', 'Sesi koru')}${o.ses ? chk('ses_temizle', 'Sesteki uğultu ve cızırtıyı temizle') + chk('ses_dengele', 'Ses seviyesini dengele / yükselt') : ''}`)}
       <small class="kq-note">${Q.src ? Q.estimate() : ''}</small></div>
-      <div class="kq-foot"><div class="kq-status" id="kqStatus" hidden><div class="progress"><i id="kqProg"></i></div><span id="kqMsg"></span></div><button class="btn primary glow kq-go" id="kqGo">✨ Kaliteyi Artır</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
+      <div class="kq-foot"><button class="btn primary glow kq-go" id="kqGo">✨ Kaliteyi Artır</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
     $('.kq-scroll', el).scrollTop = keep;
     $$('.kq-g', el).forEach(d => d.addEventListener('toggle', () => { Q.open[d.dataset.g] = d.open; }));
     $$('.kq-seg', el).forEach(g => $$('button', g).forEach(b => b.onclick = () => { const k = g.dataset.k; Q.opts[k] = b.dataset.v; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (!NOPV.has(k)) Q.previewSoon(); }));
@@ -147,27 +147,97 @@
   /* --- tüm videoyu işle --- */
   Q.start = async () => {
     if (!Q.src) return KS.toast('Önce bir video seç', 'err');
+    if (Q.job()) return;
     try {
       const r = await KS.api('/api/kalite/start', { path: Q.src.path, opts: Q.opts });
-      KS.trackJob(r.job); KS.openJobs();
-      KS.toast('Kalite artırma başladı. Bitince haber vereceğim, bu sırada başka işlere devam edebilirsin.', 'ok');
+      KS.trackJob(r.job); Q.status();
     } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
   };
+
+  /* --- çalışan iş kartı: yüzde, kalan süre, bitiş saati, duraklat / iptal --- */
+  const dur = s => {
+    s = Math.max(0, Math.round(s || 0));
+    if (s < 60) return `${s} sn`;
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    return h ? `${h} sa ${m} dk` : `${m} dk ${String(sec).padStart(2, '0')} sn`;
+  };
+  const clock = s => { const d = new Date(Date.now() + s * 1000); return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); };
+  Q.job = () => (KS.state.jobs || []).find(x => x.kind === 'kalite' && (x.status === 'calisiyor' || x.status === 'bekliyor'));
+  Q.yarim = [];
+  Q.loadYarim = async () => { try { Q.yarim = await KS.api('/api/kalite/yarim'); } catch (e) { Q.yarim = []; } Q.status(); };
   Q.status = () => {
-    const st = $('#kqStatus'); if (!st) return;
-    const j = (KS.state.jobs || []).find(x => x.kind === 'kalite' && (x.status === 'calisiyor' || x.status === 'bekliyor'));
-    st.hidden = !j; if (!j) return;
-    $('#kqProg').style.width = Math.round((j.progress || 0) * 100) + '%';
-    $('#kqMsg').textContent = `%${Math.round((j.progress || 0) * 100)} · ${j.message || ''}`;
+    const box = $('#kqJob'); if (!box) return;
+    const j = Q.job(), go = $('#kqGo');
+    if (go) go.hidden = !!j;
+    if (!j && Q.done) {
+      box.hidden = false;
+      if (box.dataset.mode !== 'done') {
+        const res = Q.done; box.dataset.mode = 'done'; box.dataset.html = ''; box.classList.remove('paused');
+        box.innerHTML = `<div class="kq-y kq-done"><div class="kq-y-t"><b>✓ Bitti</b><span>${KS.esc(res.name)}</span></div><div class="kq-pbar"><i style="width:100%;background:#3fb56b"></i></div>
+          <div class="kq-run-btns"><button class="btn primary" id="kqDAdd">Editöre ekle</button><button class="btn ghost" id="kqDShow">Klasörde göster</button></div>
+          <button class="btn ghost sm" id="kqDOk">Tamam</button></div>`;
+        $('#kqDShow', box).onclick = () => KS.api('/api/reveal', { path: res.path });
+        $('#kqDAdd', box).onclick = async () => { const f = await KS.api('/api/describe', { path: res.path }); Q.done = null; Q.status(); KS.handleFile(f); };
+        $('#kqDOk', box).onclick = () => { Q.done = null; Q.status(); };
+      }
+      return;
+    }
+    if (!j) {
+      box.classList.remove('paused');
+      if (!Q.yarim.length) { box.hidden = true; box.innerHTML = ''; box.dataset.mode = ''; return; }
+      box.hidden = false;
+      const html = Q.yarim.map(u => `<div class="kq-y"><div class="kq-y-t"><b>⏸ Yarım kaldı</b><span>${KS.esc(u.name)}</span></div>
+        <div class="kq-pbar"><i style="width:${Math.round(u.progress * 100)}%"></i></div>
+        <div class="kq-y-i">%${Math.round(u.progress * 100)} bitti${u.total > 1 ? ` · ${u.done}/${u.total} parça hazır` : ''} · kaldığı yerden devam eder</div>
+        <div class="kq-run-btns"><button class="btn primary" data-devam="${u.id}">▶ Devam et</button><button class="btn ghost" data-sil="${u.id}">Sil</button></div></div>`).join('');
+      if (box.dataset.html !== html) {
+        box.innerHTML = html; box.dataset.html = html; box.dataset.mode = 'y';
+        $$('[data-devam]', box).forEach(b => b.onclick = async () => { try { const r = await KS.api('/api/kalite/devam', { id: b.dataset.devam }); Q.yarim = Q.yarim.filter(x => x.id !== b.dataset.devam); KS.trackJob(r.job); box.dataset.html = ''; Q.status(); } catch (e) { KS.toast(KS.esc(e.message), 'err'); } });
+        $$('[data-sil]', box).forEach(b => b.onclick = async () => { if (!await KS.confirm('Yarım kalan işi sil?', 'Şimdiye kadar işlenen kısım silinir, baştan başlaman gerekir.', 'Sil', true)) return; await KS.api('/api/kalite/sil', { id: b.dataset.sil }); Q.yarim = Q.yarim.filter(x => x.id !== b.dataset.sil); box.dataset.html = ''; Q.status(); });
+      }
+      return;
+    }
+    box.hidden = false;
+    if (box.dataset.mode !== 'run' || box.dataset.jid !== j.id) {
+      box.dataset.mode = 'run'; box.dataset.jid = j.id; box.dataset.html = '';
+      box.innerHTML = `<div class="kq-run">
+        <div class="kq-run-top"><div><span class="kq-run-t" id="kqRunT"></span><small id="kqRunN"></small></div><b class="kq-run-p" id="kqRunP">%0</b></div>
+        <div class="kq-pbar big"><i id="kqProg"></i></div>
+        <div class="kq-run-grid"><div><small>Kalan süre</small><b id="kqEta">hesaplanıyor…</b></div><div><small>Bitiş saati</small><b id="kqEnd">—</b></div>
+          <div><small>Geçen süre</small><b id="kqEl">0 sn</b></div><div><small>Parça</small><b id="kqPart">—</b></div></div>
+        <div class="kq-run-msg" id="kqMsg"></div>
+        <div class="kq-run-btns"><button class="btn ghost" id="kqPause"></button><button class="btn ghost kq-x" id="kqCancel">✕ İptal</button></div>
+        <small class="kq-run-note">Uygulamayı kapatırsan iş duraklar; tekrar açınca kaldığı yerden devam edebilirsin.</small></div>`;
+      $('#kqPause', box).onclick = async () => { const jj = Q.job(); if (!jj) return; jj.paused = !jj.paused; Q.status(); await KS.api(`/api/jobs/${jj.id}/pause`, { pause: jj.paused }); };
+      $('#kqCancel', box).onclick = async () => { const jj = Q.job(); if (!jj) return; if (!await KS.confirm('Kalite artırma iptal edilsin mi?', 'Şimdiye kadar işlenen kısım silinir.', 'İptal et', true)) return; await KS.api(`/api/jobs/${jj.id}/cancel`, {}); };
+    }
+    const ex = j.extra || {}, p = Math.round((j.progress || 0) * 1000) / 10, wait = j.status === 'bekliyor';
+    box.classList.toggle('paused', !!j.paused);
+    $('#kqRunT').textContent = j.paused ? '⏸ Duraklatıldı' : wait ? 'Sırada bekliyor' : 'Kalite artırılıyor';
+    $('#kqRunN').textContent = j.title.replace(/^Kalite: /, '');
+    $('#kqRunP').textContent = `%${p.toFixed(p < 10 ? 1 : 0)}`;
+    $('#kqProg').style.width = p + '%';
+    const eta = ex.eta;
+    $('#kqEta').textContent = j.paused ? 'duraklatıldı' : eta != null ? '~' + dur(eta) : 'hesaplanıyor…';
+    $('#kqEnd').textContent = !j.paused && eta != null ? clock(eta) : '—';
+    $('#kqEl').textContent = dur(ex.elapsed);
+    $('#kqPart').textContent = ex.parca || '—';
+    $('#kqMsg').textContent = j.paused ? 'Ekran kartı serbest. Devam ettiğinde kaldığı yerden sürer.' : (ex.asama || j.message || '');
+    $('#kqPause').textContent = j.paused ? '▶ Devam et' : '⏸ Duraklat';
+    $('#kqPause').classList.toggle('primary', !!j.paused); $('#kqPause').classList.toggle('ghost', !j.paused);
   };
   KS.hooks.jobTick.push(() => Q.status());
   KS.hooks.jobDone.push(j => {
     if (j.kind !== 'kalite' || j.status !== 'bitti' || !j.result) return;
     const res = j.result;
+    Q.done = res; Q.status();
+    if (KS.page === 'kalite') return;
     KS.toast(`Kalite artırıldı: <b>${KS.esc(res.name)}</b>`, 'ok', [
       { label: 'Klasörde göster', fn: () => KS.api('/api/reveal', { path: res.path }) },
       { label: 'Editöre ekle', primary: true, fn: async () => { const f = await KS.api('/api/describe', { path: res.path }); KS.handleFile(f); } },
     ], 0);
   });
   KS.hooks.state.push(() => { if (!Q.opts && KS.state.settings) Q.opts = Object.assign({}, DEF, KS.state.settings.kalite_ayar || {}); });
+  KS.hooks.jobDone.push(j => { if (j.kind === 'kalite') Q.loadYarim(); });
+  Q.loadYarim();
 })();

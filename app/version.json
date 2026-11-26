@@ -1,8 +1,10 @@
 {
- "version": "1.6.1",
+ "version": "1.6.2",
  "date": "2026-11-26",
  "notes": [
-  "Yeni biçim: Orijinal — video kendi çözünürlüğünde (ör. 1080×1440) dışa aktarılır, boyutuna hiç dokunulmaz",
-  "Yeni projede ya da Kompozisyon Ayarları'nda (Ctrl+K) 'Orijinal' seç; seçim hatırlanır"
+  "Kalite Artır: yeni ilerleme kartı — büyük yüzde, kalan süre, bitiş saati, geçen süre, parça",
+  "Duraklat / Devam et ve İptal düğmeleri; duraklatınca ekran kartı serbest kalır",
+  "Uygulama kapanınca iş duraklar; tekrar açınca 'Yarım kaldı → Devam et' ile kaldığı yerden sürer",
+  "Kalite sayfasında üstteki 'işlem sürüyor' kutusu artık yazıların üstüne binmiyor"
  ]
 }

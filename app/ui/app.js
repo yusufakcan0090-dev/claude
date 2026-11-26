@@ -63,6 +63,8 @@ document.addEventListener('input', e => { if (e.target.type === 'range') KS.pain
 KS.go = page => {
   KS.page = page;
   document.body.classList.toggle('on-editor', page === 'editor');
+  document.body.classList.toggle('on-kalite', page === 'kalite');
+  if (page === 'kalite' && KS.kalite) KS.kalite.loadYarim();
   $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
   if (page === 'settings') KS.renderSettings();
@@ -174,6 +176,7 @@ KS.renderJobs = () => {
   const dock = $('#jobsDock');
   const running = jobs.filter(j => j.status === 'calisiyor' || j.status === 'bekliyor');
   dock.classList.toggle('has', running.length > 0);
+  dock.classList.toggle('only-kq', running.length > 0 && running.every(j => j.kind === 'kalite'));
   dock.classList.toggle('open', jobsOpen && running.length > 0);
   $('#jobsPillText').textContent = running.length ? `${running.length} işlem sürüyor · %${Math.round(running.reduce((s, j) => s + j.progress, 0) / running.length * 100)}` : '';
   const list = $('#jobsList');

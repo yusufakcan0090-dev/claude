@@ -20,6 +20,7 @@ if sys.stdout is None or sys.stderr is None:
 import logging  # noqa: E402
 logging.getLogger("werkzeug").setLevel(logging.ERROR)  # her isteği kayda yazmasın
 
+import core
 import server  # noqa: E402
 
 
@@ -129,6 +130,7 @@ def main():
                                     min_size=(1180, 720), background_color="#0A0A12")
         server.WINDOW = win
         webview.start(_bind_drop, win, gui="edgechromium" if sys.platform.startswith("win") else None)
+        core.shutdown()  # pencere kapandı: yarım işler diskte kalır, sonra devam edilir
     except Exception as e:
         print("Pencere açılamadı, tarayıcıda açılıyor:", e)
         webbrowser.open(url)

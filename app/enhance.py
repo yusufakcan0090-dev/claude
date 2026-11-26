@@ -14,7 +14,8 @@ import time
 import zipfile
 from pathlib import Path
 
-from core import BIN, CACHE, FFMPEG, NO_WINDOW, load_settings, probe, run, safe_name
+import core
+from core import BIN, CACHE, FFMPEG, NO_WINDOW, load_settings, probe, run, safe_name, proc_pause
 
 AI = BIN / "ai"
 IS_WIN = os.name == "nt"
@@ -346,7 +347,7 @@ def _count(d):
 
 def _run_watch(cmd, job, outdir, expect, lo, hi, msg, cwd=None):
     """Aracı çalıştırırken çıkan kare sayısından ilerleme göster."""
-    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, cwd=cwd, creationflags=NO_WINDOW)
+    p = _start(job, cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, cwd=cwd)
     err = []
     th = threading.Thread(target=lambda: err.append(p.stderr.read().decode("utf-8", "replace")), daemon=True)
     th.start()
@@ -354,24 +355,49 @@ def _run_watch(cmd, job, outdir, expect, lo, hi, msg, cwd=None):
         if job.cancelled:
             p.kill()
             raise RuntimeError("İptal edildi")
-        n = _count(outdir)
-        job.set(lo + (hi - lo) * min(1, n / max(1, expect)), msg)
+        if not job.paused:
+            n = _count(outdir)
+            job.set(lo + (hi - lo) * min(1, n / max(1, expect)), msg)
         time.sleep(0.5)
+    job.procs.discard(p)
     th.join(2)
+    _check(job)
     return p.returncode, "".join(err)
 
 
+def _start(job, cmd, **kw):
+    """Alt süreci başlat ve işe kaydet (duraklat / iptal / kapanışta durdurmak için)."""
+    job.wait_if_paused()
+    _check(job)
+    p = subprocess.Popen(cmd, creationflags=NO_WINDOW, **kw)
+    job.procs.add(p)
+    if job.paused:
+        proc_pause(p, True)
+    return p
+
+
+def _check(job):
+    if job.cancelled:
+        raise RuntimeError("İptal edildi")
+    if core.SHUTTING_DOWN:
+        raise RuntimeError("Uygulama kapandı")
+
+
 def _ff(cmd, job):
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW)
-    if r.returncode != 0:
-        lines = [l for l in (r.stderr or "").splitlines() if "rror" in l or "nvalid" in l] or (r.stderr or "hata").splitlines()
+    p = _start(job, cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    _, e = p.communicate()
+    job.procs.discard(p)
+    _check(job)
+    if p.returncode != 0:
+        e = (e or b"").decode("utf-8", "replace")
+        lines = [l for l in e.splitlines() if "rror" in l or "nvalid" in l] or (e or "hata").splitlines()
         raise RuntimeError("FFmpeg: " + lines[-1][-250:])
-    return r
+    return p
 
 
 def _run_lines(cmd, job, lo, hi, msg):
     """'i/toplam' satırı basan işçiyi çalıştırıp ilerleme göster."""
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW, text=True, encoding="utf-8", errors="replace")
+    p = _start(job, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     err = []
     th = threading.Thread(target=lambda: err.append(p.stderr.read()), daemon=True)
     th.start()
@@ -383,11 +409,52 @@ def _run_lines(cmd, job, lo, hi, msg):
         if a.isdigit() and b.isdigit():
             job.set(lo + (hi - lo) * int(a) / max(1, int(b)), msg)
     p.wait()
+    job.procs.discard(p)
     th.join(2)
+    _check(job)
     return p.returncode, "".join(err)
 
 
-def process(job, path, opts):
+WORK = CACHE / "kalite_is"
+
+
+def unfinished():
+    """Uygulama kapanınca yarım kalan kalite işleri (kaldığı yerden devam edilebilir)."""
+    res = []
+    if not WORK.exists():
+        return res
+    for d in WORK.iterdir():
+        f = d / "durum.json"
+        if not f.exists():
+            shutil.rmtree(d, ignore_errors=True)
+            continue
+        try:
+            st = json.loads(f.read_text("utf-8"))
+        except Exception:
+            shutil.rmtree(d, ignore_errors=True)
+            continue
+        if not Path(st.get("path", "")).exists():
+            shutil.rmtree(d, ignore_errors=True)
+            continue
+        res.append({"id": d.name, "path": st["path"], "name": Path(st["path"]).name, "progress": st.get("progress", 0),
+                    "done": len(st.get("done", [])), "total": st.get("total", 0), "updated": f.stat().st_mtime})
+    return sorted(res, key=lambda x: -x["updated"])
+
+
+def discard(rid):
+    if rid and rid.replace("_", "").isalnum():
+        shutil.rmtree(WORK / rid, ignore_errors=True)
+
+
+def process(job, path, opts, resume=None):
+    work = WORK / (resume or job.id)
+    state = {}
+    if resume:
+        try:
+            state = json.loads((work / "durum.json").read_text("utf-8"))
+            path, opts = state["path"], state["opts"]
+        except Exception:
+            raise RuntimeError("Yarım kalan iş bulunamadı, baştan başlat.")
     o = settings(opts)
     path = Path(path)
     info = probe(path)
@@ -421,69 +488,107 @@ def process(job, path, opts):
     while out.exists():
         out = folder / f"{safe_name(path.stem, 60)}_HD_{i}.mp4"
         i += 1
-    work = CACHE / "kalite_is" / job.id
-    shutil.rmtree(work, ignore_errors=True)
+    if not resume:
+        shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
+    done = set(state.get("done") or [])
+    if use_ai != state.get("use_ai", use_ai) or use_face != state.get("use_face", use_face) or use_rife != state.get("use_rife", use_rife):
+        done = set()  # araçlar değiştiyse parçalar uyumsuz olur
+
+    def save_state(progress):
+        try:
+            (work / "durum.json").write_text(json.dumps({"path": str(path), "opts": opts, "done": sorted(done), "total": total_chunks,
+                                                         "progress": round(progress, 4), "use_ai": use_ai, "use_face": use_face,
+                                                         "use_rife": use_rife}), "utf-8")
+        except Exception:
+            pass
+
     enc = encoder_args(o)
     af = audio_filters(o)
     aud = (["-c:a", "aac", "-b:a", "192k"] + (["-af", af] if af else [])) if o.get("ses", True) else ["-an"]
     MW, MH = target_size(info["width"], info["height"], o["hedef"])  # ara adımlar videonun kendi şeklinde
-    # kalan süre: işin mesajına eklenir
+    # kalan süre: duraklatmalar hariç, bu oturumda işlenen kısma göre hesaplanır
     t_start = time.time()
+    job.extra = {"t0": t_start, **({"resume": resume} if resume else {})}
     _set = job.set
+    base = {"p": None, "t": None}
+    ok = False
 
     def set_eta(p=None, msg=None):
-        if p is not None and msg and p > 0.04:
-            el = time.time() - t_start
-            rem = el * (1 - p) / max(p, 1e-3)
-            msg = f"{msg} · kalan ~{int(rem // 60)} dk {int(rem % 60):02d} sn" if rem >= 60 else f"{msg} · kalan ~{int(rem)} sn"
         _set(p, msg)
+        p = job.progress
+        if msg is not None:
+            job.extra["asama"] = msg
+        if base["p"] is None and p >= 0.09:
+            base["p"], base["t"] = p, job.active_time(t_start)
+        if base["p"] is not None and p - base["p"] > 0.004:
+            el = job.active_time(t_start) - base["t"]
+            rate = (p - base["p"]) / max(el, 0.1)
+            rem = (1 - p) / max(rate, 1e-6)
+            old = job.extra.get("eta")
+            now_old = max(0, old - (time.time() - job.eta_at)) if old is not None and job.eta_at else None
+            job.extra["eta"] = rem if now_old is None else now_old * 0.7 + rem * 0.3
+            job.eta_at = time.time()
     job.set = set_eta
+    total_chunks = 1
     try:
         # yapay zekâ, yüz ve RIFE yoksa: tek geçişte bitir (hızlı)
         if not use_ai and not use_rife and not use_face:
+            save_state(0)
             vf = pre_filters(o) + post_filters(o, W, H)
             if mult > 1.01:
                 vf.append(f"minterpolate=fps={tfps:g}:mi_mode=mci:mc_mode=aobmc:vsbmc=1")
             from core import run_ffmpeg_progress
             cmd = [FFMPEG, "-y", "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}", "-i", str(path), "-map", "0:v:0", "-map", "0:a:0?",
                    "-vf", _vf(vf), *enc, *aud, "-movflags", "+faststart", str(out)]
-            code, err = run_ffmpeg_progress(cmd, dur, lambda p: job.set(0.08 + 0.9 * p, f"Kalite artırılıyor (klasik) %{int(p * 100)}"), lambda: job.cancelled)
+            job.extra["parca"] = "Klasik mod (tek geçiş)"
+            code, err = run_ffmpeg_progress(cmd, dur, lambda p: job.set(0.09 + 0.89 * p, "Kalite artırılıyor (klasik)"),
+                                            lambda: job.cancelled or core.SHUTTING_DOWN, job=job)
+            _check(job)
             if code != 0:
                 raise RuntimeError("Kalite artırma başarısız: " + (err or "")[-250:])
             job.set(1, "Hazır! " + out.name)
+            ok = True
             return {"path": str(out), "name": out.name}
         f0 = int(round(t0 * sfps))
         total_frames = max(1, int(dur * sfps))
         chunks = list(range(0, total_frames, CHUNK))
+        total_chunks = len(chunks)
         segs = []
         model, sc = MODELS.get(o["model"], MODELS["hizli"])
         if o["model"] == "hizli":
             sc = int(o.get("olcek") or 2)
         rexe, fexe = tool_path("realesrgan"), tool_path("rife")
         g = int(o.get("ai_guc", 100))
+        save_state(0.09)
         for ci, a in enumerate(chunks):
             n = min(CHUNK, total_frames - a)
             lo, hi = 0.09 + 0.87 * ci / len(chunks), 0.09 + 0.87 * (ci + 1) / len(chunks)
+            seg = work / f"seg{ci:04d}.mp4"
+            if ci in done and seg.exists() and seg.stat().st_size > 0:
+                segs.append(seg)
+                _set(hi, f"Parça {ci + 1}/{len(chunks)} önceden bitmişti")
+                continue
             span = lambda x, y: (lo + (hi - lo) * x, lo + (hi - lo) * y)  # noqa: E731
             label = f"Parça {ci + 1}/{len(chunks)}"
+            job.extra["parca"] = f"{ci + 1} / {len(chunks)}"
             d_in, d_up, d_mid, d_fps = (work / x for x in ("in", "up", "mid", "fps"))
             for d in (d_in, d_up, d_mid, d_fps):
                 shutil.rmtree(d, ignore_errors=True)
                 d.mkdir()
-            job.set(lo, f"{label}: kareler çıkarılıyor...")
+            job.set(lo, "Kareler çıkarılıyor...")
             _ff([FFMPEG, "-y", "-ss", f"{(f0 + a) / sfps:.4f}", "-i", str(path), "-frames:v", str(n), "-vf", _vf(pre_filters(o)),
                  "-q:v", "2", "-start_number", "1", str(d_in / "%08d.jpg")], job)
             n = _count(d_in) or n
             cur = d_in
             if use_ai:
                 code, err = _run_watch([str(rexe), "-i", str(d_in), "-o", str(d_up), "-n", model, "-s", str(sc), "-f", "jpg"],
-                                       job, d_up, n, *span(.05, .5), f"{label}: yapay zekâ netleştiriyor...", cwd=str(rexe.parent))
+                                       job, d_up, n, *span(.05, .5), "Yapay zekâ netleştiriyor...", cwd=str(rexe.parent))
                 if code != 0 or _count(d_up) < n:
                     raise RuntimeError("Yapay zekâ netleştirme başarısız: " + err[-250:])
                 cur = d_up
             if use_face:
-                code, err = _run_lines(face_cmd(cur, o.get("yuz_guc", 70)), job, *span(.5, .7), f"{label}: yüzler netleştiriliyor...")
+                code, err = _run_lines(face_cmd(cur, o.get("yuz_guc", 70)), job, *span(.5, .7), "Yüzler netleştiriliyor...")
                 if code != 0:
                     raise RuntimeError("Yüz netleştirme başarısız: " + err[-250:])
             if use_ai and (g < 100 or use_rife):
@@ -498,29 +603,34 @@ def process(job, path, opts):
             if use_rife:
                 want = max(2, int(round(n * mult)))
                 code, err = _run_watch([str(fexe), "-i", str(cur), "-o", str(d_fps), "-m", "rife-v4.6", "-n", str(want), "-f", "%08d.jpg"],
-                                       job, d_fps, want, *span(.7, .9), f"{label}: ara kareler üretiliyor ({tfps:g} FPS)...", cwd=str(fexe.parent))
+                                       job, d_fps, want, *span(.7, .9), f"Ara kareler üretiliyor ({tfps:g} FPS)...", cwd=str(fexe.parent))
                 if code != 0 or _count(d_fps) < 2:
                     raise RuntimeError("Akıcılaştırma (RIFE) başarısız: " + err[-250:])
                 cur, rate = d_fps, sfps * (_count(d_fps) / n)
-            seg = work / f"seg{ci:04d}.mp4"
-            job.set(lo + (hi - lo) * .92, f"{label}: video yazılıyor...")
+            job.set(lo + (hi - lo) * .92, "Video yazılıyor...")
             _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / "%08d.jpg"), "-vf", _vf(post_filters(o, W, H)),
                  "-r", f"{tfps:g}", *enc, str(seg)], job)
             segs.append(seg)
+            done.add(ci)
+            save_state(hi)
             for d in (d_in, d_up, d_mid, d_fps):
                 shutil.rmtree(d, ignore_errors=True)
-            if job.cancelled:
-                raise RuntimeError("İptal edildi")
+            _check(job)
         lst = work / "liste.txt"
         lst.write_text("".join(f"file '{s.as_posix()}'\n" for s in segs), "utf-8")
+        job.extra["parca"] = "Birleştiriliyor"
         job.set(0.97, "Parçalar birleştiriliyor...")
         _ff([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}", "-i", str(path),
              "-map", "0:v", "-map", "1:a?", "-c:v", "copy", *aud, "-shortest", "-movflags", "+faststart", str(out)], job)
         job.set(1, "Hazır! " + out.name)
+        ok = True
         return {"path": str(out), "name": out.name}
     except Exception:
         out.unlink(missing_ok=True)
         raise
     finally:
         job.set = _set
-        shutil.rmtree(work, ignore_errors=True)
+        job.extra.pop("eta", None)
+        # uygulama kapanıyorsa bitmiş parçalar kalsın: sonra kaldığı yerden devam
+        if ok or not core.SHUTTING_DOWN:
+            shutil.rmtree(work, ignore_errors=True)

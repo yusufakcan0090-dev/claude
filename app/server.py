@@ -323,8 +323,16 @@ def api_jobs():
 def api_cancel(jid):
     j = JOBS.get(jid)
     if j:
-        j.cancelled = True
+        j.cancel()
     return jsonify(ok=True)
+
+
+@app.post("/api/jobs/<jid>/pause")
+def api_pause(jid):
+    j = JOBS.get(jid)
+    if j:
+        j.pause(bool((request.get_json(silent=True) or {}).get("pause", True)))
+    return jsonify(ok=True, paused=bool(j and j.paused))
 
 
 @app.get("/api/system")
@@ -788,6 +796,35 @@ def api_kalite_start():
     save_settings({"kalite_ayar": opts})
     j = JOBS.start("kalite", "Kalite: " + Path(path).stem[:40], enhance.process, path, opts, heavy=True)
     return jsonify(job=j.id)
+
+
+def _kalite_running():
+    return {j.extra.get("resume") for j in JOBS.jobs.values() if j.kind == "kalite" and j.status in ("calisiyor", "bekliyor")}
+
+
+@app.get("/api/kalite/yarim")
+def api_kalite_yarim():
+    run_ids = _kalite_running()
+    return jsonify([u for u in enhance.unfinished() if u["id"] not in run_ids and not JOBS.get(u["id"])])
+
+
+@app.post("/api/kalite/devam")
+def api_kalite_devam():
+    rid = (request.get_json(force=True) or {}).get("id") or ""
+    u = next((x for x in enhance.unfinished() if x["id"] == rid), None)
+    if not u:
+        return jsonify(error="Yarım kalan iş bulunamadı"), 400
+    if rid in _kalite_running():
+        return jsonify(error="Bu iş zaten devam ediyor"), 400
+    j = JOBS.start("kalite", "Kalite: " + Path(u["path"]).stem[:40], enhance.process, u["path"], {}, resume=rid, heavy=True)
+    j.extra["resume"] = rid
+    return jsonify(job=j.id)
+
+
+@app.post("/api/kalite/sil")
+def api_kalite_sil():
+    enhance.discard((request.get_json(force=True) or {}).get("id") or "")
+    return jsonify(ok=True)
 
 
 @app.get("/api/kalite/info")

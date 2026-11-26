@@ -49,6 +49,44 @@ def popen(cmd, **kw):
     return subprocess.Popen(cmd, creationflags=NO_WINDOW, **kw)
 
 
+# ---------------------------------------------------------------- süreç duraklatma / kapanış
+SHUTTING_DOWN = False
+
+
+def proc_pause(p, pause=True):
+    """Çalışan bir alt süreci dondurur / devam ettirir (Windows: NtSuspendProcess)."""
+    try:
+        if p.poll() is not None:
+            return
+        if sys.platform.startswith("win"):
+            import ctypes
+            h = ctypes.windll.kernel32.OpenProcess(0x0800, False, p.pid)  # PROCESS_SUSPEND_RESUME
+            if h:
+                (ctypes.windll.ntdll.NtSuspendProcess if pause else ctypes.windll.ntdll.NtResumeProcess)(h)
+                ctypes.windll.kernel32.CloseHandle(h)
+        else:
+            import signal
+            os.kill(p.pid, signal.SIGSTOP if pause else signal.SIGCONT)
+    except Exception:
+        pass
+
+
+def shutdown():
+    """Uygulama kapanırken: yarım işler diskte kalsın (sonra devam edilir), alt süreçler kapansın."""
+    global SHUTTING_DOWN
+    SHUTTING_DOWN = True
+    try:
+        for j in list(JOBS.jobs.values()):
+            for p in list(j.procs):
+                try:
+                    proc_pause(p, False)
+                    p.kill()
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------- ayarlar
 DEFAULT_SETTINGS = {
     "cikti_klasoru": str(Path.home() / "Videos" / "Kesit Studyosu"),
@@ -160,11 +198,15 @@ def thumbnail(path, out, t=1.0, width=480):
     return out
 
 
-def run_ffmpeg_progress(cmd, duration, on_progress, cancel_flag=None, cwd=None):
+def run_ffmpeg_progress(cmd, duration, on_progress, cancel_flag=None, cwd=None, job=None):
     """ffmpeg'i -progress ile çalıştırır, ilerlemeyi (0-1) bildirir."""
     full = [cmd[0], "-hide_banner", "-nostats", "-progress", "pipe:1"] + cmd[1:]
     p = popen(full, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
               encoding="utf-8", errors="replace", cwd=cwd)
+    if job is not None:
+        job.procs.add(p)
+        if job.paused:
+            proc_pause(p, True)
     err_lines = []
 
     def _drain():
@@ -186,6 +228,8 @@ def run_ffmpeg_progress(cmd, duration, on_progress, cancel_flag=None, cwd=None):
             except ValueError:
                 pass
     p.wait()
+    if job is not None:
+        job.procs.discard(p)
     th.join(timeout=2)
     return p.returncode, "".join(err_lines[-30:])
 
@@ -202,6 +246,12 @@ class Job:
         self.result = None
         self.created = time.time()
         self.cancelled = False
+        self.paused = False
+        self.procs = set()          # çalışan alt süreçler (duraklat / iptal için)
+        self.pause_total = 0.0
+        self.pause_t = None
+        self.extra = {}             # arayüz için: kalan süre, geçen süre, parça...
+        self.eta_at = None
 
     def set(self, progress=None, message=None):
         if progress is not None:
@@ -209,10 +259,48 @@ class Job:
         if message is not None:
             self.message = message
 
+    def active_time(self, since):
+        """since'ten beri duraklatmalar hariç geçen süre."""
+        pz = self.pause_total + ((time.time() - self.pause_t) if self.pause_t else 0)
+        return max(0.0, time.time() - since - pz)
+
+    def pause(self, on=True):
+        if on == self.paused or self.status not in ("calisiyor", "bekliyor"):
+            return
+        self.paused = on
+        if on:
+            self.pause_t = time.time()
+        else:
+            if self.pause_t:
+                self.pause_total += time.time() - self.pause_t
+            self.pause_t = None
+        for p in list(self.procs):
+            proc_pause(p, on)
+
+    def cancel(self):
+        self.cancelled = True
+        if self.paused:
+            self.pause(False)
+        for p in list(self.procs):
+            try:
+                p.kill()
+            except Exception:
+                pass
+
+    def wait_if_paused(self):
+        while self.paused and not self.cancelled and not SHUTTING_DOWN:
+            time.sleep(0.25)
+
     def to_dict(self):
+        ex = dict(self.extra)
+        if "eta" in ex and self.eta_at:
+            ex["eta"] = max(0, ex["eta"] - (0 if self.paused else (time.time() - self.eta_at)))
+        if "t0" in ex:
+            ex["elapsed"] = self.active_time(ex.pop("t0"))
         return {"id": self.id, "kind": self.kind, "title": self.title,
                 "progress": round(self.progress, 4), "status": self.status,
-                "message": self.message, "result": self.result, "created": self.created}
+                "message": self.message, "result": self.result, "created": self.created,
+                "paused": self.paused, "extra": ex}
 
 
 class JobManager:
