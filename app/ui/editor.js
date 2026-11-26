@@ -579,7 +579,8 @@
   E.renderProject = () => {
     const p = P(), el = $('#lt-project'); if (!p) return;
     const q = KS.trLower(E.pjSearch || ''), s = E.sel, items = [];
-    (KS.state.projects || []).forEach(pr => items.push({ kind: 'comp', id: pr.id, name: pr.title, info: 'Kompozisyon', dur: pr.id === p.id ? total() : pr.duration, cur: pr.id === p.id, lab: '#A9A9CA', fmt: pr.format }));
+    // sadece açık projenin içeriği (diğer projeler Dosya > Projeleri Aç'ta)
+    items.push({ kind: 'comp', id: p.id, name: p.title, info: 'Kompozisyon', dur: total(), cur: true, lab: '#A9A9CA', fmt: p.format });
     clips().forEach(c => items.push({ kind: 'clip', sel: { type: 'video', id: c.id }, name: c.name, info: 'MPEG', dur: c.src_dur, lab: LABEL.video, c }));
     p.overlays.forEach(o => items.push({ kind: 'pip', sel: { type: 'pip', id: o.id }, name: o.name, info: 'MPEG', dur: o.src_dur || (o.e - o.s), lab: LABEL.pip }));
     p.media.images.forEach(o => items.push({ kind: 'image', sel: { type: 'image', id: o.id }, name: o.name, info: 'Resim', dur: 0, lab: LABEL.image }));
@@ -1361,7 +1362,7 @@
   };
   const shortcutsModal = () => KS.modal(`<h2>Klavye Kısayolları</h2><p class="msub">After Effects ile aynı</p>${KS.shortcutsHtml()}<div class="mfoot"><button class="btn primary" data-close>Tamam</button></div>`, { wide: true });
   const MENU = () => [
-    ['Dosya', [['Yeni Proje...', 'Ctrl+N', E.newProjectDialog], ['Projeleri Aç...', '', E.projectsDialog], null, ['İçe Aktar...', 'Ctrl+I', () => KS.addFile()], null, ['Kaydet', 'Ctrl+S', () => { $('#saveState').classList.add('dirty'); E.flush(); }], ['Dışa Aktar...', 'Ctrl+M', E.exportDialog]]],
+    ['Dosya', [['Yeni Proje...', 'Ctrl+N', E.newProjectDialog], ['Projeleri Aç...', '', E.projectsDialog], null, ['İçe Aktar...', 'Ctrl+I', () => KS.addFile()], ['Üst Video Olarak İçe Aktar...', '', () => { KS._asOverlay = true; KS.addFile(); }], null, ['Kaydet', 'Ctrl+S', () => { $('#saveState').classList.add('dirty'); E.flush(); }], ['Dışa Aktar...', 'Ctrl+M', E.exportDialog]]],
     ['Düzenle', [['Geri Al', 'Ctrl+Z', E.undo], ['Yinele', 'Ctrl+Shift+Z', E.redo], null, ['Çoğalt', 'Ctrl+D', E.duplicate], ['Katmanı Böl', 'Ctrl+Shift+D', E.split], ['Sil', 'Delete', E.deleteSel], null, ['Seçimi kaldır', 'F2', () => E.select(null)]]],
     ['Kompozisyon', [['Kompozisyon Ayarları...', 'Ctrl+K', E.compSettings], null, ['Çalışma alanı başı', 'B', () => setWork('a')], ['Çalışma alanı sonu', 'N', () => setWork('b')], ['Çalışma alanını kaldır', '', () => E.change(() => delete P().work)], null, ['Oynat / Durdur', 'Boşluk', E.toggle]]],
     ['Katman', [['Altyazı Stilini Düzenle', '', () => E.select({ type: 'cap', id: 'cap' })], null, ['Yeni → Yazı', 'Ctrl+Alt+Shift+T', () => E.addText()], ['Yeni → Düz Renk', 'Ctrl+Y', () => E.addShape('rect', null, true)], ['Yeni → Ayar Katmanı', 'Ctrl+Alt+Y', () => E.addFx('glow')], ['Yeni → Dikdörtgen', 'Q', () => E.addShape('rect')], ['Yeni → Elips', 'Q', () => E.addShape('ellipse')], null, ['Öne getir', 'Ctrl+Shift+]', () => E.layerOrder('front')], ['Bir öne', 'Ctrl+]', () => E.layerOrder('up')], ['Bir geri', 'Ctrl+[', () => E.layerOrder('down')], ['En geriye', 'Ctrl+Shift+[', () => E.layerOrder('back')], null, ['Keyframe: Easy Ease', 'F9', () => setEase('ease')], ['Keyframe: Hold', 'Ctrl+Alt+H', () => setEase('hold')]]],

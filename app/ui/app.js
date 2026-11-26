@@ -278,29 +278,20 @@ KS.handleFile = async f => {
   if (f.error) return KS.toast(KS.esc(f.error), 'err');
   const ed = KS.editor;
   if (f.kind === 'video') {
-    const long = (f.duration || 0) > 180, open = ed && ed.project;
-    const md = KS.modal(`<h2>Video eklendi</h2><p class="msub">${KS.esc(f.name)} · ${KS.fmt(f.duration)}</p>
-      <div class="big-choice">
-        <button id="chA"><span class="e">✨</span><b>Anları Bul</b><small>Uzun yayın kaydıysa en iyi anları otomatik bulayım.</small></button>
-        ${open ? `<button id="chC"><span class="e">➕</span><b>Açık projeye ekle</b><small>"${KS.esc(ed.project.title)}" videosunun sonuna eklenir.</small></button>
-        <button id="chD"><span class="e">🧩</span><b>Üst video olarak ekle</b><small>Tepki videosu / yeşil ekran gibi videonun üstüne.</small></button>` : ''}
-        <button id="chB"><span class="e">✂️</span><b>Yeni proje</b><small>Bu videoyla yeni bir proje aç.</small></button>
-      </div>
-      ${long ? '<p class="hint" style="margin-top:12px">İpucu: Bu video uzun, "Anları Bul" daha mantıklı.</p>' : ''}`);
-    $('#chA', md.el).onclick = () => { md.close(); setTimeout(() => KS.findMoments({ local: true, path: f.path, title: f.title, project: open ? ed.project.id : undefined }), 280); };
-    if (open) {
-      $('#chC', md.el).onclick = () => { md.close(); KS.go('editor'); ed.addVideo(f, false); };
-      $('#chD', md.el).onclick = () => { md.close(); KS.go('editor'); ed.addVideo(f, true); };
-    }
-    $('#chB', md.el).onclick = async () => {
-      md.close();
-      try {
+    // video direkt eklenir: açık proje varsa ona, yoksa yeni projeye
+    const long = (f.duration || 0) > 180, asOv = KS._asOverlay; KS._asOverlay = false;
+    const moments = long ? [{ label: 'Anları Bul', fn: () => KS.findMoments({ local: true, path: f.path, title: f.title }) }] : [];
+    try {
+      if (ed && ed.project) {
+        KS.go('editor');
+        await ed.addVideo(f, asOv);
+        if (long) KS.toast(`Uzun bir video (${KS.fmt(f.duration)}). İstersen en iyi anlarını otomatik bulayım.`, '', moments, 8000);
+      } else {
         const r = await KS.api('/api/local/project', { path: f.path, title: f.title, format: KS.state.settings.son_bicim });
-        await KS.refresh();
-        KS.kickJobs();
-        KS.openProject(r.project);
-      } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
-    };
+        await KS.refresh(); KS.kickJobs(); await KS.openProject(r.project);
+        if (long) KS.toast(`Uzun bir video (${KS.fmt(f.duration)}). İstersen en iyi anlarını otomatik bulayım.`, '', moments, 8000);
+      }
+    } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
     return;
   }
   if (!ed || !ed.project) {
@@ -316,7 +307,7 @@ KS.handleFile = async f => {
 let dropPathTimer = null, dropGotPath = false;
 const dropOverlay = document.createElement('div');
 dropOverlay.className = 'drop-overlay';
-dropOverlay.innerHTML = `<div class="drop-box"><div class="drop-ico">${KS.icon.plus}</div><b>Bırak, ekleyeyim</b><span>Video → yeni proje · Müzik → müzik katmanı · Resim → resim katmanı · .cube → LUT</span></div>`;
+dropOverlay.innerHTML = `<div class="drop-box"><div class="drop-ico">${KS.icon.plus}</div><b>Bırak, ekleyeyim</b><span>Video → projeye eklenir · Müzik → müzik katmanı · Resim → resim katmanı · .cube → LUT</span></div>`;
 document.body.appendChild(dropOverlay);
 let dragDepth = 0, dragHideT = null;
 const hideDrop = () => { dragDepth = 0; clearTimeout(dragHideT); dropOverlay.classList.remove('show'); };

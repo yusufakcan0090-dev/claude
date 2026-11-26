@@ -1,8 +1,9 @@
 {
- "version": "1.3.5",
+ "version": "1.3.6",
  "date": "2026-11-26",
  "notes": [
-  "Altyazı Stili paneli sağda en üstte, hep açık; altyazı çıkınca kendiliğinden açılıp altyazıyı gösteriyor",
-  "Ayar yaparken o anda altyazı yoksa ekranda örnek altyazı görünüyor; panelin üstünde canlı önizleme var"
+  "Video ekleyince seçim penceresi çıkmıyor: açık projeye direkt ekleniyor (proje yoksa yeni proje açılıyor). Uzun videolarda 'Anları Bul' önerisi gelir",
+  "Üst video eklemek için: Dosya > Üst Video Olarak İçe Aktar",
+  "Proje panelinde sadece açık projenin içeriği görünüyor"
  ]
 }
