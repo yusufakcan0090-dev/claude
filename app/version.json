@@ -1,7 +1,8 @@
 {
- "version": "1.3.3",
+ "version": "1.3.4",
  "date": "2026-11-26",
  "notes": [
-  "Editördeyken soldaki menü (Bul / Editör / Ayarlar) artık görünüyor, geri dönmek kolay"
+  "Altyazı eskisi gibi sıkı satır aralığıyla görünüyor; dışa aktarılan video önizlemeyle birebir aynı",
+  "YouTube aramalarında sadece Türkçe videolar çıkıyor (Hint, Arap, İngilizce videolar ayıklanıyor)"
  ]
 }

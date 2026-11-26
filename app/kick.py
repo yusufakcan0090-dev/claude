@@ -97,7 +97,8 @@ def list_source(text):
                 return list_channel(text)  # tek kelime: önce Kick kanal adı
             except Exception:
                 pass  # böyle bir kanal yoksa YouTube'da ara
-        vids = _entries(f"ytsearch40:{text}", 40)
+        q = text if _is_turkish(text) else text + " türkçe"
+        vids = _turkish_only(_entries(f"ytsearch60:{q}", 60))
         return {"slug": text, "source": "youtube-arama", "title": f"YouTube: {text}", "videos": vids, "clips": [], "errors": []}
     url = text
     if re.search(r"youtube\.com/(@[\w.-]+|channel/[\w-]+|c/[\w-]+|user/[\w-]+)/?$", url, re.I):
@@ -194,6 +195,36 @@ def _kick_direct(slug):
     except Exception as e:
         errs.append("klipler: " + _short(e))
     return vids, clips, errs, ch
+
+
+_TR_WORDS = set("ve bir bu da de çok ne için ile gibi ama ben sen o biz siz onlar var yok mi mı mu mü değil olan oldu nasıl neden kim şey en daha her kadar sonra önce şimdi bugün yeni komik kesit kesitler anlar anı türkçe türk türkiye yayın yayıncı abi hocam efsane güldüren gülme şaka röportaj sokak dizi film bölüm canlı ile nedir oyun maç gol hikaye korku kamera tepki şov".split())
+
+
+def _is_turkish(text):
+    t = (text or "").lower()
+    if any(ch in t for ch in "çğışöüİ"):
+        return True
+    return any(w.strip(".,!?:;|()[]'\"") in _TR_WORDS for w in t.split())
+
+
+def _non_latin(text):
+    import unicodedata
+    for ch in text or "":
+        if ch.isalpha():
+            try:
+                if "LATIN" not in unicodedata.name(ch):
+                    return True
+            except ValueError:
+                return True
+    return False
+
+
+def _turkish_only(vids):
+    """YouTube aramasında sadece Türkçe videolar kalsın (Hint, Arap, İngilizce vb. ayıklanır)."""
+    tr = [v for v in vids if not _non_latin(v.get("title")) and _is_turkish((v.get("title") or "") + " " + (v.get("channel") or ""))]
+    if len(tr) >= 5:
+        return tr
+    return [v for v in vids if not _non_latin(v.get("title"))] or vids
 
 
 def _merge(*lists):

@@ -1,4 +1,5 @@
 """Dışa aktarma (v2): çok klip + biçim (dikey/yatay/kare) + katmanlar + efektler + altyazı."""
+import json
 from pathlib import Path
 
 import anim
@@ -8,6 +9,22 @@ from core import FFMPEG, ROOT, load_settings, run_ffmpeg_progress, safe_name, tr
 
 # libass yazı boyutunu (Win yükseliş+iniş)/em oranına göre küçültür; önizlemedeki px boyutu tutsun diye çarpılır
 FONT_RATIO = {"anton": 1.7334, "poppins": 1.762, "poppins-black": 1.762, "bangers": 1.757}
+_FM = None
+
+
+def text_width(text, font, size):
+    """Yazının piksel genişliği (önizlemedeki ölçümle aynı yazı tipi verisiyle)."""
+    global _FM
+    if _FM is None:
+        try:
+            _FM = json.loads((Path(__file__).parent / "fontmetrics.json").read_text("utf-8"))
+        except Exception:
+            _FM = {}
+    m = _FM.get(font) or _FM.get("poppins-black") or {}
+    d = m.get("_default", 0.6)
+    return sum(m.get(ch, d) for ch in text) * size
+
+
 FONT_FAMILY = {"anton": "Anton", "poppins": "Poppins ExtraBold", "poppins-black": "Poppins Black", "bangers": "Bangers"}
 DEFAULT_STYLE = {"font": "poppins-black", "size": 88, "color": "#FFFFFF", "hl": "#FFE14D", "outline": "#000000",
                  "outlineW": 9, "shadow": True, "y": 68, "upper": True, "karaoke": True, "anim": True, "maxWords": 3}
@@ -158,6 +175,22 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for ws in chunks:
             for w in ws:
                 w["w"] = tr_upper(w["w"])
+    size = float(st["size"])
+    lh = size * 1.12  # önizlemedeki satır aralığı
+    maxw = BW - 140
+
+    def wrap(ws):
+        out, cur = [], []
+        for w in ws:
+            if cur and text_width(" ".join(x["w"] for x in cur + [w]), st["font"], size) > maxw:
+                out.append(cur)
+                cur = [w]
+            else:
+                cur.append(w)
+        if cur:
+            out.append(cur)
+        return out
+
     for i, ws in enumerate(chunks):
         start, end = ws[0]["s"], ws[-1]["e"] + 0.35
         if i + 1 < len(chunks):
@@ -166,18 +199,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if nxt - ws[-1]["e"] < 0.35:
                 end = nxt
         end = max(end, start + 0.2)
-        pos = f"\\pos({cx},{y})"
+        rows = wrap(ws)
+        tot = len(rows) * lh
+        # her satır ayrı olay: satır aralığı önizlemeyle birebir aynı olsun
+        centers = [y - tot / 2 + lh * k + lh / 2 for k in range(len(rows))]
         pop = "\\fscx72\\fscy72\\t(0,110,\\fscx104\\fscy104)\\t(110,170,\\fscx100\\fscy100)" if st.get("anim") else ""
+        segs = []
         if st.get("karaoke") and len(ws) > 1:
             for k, w in enumerate(ws):
                 es = start if k == 0 else w["s"]
                 ee = ws[k + 1]["s"] if k + 1 < len(ws) else end
-                if ee - es < 0.02:
-                    continue
-                parts = [f"{{\\1c{hl_c}}}{_esc(x['w'])}{{\\1c{base_c}}}" if j == k else _esc(x["w"]) for j, x in enumerate(ws)]
-                lines.append(f"Dialogue: 0,{_ts(es)},{_ts(ee)},K,,0,0,0,,{{{pos}{pop if k == 0 else ''}}}{' '.join(parts)}")
+                if ee - es >= 0.02:
+                    segs.append((es, ee, w))
         else:
-            lines.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},K,,0,0,0,,{{{pos}{pop}}}{' '.join(_esc(x['w']) for x in ws)}")
+            segs.append((start, end, None))
+        for si, (es, ee, act) in enumerate(segs):
+            for row, cy in zip(rows, centers):
+                parts = [f"{{\\1c{hl_c}}}{_esc(x['w'])}{{\\1c{base_c}}}" if x is act else _esc(x["w"]) for x in row]
+                lines.append(f"Dialogue: 0,{_ts(es)},{_ts(ee)},K,,0,0,0,,{{\\an5\\pos({cx},{cy:.1f}){pop if si == 0 else ''}}}{' '.join(parts)}")
     lines += text_events(project, BW, BH)
     return head + "\n".join(lines) + "\n"
 

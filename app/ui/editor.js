@@ -379,12 +379,15 @@
     let active = 0; words.forEach((w, k) => { if (T >= w.s - 1e-3) active = k; });
     const size = st.size * K; x.save();
     x.font = `${size}px "${FONT_CSS[st.font] || 'PoppinsBlk'}"`; x.textBaseline = 'alphabetic'; x.lineJoin = 'round'; x.miterLimit = 2;
-    const [fa, fd] = FM[st.font] || FM['poppins-black'];
-    const lines = wrapLines(x, words, (BW - 140) * K), lh = size * (fa + fd), cy = PH * st.y / 100, sc = st.anim ? popScale(T - c.s) : 1, tot = lines.length * lh;
-    x.translate(PW / 2, cy); x.scale(sc, sc); let maxW = 0;
+    const [fa, fd] = FM[st.font] || FM['poppins-black'], bl = (fa - (fa + fd) / 2) * size;
+    const lines = wrapLines(x, words, (BW - 140) * K), lh = size * 1.12, cy = PH * st.y / 100, sc = st.anim ? popScale(T - c.s) : 1, tot = lines.length * lh;
+    let maxW = 0;
     lines.forEach((ln, li) => {
-      const w = x.measureText(ln.map(o => o.t).join(' ')).width; maxW = Math.max(maxW, w); let xx = -w / 2; const yy = -tot / 2 + lh * li + fa * size;
-      ln.forEach(o => { const tw = x.measureText(o.t).width; if (st.shadow) { x.fillStyle = 'rgba(0,0,0,.41)'; x.fillText(o.t, xx + 4 * K, yy + 4 * K); } if (+st.outlineW > 0) { x.strokeStyle = st.outline; x.lineWidth = st.outlineW * 2 * K; x.strokeText(o.t, xx, yy); } x.fillStyle = st.karaoke && words.indexOf(o) === active ? st.hl : st.color; x.fillText(o.t, xx, yy); xx += tw + x.measureText(' ').width; });
+      const w = x.measureText(ln.map(o => o.t).join(' ')).width; maxW = Math.max(maxW, w);
+      x.save(); x.translate(PW / 2, cy - tot / 2 + lh * li + lh / 2); x.scale(sc, sc);
+      let xx = -w / 2;
+      ln.forEach(o => { const tw = x.measureText(o.t).width; if (st.shadow) { x.fillStyle = 'rgba(0,0,0,.41)'; x.fillText(o.t, xx + 4 * K, bl + 4 * K); } if (+st.outlineW > 0) { x.strokeStyle = st.outline; x.lineWidth = st.outlineW * 2 * K; x.strokeText(o.t, xx, bl); } x.fillStyle = st.karaoke && words.indexOf(o) === active ? st.hl : st.color; x.fillText(o.t, xx, bl); xx += tw + x.measureText(' ').width; });
+      x.restore();
     });
     x.restore();
     E.boxes.push({ type: 'cap', id: 'cap', cx: PW / 2, cy, w: maxW + 20, h: tot + 20, rot: 0 });
