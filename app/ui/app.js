@@ -1,0 +1,464 @@
+/* Kesit Stüdyosu — ortak: api, sayfalar, işler, bildirimler, pencereler, dosya ekleme */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const KS = window.KS = {
+  state: { settings: {}, projects: [], analyses: [], jobs: [], system: {} },
+  page: 'finder',
+  hooks: { jobDone: [], state: [] },
+};
+
+KS.api = async (path, body, method) => {
+  const opt = { method: method || (body !== undefined ? 'POST' : 'GET'), headers: {} };
+  if (body instanceof FormData) opt.body = body;
+  else if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  const r = await fetch(path, opt);
+  let data = null;
+  try { data = await r.json(); } catch (e) { data = null; }
+  if (!r.ok || (data && data.error)) throw new Error((data && data.error) || ('Sunucu hatası ' + r.status));
+  return data;
+};
+
+/* ---------- yardımcılar ---------- */
+KS.esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+KS.fmt = (sec, ms) => {
+  sec = Math.max(0, sec || 0);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = Math.floor(sec % 60);
+  const base = (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(s).padStart(2, '0');
+  return ms ? base + '.' + String(Math.floor((sec % 1) * 10)) : base;
+};
+KS.ago = ts => {
+  if (!ts) return '';
+  const d = (Date.now() / 1000 - ts);
+  if (d < 3600) return Math.max(1, Math.round(d / 60)) + ' dk önce';
+  if (d < 86400) return Math.round(d / 3600) + ' saat önce';
+  if (d < 86400 * 30) return Math.round(d / 86400) + ' gün önce';
+  return new Date(ts * 1000).toLocaleDateString('tr-TR');
+};
+KS.num = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'B' : String(n || 0);
+KS.trUpper = s => String(s).replace(/i/g, 'İ').replace(/ı/g, 'I').toUpperCase();
+KS.trLower = s => String(s).replace(/I/g, 'ı').replace(/İ/g, 'i').toLowerCase();
+KS.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+KS.uid = () => Math.random().toString(36).slice(2, 9);
+KS.icon = {
+  check: '<svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  spark: '<svg viewBox="0 0 24 24"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/></svg>',
+  film: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9l5 3-5 3z"/></svg>',
+  folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+};
+
+/* range kaydırıcılarının dolgu rengi */
+KS.paintRange = el => {
+  const p = ((el.value - el.min) / (el.max - el.min)) * 100;
+  el.style.setProperty('--p', p + '%');
+};
+document.addEventListener('input', e => { if (e.target.type === 'range') KS.paintRange(e.target); });
+
+/* ---------- sayfalar ---------- */
+KS.go = page => {
+  KS.page = page;
+  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
+  if (page === 'settings') KS.renderSettings();
+  if (page === 'editor' && KS.editor) KS.editor.onShow();
+};
+$$('.nav-btn').forEach(b => b.onclick = () => KS.go(b.dataset.page));
+document.addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (g) KS.go(g.dataset.goto); });
+
+/* ---------- bildirimler ---------- */
+KS.toast = (msg, type = '', actions = [], ms = 4500) => {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<div style="flex:1"><div class="tt">${msg}</div>${actions.length ? '<div class="ta"></div>' : ''}</div><button class="icon-btn" style="width:26px;height:26px">${KS.icon.x}</button>`;
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'btn sm ' + (a.primary ? 'primary' : 'ghost');
+    b.textContent = a.label;
+    b.onclick = () => { a.fn(); close(); };
+    $('.ta', t).appendChild(b);
+  });
+  const close = () => { t.classList.add('out'); setTimeout(() => t.remove(), 350); };
+  t.querySelector('.icon-btn').onclick = close;
+  $('#toasts').appendChild(t);
+  if (ms) setTimeout(close, actions.length ? ms * 2 : ms);
+  return close;
+};
+
+/* ---------- pencereler ---------- */
+KS.modal = (html, { onClose, wide } = {}) => {
+  const root = $('#modalRoot');
+  root.innerHTML = '';
+  const m = document.createElement('div');
+  m.className = 'modal';
+  if (wide) m.style.width = 'min(720px,94vw)';
+  m.innerHTML = html;
+  root.appendChild(m);
+  root.classList.add('show');
+  const close = () => {
+    m.classList.add('out');
+    root.classList.remove('show');
+    setTimeout(() => { if (root.contains(m)) m.remove(); }, 260);
+    document.removeEventListener('keydown', esc, true);
+    onClose && onClose();
+  };
+  const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  document.addEventListener('keydown', esc, true);
+  root.onclick = e => { if (e.target === root) close(); };
+  $$('[data-close]', m).forEach(b => b.onclick = close);
+  return { el: m, close };
+};
+KS.confirm = (title, text, okLabel = 'Evet', danger = false) => new Promise(res => {
+  let done = false;
+  const md = KS.modal(`<h2>${title}</h2><p class="msub">${text}</p>
+    <div class="mfoot"><button class="btn ghost" data-close>Vazgeç</button><button class="btn ${danger ? 'danger' : 'primary'}" id="cfOk">${okLabel}</button></div>`,
+    { onClose: () => { if (!done) res(false); } });
+  $('#cfOk', md.el).onclick = () => { done = true; res(true); md.close(); };
+});
+KS.modalOpen = () => $('#modalRoot').classList.contains('show');
+
+/* ---------- durum ---------- */
+KS.refresh = async () => {
+  const s = await KS.api('/api/state');
+  Object.assign(KS.state, s);
+  KS.hooks.state.forEach(f => f());
+  KS.renderJobs();
+};
+
+/* ---------- işler ---------- */
+let jobsOpen = false, lastJobStatus = {}, pollTimer = null;
+const jobIcon = { indir: '⬇', analiz: '✨', an: '✂', altyazi: '💬', aktar: '🎬', guncelle: '🔄' };
+KS.renderJobs = () => {
+  const jobs = KS.state.jobs || [];
+  const dock = $('#jobsDock');
+  const running = jobs.filter(j => j.status === 'calisiyor' || j.status === 'bekliyor');
+  dock.classList.toggle('has', jobs.length > 0);
+  dock.classList.toggle('idle', running.length === 0);
+  dock.classList.toggle('open', jobsOpen && jobs.length > 0);
+  $('#jobsPillText').textContent = running.length ? `${running.length} işlem sürüyor` : 'İşlemler tamam';
+  const list = $('#jobsList');
+  const html = jobs.slice().reverse().map(j => `
+    <div class="job ${j.status}" data-id="${j.id}">
+      <div class="row"><span class="job-ico">${jobIcon[j.kind] || '•'}</span><span class="jt">${KS.esc(j.title)}</span>
+      ${j.status === 'calisiyor' || j.status === 'bekliyor' ? `<button class="jx" title="İptal" data-cancel="${j.id}">${KS.icon.x}</button>` : j.status === 'bitti' ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">!</span>'}</div>
+      <div class="progress"><i style="width:${Math.round((j.status === 'hata' ? 1 : j.progress) * 100)}%;${j.status === 'hata' ? 'background:var(--red);animation:none' : ''}"></i></div>
+      <div class="jm">${KS.esc(j.message)}</div>
+    </div>`).join('');
+  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
+};
+$('#jobsPill').onclick = () => { jobsOpen = !jobsOpen; KS.renderJobs(); };
+$('#jobsList').onclick = e => {
+  const c = e.target.closest('[data-cancel]');
+  if (c) KS.api(`/api/jobs/${c.dataset.cancel}/cancel`, {}).then(() => KS.toast('İptal ediliyor...'));
+};
+KS.openJobs = () => { jobsOpen = true; KS.renderJobs(); };
+
+async function pollJobs() {
+  try {
+    const jobs = await KS.api('/api/jobs');
+    KS.state.jobs = jobs;
+    let needRefresh = false;
+    for (const j of jobs) {
+      const prev = lastJobStatus[j.id];
+      if (prev && prev !== j.status && (j.status === 'bitti' || j.status === 'hata')) {
+        needRefresh = true;
+        KS.onJobFinished(j);
+      }
+      lastJobStatus[j.id] = j.status;
+    }
+    KS.renderJobs();
+    KS.hooks.jobTick && KS.hooks.jobTick.forEach(f => f(jobs));
+    if (needRefresh) await KS.refresh();
+  } catch (e) { /* sunucu meşgul */ }
+  const active = (KS.state.jobs || []).some(j => j.status === 'calisiyor' || j.status === 'bekliyor');
+  pollTimer = setTimeout(pollJobs, active ? 600 : 2000);
+}
+KS.hooks.jobTick = [];
+KS.kickJobs = () => { clearTimeout(pollTimer); pollJobs(); };
+KS.trackJob = id => { lastJobStatus[id] = 'bekliyor'; KS.kickJobs(); };
+
+KS.onJobFinished = j => {
+  KS.hooks.jobDone.forEach(f => f(j));
+  if (j.status === 'hata') {
+    KS.toast('<b>Olmadı:</b> ' + KS.esc(j.title) + '<br><span style="color:var(--muted);font-size:12px">' + KS.esc(j.message) + '</span>', 'err', [], 9000);
+    return;
+  }
+  const r = j.result || {};
+  if (j.kind === 'aktar') {
+    KS.toast('🎬 <b>Video hazır!</b><br><span style="color:var(--muted);font-size:12px">' + KS.esc(r.name || '') + '</span>', 'ok', [
+      { label: '▶ Oynat', primary: true, fn: () => KS.api('/api/play', { path: r.path }) },
+      { label: 'Klasörde göster', fn: () => KS.api('/api/reveal', { path: r.path }) },
+    ], 8000);
+  } else if (j.kind === 'analiz') {
+    KS.toast(`✨ <b>${r.count} an bulundu</b>`, 'ok', [{ label: 'Göster', primary: true, fn: () => { KS.go('finder'); KS.finder.showAnalysis(r.analysis); } }]);
+  } else if ((j.kind === 'an' || j.kind === 'indir') && r.project) {
+    KS.toast('✂ <b>Klip hazır</b> — ' + KS.esc(j.title.replace(/^.*?: /, '')), 'ok', [{ label: 'Editörde aç', primary: true, fn: () => KS.openProject(r.project) }]);
+  } else if (j.kind === 'altyazi') {
+    KS.toast('💬 ' + KS.esc(j.message), 'ok');
+  }
+};
+
+KS.openProject = async pid => {
+  KS.go('editor');
+  await KS.editor.load(pid);
+};
+
+/* ---------- an bulma seçenekleri (her kaynak için aynı pencere) ---------- */
+KS.findMoments = src => {
+  const s = KS.state.settings;
+  const o = { mode: s.an_modu || 'orta', count: s.an_sayisi ?? 20 };
+  const md = KS.modal(`<h2>✨ Anları Bul</h2><p class="msub">${KS.esc(src.title || '')}</p>
+    <div class="opt-group"><label>An uzunluğu</label><div class="opts" id="fmMode">
+      <button class="opt" data-v="kisa"><b>Kısa</b><small>8–20 sn · Shorts/TikTok</small></button>
+      <button class="opt" data-v="orta"><b>Orta</b><small>20–40 sn</small></button>
+      <button class="opt" data-v="uzun"><b>Uzun</b><small>40–90 sn · hikâye/anı</small></button></div></div>
+    <div class="opt-group"><label>Kaç an bulunsun</label><div class="opts" id="fmCount">
+      <button class="opt" data-v="10"><b>10</b><small>en iyileri</small></button>
+      <button class="opt" data-v="25"><b>25</b><small></small></button>
+      <button class="opt" data-v="50"><b>50</b><small></small></button>
+      <button class="opt" data-v="0"><b>Hepsi</b><small>sınırsız</small></button></div></div>
+    <div class="mfoot"><button class="btn ghost" data-close>Vazgeç</button><button class="btn primary glow" id="fmGo">${KS.icon.spark}Bul</button></div>`);
+  const paint = () => {
+    $$('#fmMode .opt', md.el).forEach(b => b.classList.toggle('active', b.dataset.v === o.mode));
+    $$('#fmCount .opt', md.el).forEach(b => b.classList.toggle('active', +b.dataset.v === +o.count));
+  };
+  $$('#fmMode .opt', md.el).forEach(b => b.onclick = () => { o.mode = b.dataset.v; paint(); });
+  $$('#fmCount .opt', md.el).forEach(b => b.onclick = () => { o.count = +b.dataset.v; paint(); });
+  if (![10, 25, 50, 0].includes(+o.count)) o.count = 25;
+  paint();
+  $('#fmGo', md.el).onclick = async () => {
+    md.close();
+    try {
+      const r = await KS.api('/api/analyze', { ...src, mode: o.mode, count: o.count });
+      Object.assign(KS.state.settings, { an_modu: o.mode, an_sayisi: o.count });
+      KS.trackJob(r.job); KS.openJobs();
+      KS.toast(src.local ? '✨ Anlar aranıyor...' : '✨ Video indiriliyor ve anlar aranıyor. Bitince haber vereceğim.');
+    } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
+  };
+};
+
+/* ---------- sistem çipi ---------- */
+KS.loadSystem = async () => {
+  try {
+    const s = await KS.api('/api/system');
+    KS.state.system = s;
+    const chip = $('#gpuChip');
+    chip.className = 'gpu-chip ' + (s.gpu ? 'ok' : 'warn');
+    $('span', chip).textContent = s.gpu ? 'NVIDIA hazır' : 'GPU yok';
+    chip.title = s.gpu ? 'Altyazı ekran kartında hızlı çalışacak' : 'Ekran kartı bulunamadı, altyazı işlemciyle (yavaş) çalışır';
+  } catch (e) { }
+};
+
+/* =================================================================
+   DOSYA EKLEME — tek yer: buton, Ctrl+O, sürükle-bırak
+   video -> yeni proje, müzik -> müzik katmanı, resim -> resim katmanı
+   ================================================================= */
+KS.addFile = async () => {
+  try {
+    const f = await KS.api('/api/pick_any', {});
+    if (f && f.path) KS.handleFile(f);
+  } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
+};
+
+KS.handleFile = async f => {
+  if (f.error) return KS.toast(KS.esc(f.error), 'err');
+  const ed = KS.editor;
+  if (f.kind === 'video') {
+    const long = (f.duration || 0) > 180;
+    const md = KS.modal(`<h2>Video eklendi</h2><p class="msub">${KS.esc(f.name)} · ${KS.fmt(f.duration)}</p>
+      <div class="big-choice">
+        <button id="chA"><span class="e">✨</span><b>Anları Bul</b><small>Uzun yayın kaydıysa en iyi anları otomatik bulayım.</small></button>
+        <button id="chB"><span class="e">✂️</span><b>Direkt Düzenle</b><small>Zaten kısa bir kesitse direkt editörde aç.</small></button>
+      </div>
+      ${long ? '<p class="hint" style="margin-top:12px">İpucu: Bu video uzun, "Anları Bul" daha mantıklı.</p>' : ''}`);
+    $('#chA', md.el).onclick = () => { md.close(); setTimeout(() => KS.findMoments({ local: true, path: f.path, title: f.title }), 280); };
+    $('#chB', md.el).onclick = async () => {
+      md.close();
+      try {
+        const r = await KS.api('/api/local/project', { path: f.path, title: f.title });
+        await KS.refresh();
+        KS.kickJobs();
+        KS.openProject(r.project);
+      } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
+    };
+    return;
+  }
+  if (!ed || !ed.project) {
+    KS.toast({ audio: '🎵 Müzik', image: '🖼 Resim', lut: '🎞 LUT' }[f.kind] + ' eklemek için önce editörde bir proje aç.', 'err');
+    return;
+  }
+  if (f.kind === 'lut') return ed.addLut(f);
+  if (f.kind === 'audio') ed.addMusic(f);
+  else if (f.kind === 'image') ed.addImage(f);
+};
+
+/* sürükle-bırak */
+let dropPathTimer = null, dropGotPath = false;
+const dropOverlay = document.createElement('div');
+dropOverlay.className = 'drop-overlay';
+dropOverlay.innerHTML = `<div class="drop-box"><div class="drop-ico">${KS.icon.plus}</div><b>Bırak, ekleyeyim</b><span>Video → yeni proje · Müzik → müzik katmanı · Resim → resim katmanı · .cube → LUT</span></div>`;
+document.body.appendChild(dropOverlay);
+let dragDepth = 0;
+window.addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragDepth++; dropOverlay.classList.add('show'); } });
+window.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropOverlay.classList.remove('show'); });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0; dropOverlay.classList.remove('show');
+  const files = [...(e.dataTransfer?.files || [])];
+  if (!files.length) return;
+  // pywebview gerçek dosya yolunu Python'dan gönderir (KS.onDropPath). Gelmezse yükleyerek ekle.
+  dropGotPath = false;
+  clearTimeout(dropPathTimer);
+  dropPathTimer = setTimeout(async () => {
+    if (dropGotPath) return;
+    for (const file of files) {
+      const close = KS.toast(`⬆ ${KS.esc(file.name)} ekleniyor...`, '', [], 0);
+      try {
+        const fd = new FormData(); fd.append('file', file);
+        const f = await KS.api('/api/upload', fd);
+        close(); KS.handleFile(f);
+      } catch (err) { close(); KS.toast(KS.esc(err.message), 'err'); }
+    }
+  }, 450);
+});
+KS.onDropPath = async paths => {
+  dropGotPath = true;
+  for (const p of [].concat(paths)) {
+    try { KS.handleFile(await KS.api('/api/describe', { path: p })); }
+    catch (e) { KS.toast(KS.esc(e.message), 'err'); }
+  }
+};
+
+/* ---------- genel kısayollar ---------- */
+document.addEventListener('keydown', e => {
+  if (KS.modalOpen()) return;
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'o') { e.preventDefault(); KS.addFile(); return; }
+  if (typing) return;
+  if (e.altKey && k === '1') { KS.go('finder'); e.preventDefault(); }
+  if (e.altKey && k === '2') { KS.go('editor'); e.preventDefault(); }
+  if (e.altKey && k === '3') { KS.go('settings'); e.preventDefault(); }
+  if (KS.page === 'editor' && KS.editor) KS.editor.onKey(e);
+});
+
+/* =================================================================
+   AYARLAR
+   ================================================================= */
+KS.renderSettings = () => {
+  const s = KS.state.settings, sys = KS.state.system || {};
+  const fixes = Object.entries(s.duzeltmeler || {});
+  $('#settingsGrid').innerHTML = `
+  <div class="set-card glass"><h3><span class="ic">${KS.icon.folder}</span>Videolar nereye kaydedilsin?</h3>
+    <div class="path-row"><input class="inp" id="setOut" value="${KS.esc(s.cikti_klasoru)}" readonly><button class="btn ghost sm" id="setOutBtn">Değiştir</button><button class="btn ghost sm" id="setOutOpen">Aç</button></div>
+  </div>
+  <div class="set-card glass" style="animation-delay:.05s"><h3><span class="ic">💬</span>Altyazı</h3>
+    <div class="field"><label>Model</label>
+      <select class="inp" id="setModel">
+        <option value="large-v3" ${s.whisper_model === 'large-v3' ? 'selected' : ''}>En doğru (large-v3) — önerilen</option>
+        <option value="turbo" ${s.whisper_model === 'turbo' ? 'selected' : ''}>Daha hızlı (turbo)</option>
+      </select></div>
+    <div class="field"><label>Videolarda geçen isimler (doğru yazılsın diye)</label>
+      <input class="inp" id="setNames" value="${KS.esc(s.ipucu_isimler)}" placeholder="RRaenee, Animeci, ..."></div>
+    <button class="tog ${s.oto_altyazi ? 'on' : ''}" id="setAuto">Klip inince altyazıyı otomatik çıkar<i></i></button>
+  </div>
+  <div class="set-card glass" style="animation-delay:.1s"><h3><span class="ic">✓</span>Düzeltme sözlüğü</h3>
+    <p>Yanlış yazılan kelimeyi bir kere öğret, hep düzeltsin.</p>
+    <div class="fix-list">${fixes.length ? fixes.map(([a, b]) => `<div class="fix"><span>${KS.esc(a)}</span><span>→</span><span>${KS.esc(b)}</span><button class="del-btn" data-fixdel="${KS.esc(a)}">${KS.icon.x}</button></div>`).join('') : '<p class="hint">Henüz yok. Editörde bir kelimeyi düzeltince buraya eklemeni önereceğim.</p>'}</div>
+    <div class="fix-add"><input class="inp" id="fixA" placeholder="yanlış"><input class="inp" id="fixB" placeholder="doğru"><button class="btn primary sm" id="fixAdd">Ekle</button></div>
+  </div>
+  <div class="set-card glass" style="animation-delay:.18s"><h3><span class="ic">✨</span>Güncelleme</h3>
+    <div class="sys-row"><span>Kullandığın sürüm</span><b>v${KS.esc((KS.state.update || {}).current || '')}</b></div>
+    ${(KS.state.update || {}).available ? `<div class="sys-row"><span>Yeni sürüm</span><b class="ok">v${KS.esc(KS.state.update.latest)}</b></div>` : ''}
+    <button class="btn ${(KS.state.update || {}).available ? 'primary glow' : 'ghost'} sm" id="setUpd">${(KS.state.update || {}).available ? 'Güncelle' : 'Güncellemeleri kontrol et'}</button>
+    <p class="hint">Program her açılışta yeni sürüm var mı diye kendisi bakar.</p>
+  </div>
+  <div class="set-card glass" style="animation-delay:.2s"><h3><span class="ic">⚙</span>Sistem</h3>
+    <div class="sys-row"><span>Ekran kartı (altyazı)</span><b class="${sys.gpu ? 'ok' : 'no'}">${sys.gpu ? 'NVIDIA bulundu' : 'Bulunamadı (işlemci)'}</b></div>
+    <div class="sys-row"><span>FFmpeg</span><b class="${sys.ffmpeg ? 'ok' : 'no'}">${sys.ffmpeg ? 'Hazır' : 'Yok — KUR.bat çalıştır'}</b></div>
+    <div class="sys-row"><span>Video indirici (yt-dlp)</span><b class="${sys.ytdlp ? 'ok' : 'no'}">${sys.ytdlp || 'Yok'}</b></div>
+    <p class="hint">Kick indirme bozulursa GUNCELLE.bat'ı çalıştır.</p>
+  </div>
+  <div class="set-card glass" style="animation-delay:.25s"><h3><span class="ic">⌨</span>Kısayollar</h3>${KS.shortcutsHtml()}</div>`;
+  $$('#settingsGrid input[type=range]').forEach(KS.paintRange);
+  const save = patch => KS.api('/api/settings', patch).then(s => { KS.state.settings = s; });
+  $('#setOutBtn').onclick = async () => { const r = await KS.api('/api/pick_folder', {}); if (r.path) { await save({ cikti_klasoru: r.path }); KS.renderSettings(); } };
+  $('#setOutOpen').onclick = () => KS.api('/api/reveal', { path: s.cikti_klasoru }).catch(() => KS.toast('Klasör henüz yok, ilk videoda oluşacak.'));
+  $('#setUpd').onclick = () => (KS.state.update || {}).available ? KS.updateDialog() : KS.checkUpdate(true, true).then(KS.renderSettings);
+  $('#setModel').onchange = e => save({ whisper_model: e.target.value }).then(() => KS.toast('Model değişti, bir sonraki altyazıda kullanılacak.'));
+  $('#setNames').onchange = e => save({ ipucu_isimler: e.target.value });
+  $('#setAuto').onclick = e => { const on = !s.oto_altyazi; save({ oto_altyazi: on }).then(KS.renderSettings); };
+  $('#fixAdd').onclick = async () => {
+    const a = $('#fixA').value.trim(), b = $('#fixB').value.trim();
+    if (!a || !b) return;
+    const r = await KS.api('/api/fixes', { add: { [a]: b } });
+    KS.state.settings.duzeltmeler = r.duzeltmeler; KS.renderSettings();
+  };
+  $$('[data-fixdel]').forEach(b => b.onclick = async () => {
+    const r = await KS.api('/api/fixes', { remove: [b.dataset.fixdel] });
+    KS.state.settings.duzeltmeler = r.duzeltmeler; KS.renderSettings();
+  });
+};
+
+KS.shortcuts = [
+  ['Boşluk', 'Oynat / durdur'], ['S', 'Oynatma çizgisinden böl'], ['Delete', 'Seçili parçayı / katmanı sil'],
+  ['← →', '1 saniye ileri-geri'], ['Shift + ← →', '1 kare ileri-geri'], ['Home / End', 'Başa / sona git'],
+  ['Z', 'Buraya zoom ekle'], ['X', 'Buraya sarsıntılı zoom ekle'], ['T', 'Buraya yazı ekle'],
+  ['Ctrl + O', 'Dosya ekle (video / müzik / resim)'], ['Ctrl + Z / Ctrl + Y', 'Geri al / yinele'],
+  ['Ctrl + S', 'Kaydet'], ['Ctrl + E', 'Dışa aktar'], ['F', 'Sonraki şüpheli kelime'],
+  ['Tekerlek', 'Timeline yakınlaş / uzaklaş'], ['Shift + Tekerlek', 'Timeline yana kaydır'], ['+ / −', 'Timeline yakınlaştır'], ['Alt + 1/2/3', 'Bul / Editör / Ayarlar'],
+];
+KS.shortcutsHtml = () => `<div class="kbd-list">${KS.shortcuts.map(([k, d]) => `<span>${k.split(' ').map(x => /^[+/]$|^\/$/.test(x) ? x : `<kbd>${x}</kbd>`).join(' ')}</span><span style="color:var(--muted);font-size:13px">${d}</span>`).join('')}</div>`;
+
+/* ---------- otomatik güncelleme ---------- */
+KS.checkUpdate = async (force, manual) => {
+  try {
+    const u = await KS.api('/api/update/check' + (force ? '?force=1' : ''));
+    KS.state.update = u;
+    $('#verTag').textContent = 'v' + (u.current || '');
+    $('#updBtn').hidden = !u.available;
+    if (u.available && !manual) {
+      KS.toast(`✨ <b>Yeni sürüm var: v${KS.esc(u.latest)}</b>`, '', [{ label: 'Neler yeni?', primary: true, fn: KS.updateDialog }], 9000);
+    } else if (manual) {
+      if (u.available) KS.updateDialog();
+      else if (u.error) KS.toast('Güncelleme kontrol edilemedi. İnternetini kontrol et.', 'err');
+      else KS.toast('✓ En güncel sürümü kullanıyorsun (v' + KS.esc(u.current) + ')', 'ok');
+    }
+  } catch (e) { if (manual) KS.toast(KS.esc(e.message), 'err'); }
+};
+KS.updateDialog = () => {
+  const u = KS.state.update || {};
+  const md = KS.modal(`<h2>✨ Yeni sürüm: v${KS.esc(u.latest)}</h2><p class="msub">Şu an v${KS.esc(u.current)} kullanıyorsun. Projelerin ve ayarların korunur.</p>
+    <div class="notes">${(u.notes || []).map(n => `<div>${KS.esc(n)}</div>`).join('')}</div>
+    <div class="mfoot"><button class="btn ghost" data-close>Sonra</button><button class="btn primary glow" id="updGo">${KS.icon.down}Şimdi güncelle</button></div>`);
+  $('#updGo', md.el).onclick = async () => {
+    md.close();
+    if (KS.editor && KS.editor.flush) await KS.editor.flush();
+    const r = await KS.api('/api/update/apply', {});
+    KS.trackJob(r.job); KS.openJobs();
+    KS.toast('⬇ Güncelleme indiriliyor...');
+  };
+};
+$('#updBtn').onclick = KS.updateDialog;
+KS.hooks.jobDone.push(j => {
+  if (j.kind !== 'guncelle' || j.status !== 'bitti') return;
+  const ov = document.createElement('div');
+  ov.className = 'restart-ov';
+  ov.innerHTML = `<div><div class="spin" style="width:42px;height:42px;border-width:4px"></div><b>Güncellendi! Yeniden başlatılıyor...</b><span style="color:var(--muted)">Pencere birazdan kapanıp yeni sürümle açılacak.</span></div>`;
+  document.body.appendChild(ov);
+  setTimeout(() => KS.api('/api/restart', {}).catch(() => { }), 800);
+});
+
+/* ---------- başlat ---------- */
+window.addEventListener('load', async () => {
+  try { await KS.refresh(); } catch (e) { KS.toast('Sunucuya bağlanılamadı: ' + KS.esc(e.message), 'err'); }
+  KS.loadSystem();
+  pollJobs();
+  setTimeout(() => KS.checkUpdate(false, false), 2500);
+  $$('input[type=range]').forEach(KS.paintRange);
+});

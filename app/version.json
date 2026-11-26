@@ -1,0 +1,12 @@
+{
+ "version": "1.1.0",
+ "date": "2026-11-26",
+ "notes": [
+  "Otomatik güncelleme: artık güncellemeler programın içinden gelir",
+  "Zamanlı efekt katmanı: efekt sadece seçtiğin anda çalışır",
+  "25 yeni efekt: glitch, parlama, ışık sızıntısı, lens flare, eski film, VHS, flaş, strobe, bulanıklıklar, sarsıntılar, piksel, posterize, duotone, halftone, kenar çizgisi ve daha fazlası",
+  "Kesimlerde geçişler: flaş, zoom, kayma, glitch, kararma, beyaz, girdap",
+  "LUT (.cube) renk paketi desteği",
+  "Kurulumdaki gereksiz uyarılar gizlendi"
+ ]
+}

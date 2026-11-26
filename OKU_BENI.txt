@@ -1,0 +1,36 @@
+KESİT STÜDYOSU — Hızlı Başlangıç
+================================
+
+KURULUM (bir kere)
+1) Bu klasörü istediğin yere çıkar (örn. Masaüstü).
+2) KUR.bat dosyasına çift tıkla. Gerekenleri kendisi kurar:
+   Python, video motoru (FFmpeg), Türkçe altyazı modeli, ekran kartı dosyaları.
+   İnternet hızına göre 10-30 dakika sürer.
+3) Bitince Masaüstünde "Kesit Studyosu" simgesi çıkar. Ona çift tıkla.
+
+KULLANIM
+• BUL sekmesi: Kick kanal adı yaz (rraenee), YouTube/Twitch linki yapıştır
+  ya da YouTube'da ara ("okan bayülgen kesit"). "Anları Bul" de, uzunluğu seç
+  (Kısa / Orta / Uzun) ve kaç an istediğini seç (Hepsi = sınırsız).
+• Bulunan anları seç, "Hazırla" de: yüksek kalitede iner, altyazısı otomatik çıkar.
+• EDİTÖR: Kadraj (yüz üstte, oyun altta), altyazı düzeltme, stil, efektler,
+  yazı/resim/müzik katmanları. Altyazıyı önizlemede sürükleyip yerini ayarla,
+  tekerlekle büyüt/küçült.
+• Dosya Ekle (ya da dosyayı pencereye sürükle): video -> yeni proje,
+  müzik -> müzik katmanı, resim -> resim katmanı.
+• Dışa Aktar: 720p / 1080p / 2K, Orijinal / 30 / 60 / 90 FPS.
+  Videolar: Videolar\Kesit Studyosu klasörüne kaydolur (Ayarlar'dan değişir).
+
+KISAYOLLAR
+Boşluk oynat · S böl · Delete sil · Z zoom · X sarsıntılı zoom · T yazı
+Ctrl+Z geri al · Ctrl+E dışa aktar · Ctrl+O dosya ekle · F sonraki şüpheli kelime
+Timeline'da tekerlek = yakınlaş, Shift+tekerlek = yana kaydır
+
+GÜNCELLEME
+• Program her açılışta yeni sürüme bakar. Varsa solda "Güncelle" butonu çıkar.
+  Bas, gerisini kendisi yapar. Projelerin ve ayarların korunur.
+
+SORUN OLURSA
+• Kick/YouTube indirmiyor  -> GUNCELLE.bat
+• Program açılmıyor        -> SORUN_GIDER.bat (hatayı ekranda gösterir)
+• Hata kaydı               -> veri\log.txt
