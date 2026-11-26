@@ -350,10 +350,12 @@ KS.onDropPath = async paths => {
 };
 
 /* ---------- genel kısayollar ---------- */
+// Türkçe klavyede I tuşu 'ı' verir; harf tuşlarını fiziksel tuştan oku
+KS.keyOf = e => { if (/^Key[A-Z]$/.test(e.code || '')) return e.code.slice(3).toLowerCase(); const k = e.key || ''; return (k === 'ı' || k === 'İ') ? 'i' : k.toLowerCase(); };
 document.addEventListener('keydown', e => {
   if (KS.modalOpen()) return;
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
-  const k = e.key.toLowerCase();
+  const k = KS.keyOf(e);
   if ((e.ctrlKey || e.metaKey) && (k === 'o' || (k === 'i' && KS.page !== 'editor'))) { e.preventDefault(); KS.addFile(); return; }
   if (typing) return;
   if (e.altKey && k === '1') { KS.go('finder'); e.preventDefault(); }

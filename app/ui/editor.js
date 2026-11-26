@@ -1409,7 +1409,7 @@
   const toggleKeyProp = p => { const s = E.sel, o = selObj(); if (!s || !o || !TRANSFORMABLE.includes(s.type)) return; E.change(() => { if (!isAnim(o, p)) toggleWatch(s.type, o, p, E.T - o.s); else toggleKeyAt(s.type, o, p, E.T - o.s); }); E.reveal[s.id] = [...new Set([...(E.reveal[s.id] || []), p])]; E.sizeTimeline(); };
   const revealProp = (p, add) => { const s = E.sel; if (!s || !TRANSFORMABLE.includes(s.type)) return; const cur = E.reveal[s.id] || []; E.reveal[s.id] = add ? [...new Set([...cur, p])] : (cur.length === 1 && cur[0] === p ? [] : [p]); if (!E.reveal[s.id].length) delete E.reveal[s.id]; E.open[s.id] = false; E.sizeTimeline(); };
   E.onKey = e => {
-    const k = e.key, kl = k.toLowerCase(), c = e.ctrlKey || e.metaKey, sh = e.shiftKey, alt = e.altKey, code = e.code, stop = () => e.preventDefault();
+    const k = e.key, kl = KS.keyOf(e), c = e.ctrlKey || e.metaKey, sh = e.shiftKey, alt = e.altKey, code = e.code, stop = () => e.preventDefault();
     if (c && kl === 'n') { stop(); return E.newProjectDialog(); }
     if (c && kl === 'i') { stop(); return KS.addFile(); }
     if (k === 'F1') { stop(); return shortcutsModal(); }
