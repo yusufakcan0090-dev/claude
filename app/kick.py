@@ -130,15 +130,54 @@ def list_source(text):
     return {"single": _entry({**info, "url": info.get("webpage_url") or url})}
 
 
+_KS = None
+
+
+def _dbg(*a):
+    """Kick sorunlarını çözebilmek için ayrıntılı kayıt (veri/kick_kayit.txt)."""
+    try:
+        from core import VERI
+        import time as _t
+        p = VERI / "kick_kayit.txt"
+        if p.exists() and p.stat().st_size > 400_000:
+            p.unlink()
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(_t.strftime("%H:%M:%S ") + " ".join(str(x) for x in a) + "\n")
+    except Exception:
+        pass
+
+
 def _kick_get(url):
-    """Kick'e tarayıcı gibi doğrudan sor (yt-dlp boş dönerse yedek yol)."""
+    """Kick'e tarayıcı gibi doğrudan sor: önce ana sayfadan çerez al, sonra API (Cloudflare için)."""
+    global _KS
     from curl_cffi import requests as creq
-    r = creq.get(url, impersonate="chrome", timeout=25,
-                 headers={"Accept": "application/json", "Referer": "https://kick.com/"})
-    if r.status_code == 404:
-        raise LookupError("Kick'te böyle bir kanal yok")
-    r.raise_for_status()
-    return r.json()
+    hdr = {"Accept": "application/json, text/plain, */*", "Referer": "https://kick.com/", "Origin": "https://kick.com",
+           "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8"}
+    last = None
+    for imp in ("chrome", "chrome124", "edge101", "safari17_0"):
+        try:
+            if _KS is None or _KS[0] != imp:
+                s = creq.Session(impersonate=imp)
+                try:
+                    s.get("https://kick.com/", timeout=20)
+                except Exception:
+                    pass
+                _KS = (imp, s)
+            r = _KS[1].get(url, timeout=25, headers=hdr)
+            body = r.text or ""
+            _dbg("GET", url, imp, r.status_code, len(body), body[:160].replace("\n", " "))
+            if r.status_code == 404:
+                raise LookupError("Kick'te böyle bir kanal yok")
+            if r.status_code == 200 and body.lstrip()[:1] in "[{":
+                return r.json()
+            last = RuntimeError(f"Kick {r.status_code} döndü ({'Cloudflare engeli' if r.status_code in (403, 429, 503) else 'beklenmeyen cevap'})")
+        except LookupError:
+            raise
+        except Exception as e:
+            _dbg("HATA", url, imp, repr(e)[:200])
+            last = e
+        _KS = None
+    raise last or RuntimeError("Kick'e ulaşılamadı")
 
 
 def _ms_or_s(v):
@@ -294,6 +333,7 @@ def list_channel(text):
                 errs.append(("Yayın kayıtları: " if k == "videos" else "Klipler: ") + _short(e))
     res["videos"] = got["videos"]
     res["clips"] = _merge(got["new"], got["pop"])
+    _dbg(f"[{slug}] yt-dlp: {len(got['videos'])} yayın, {len(got['new'])}+{len(got['pop'])} klip", errs)
     if res["clips"]:
         errs = [x for x in errs if not x.startswith("Klipler")]
     if not res["videos"] or not res["clips"]:
@@ -309,6 +349,7 @@ def list_channel(text):
                 raise
     res["clips"].sort(key=lambda c: c.get("timestamp") or 0, reverse=True)
     res.setdefault("shorts", [])
+    _dbg(f"[{slug}] sonuç: {len(res['videos'])} yayın, {len(res['clips'])} klip", errs)
     if errs:
         print(f"[kick] {slug}:", " | ".join(errs), file=sys.stderr, flush=True)
     if res["videos"] and not res["clips"]:

@@ -1,12 +1,8 @@
 {
- "version": "1.4.0",
+ "version": "1.4.1",
  "date": "2026-11-26",
  "notes": [
-  "Oynatma çizgisini sürüklerken önizleme artık kararmıyor",
-  "AMD ve Intel ekran kartı desteği: dışa aktarma ekran kartıyla yapılıyor; NVIDIA yoksa altyazı işlemcide hızlı modelle çalışıyor",
-  "Yeni kurulum penceresi: KUR.bat'a çift tıkla, ekran kartını bulup her şeyi kendisi kuruyor (başkaları da kolayca kurabilir)",
-  "İlk açılışta 4 adımlık 'Nasıl kullanılır?' anlatımı",
-  "Klip Bulucu'da Shorts sekmesi; Kick klipleri için daha fazla yol deneniyor",
-  "Ayarlar > Görünüm: Koyu / Daha koyu / Açık"
+  "Kick'ten yayın ve izleyici kliplerini çekme düzeltildi (Cloudflare engeline karşı tarayıcı gibi bağlanıyor, birkaç farklı yol deniyor)",
+  "Kick sorunları için ayrıntılı kayıt tutuluyor"
  ]
 }
