@@ -94,6 +94,7 @@
   /* =========================================================== katmanlar (AE sırası: üstteki önde) */
   E.layers = () => {
     const p = P(), f = fx(), L = [];
+    if (!clips().length && !f.texts.length && !f.shapes.length && !p.media.images.length && !p.overlays.length && !p.media.music) return L; // boş projede katman yok (AE gibi)
     L.push({ type: 'cap', id: 'cap', name: 'Altyazı', obj: null });
     f.texts.forEach(o => L.push({ type: 'text', id: o.id, name: o.text || 'Yazı', obj: o }));
     f.shapes.forEach(o => L.push({ type: 'shape', id: o.id, name: o.name || (o.solid ? 'Düz Renk' : o.kind === 'ellipse' ? 'Elips' : 'Dikdörtgen'), obj: o }));
@@ -377,7 +378,7 @@
   function drawCaption(x, T) {
     const st = P().style, list = E.tlCaps(); let i = E.capAt(T, list), c, words, active = 0;
     if (i >= 0) { c = list[i]; words = c.words.map(w => ({ t: st.upper ? KS.trUpper(w.w) : w.w, s: w.s })); words.forEach((w, k) => { if (T >= w.s - 1e-3) active = k; }); }
-    else if (E.capEditing()) {
+    else if (E.capEditing() && clips().length) {
       // ayar yaparken o anda altyazı yoksa örnek altyazı göster
       const src = list.length ? list[0].words.map(w => w.w) : ['BU', 'ÇOK', 'İYİ', 'OLDU'];
       words = src.map(w => ({ t: st.upper ? KS.trUpper(w) : w, s: 0 })); active = Math.min(1, words.length - 1); c = { s: -9 };
@@ -939,6 +940,7 @@
   }
   E.drawCapPrev = () => {
     $$('[data-csprev]').forEach(cv => {
+      cv.style.display = clips().length ? '' : 'none';
       if (!cv.isConnected || !cv.offsetWidth) return;
       const w = cv.offsetWidth, h = Math.round(w * .42); if (cv.width !== w * 2) { cv.width = w * 2; cv.height = h * 2; cv.style.height = h + 'px'; }
       const b = E.boxes.find(q => q.type === 'cap'), cy = b ? b.cy : PH * P().style.y / 100, bh = Math.min(PH, PW * .42 * (PW / PW)), sy = KS.clamp(cy - bh / 2, 0, PH - bh);
@@ -1455,5 +1457,6 @@
   };
   addEventListener('keydown', e => { if (e.key === ' ' && KS.page === 'editor') E.spaceHeld = !(/INPUT|TEXTAREA/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable); });
   addEventListener('keyup', e => { if (e.key === ' ') E.spaceHeld = false; });
+  Promise.all(Object.values(FONT_CSS).map(f => document.fonts.load(`40px "${f}"`, 'AÇĞİÖŞÜaçğıöşü'))).then(() => { if (P()) E.render(); }).catch(() => { });
   E.showNoProject();
 })();
