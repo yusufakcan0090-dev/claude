@@ -92,25 +92,7 @@ def list_source(text):
     if re.search(r"kick\.com/[\w-]+/?(\?.*)?$", text, re.I) and "clip=" not in text:
         return list_channel(text)
     if not is_url:
-        if " " not in text:
-            try:
-                return list_channel(text)  # tek kelime: önce Kick kanal adı
-            except Exception:
-                pass  # böyle bir kanal yoksa YouTube'da ara
-        q = text if _is_turkish(text) else text + " türkçe"
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(2) as ex:
-            fv = ex.submit(_entries, f"ytsearch60:{q}", 60)
-            fs = ex.submit(_entries, f"ytsearch40:{q} shorts", 40)
-            vids = _turkish_only(fv.result())
-            try:
-                shorts = _turkish_only(_only_shorts(fs.result()))
-            except Exception:
-                shorts = []
-        shorts = _merge(shorts, [v for v in vids if _is_short(v)])
-        ids = {s["id"] for s in shorts}
-        vids = [v for v in vids if v["id"] not in ids]
-        return {"slug": text, "source": "youtube-arama", "title": f"YouTube: {text}", "videos": vids, "shorts": shorts, "clips": [], "errors": []}
+        return smart_search(text)
     url = text
     shorts = []
     if re.search(r"youtube\.com/(@[\w.-]+|channel/[\w-]+|c/[\w-]+|user/[\w-]+)/?$", url, re.I):
@@ -289,6 +271,124 @@ def _turkish_only(vids):
     if len(tr) >= 5:
         return tr
     return [v for v in vids if not _non_latin(v.get("title"))] or vids
+
+
+def youtube_search(text):
+    q = text if _is_turkish(text) else text + " türkçe"
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(2) as ex:
+        fv = ex.submit(_entries, f"ytsearch60:{q}", 60)
+        fs = ex.submit(_entries, f"ytsearch40:{q} shorts", 40)
+        try:
+            vids = _turkish_only(fv.result())
+        except Exception:
+            vids = []
+        try:
+            shorts = _turkish_only(_only_shorts(fs.result()))
+        except Exception:
+            shorts = []
+    shorts = _merge(shorts, [v for v in vids if _is_short(v)])
+    ids = {s["id"] for s in shorts}
+    return [v for v in vids if v["id"] not in ids], shorts
+
+
+def _norm(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", (s or "").lower().replace("ı", "i"))
+    return re.sub(r"[^a-z0-9]", "", "".join(c for c in s if not unicodedata.combining(c)))
+
+
+def kick_search(text):
+    """Kick'te yazılana en çok benzeyen kanalları bul (yazım hatasına dayanıklı)."""
+    import difflib
+    import math
+    q = _norm(text)
+    cands = {}
+
+    def add(slug, followers=0, live=False, name=""):
+        if not slug:
+            return
+        c = cands.setdefault(slug, {"slug": slug, "followers": 0, "live": False, "name": name or slug})
+        c["followers"] = max(c["followers"], int(followers or 0))
+        c["live"] = c["live"] or bool(live)
+
+    def walk(o):
+        if isinstance(o, dict):
+            slug = o.get("slug") if isinstance(o.get("slug"), str) else None
+            if slug and ("followers_count" in o or "followersCount" in o or "user" in o or "is_live" in o or "isLive" in o):
+                user = o.get("user") if isinstance(o.get("user"), dict) else {}
+                add(slug, o.get("followers_count") or o.get("followersCount") or user.get("followers_count") or 0,
+                    o.get("is_live") or o.get("isLive"), user.get("username") or o.get("username") or "")
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    from urllib.parse import quote
+    for u in (f"https://kick.com/api/search?searched_word={quote(text)}", f"https://kick.com/api/v1/search?searched_word={quote(text)}"):
+        try:
+            walk(_kick_get(u))
+            if cands:
+                break
+        except Exception as e:
+            _dbg("arama hata", u, repr(e)[:150])
+    # yazılan kelimenin kendisi de bir kanal olabilir
+    if q and q not in cands:
+        try:
+            ch = _kick_get(f"https://kick.com/api/v2/channels/{q}")
+            add(ch.get("slug") or q, ch.get("followers_count") or ch.get("followersCount") or 0, (ch.get("livestream") or {}) != {})
+        except Exception:
+            pass
+    out = []
+    for c in cands.values():
+        sim = max(difflib.SequenceMatcher(None, q, _norm(c["slug"])).ratio(), difflib.SequenceMatcher(None, q, _norm(c["name"])).ratio())
+        if q and (q in _norm(c["slug"]) or _norm(c["slug"]) in q):
+            sim = max(sim, 0.85)
+        c["sim"] = round(sim, 3)
+        c["score"] = sim * 3 + math.log10(1 + c["followers"]) * 0.35 + (0.3 if c["live"] else 0)
+        out.append(c)
+    out.sort(key=lambda c: c["score"], reverse=True)
+    _dbg(f"[arama {text}]", [(c["slug"], c["sim"], c["followers"]) for c in out[:6]])
+    return out
+
+
+def smart_search(text):
+    """Ne yazılırsa yazılsın en uygun sonucu ver: Kick kanalı (yazım hatasına dayanıklı) + YouTube."""
+    from concurrent.futures import ThreadPoolExecutor
+    one_word = " " not in text.strip()
+    with ThreadPoolExecutor(2) as ex:
+        fk = ex.submit(kick_search, text)
+        fy = ex.submit(youtube_search, text)
+        try:
+            kc = fk.result()
+        except Exception:
+            kc = []
+        yv, ys = fy.result()
+    res = {"slug": text, "source": "akilli", "title": text, "videos": [], "shorts": ys, "clips": [], "errors": [],
+           "suggest": [c["slug"] for c in kc[:6]]}
+    best = None
+    for c in kc[:4]:
+        if c["sim"] < (0.6 if one_word else 0.75):
+            continue
+        try:
+            r = list_channel(c["slug"])
+        except Exception:
+            continue
+        if r["videos"] or r["clips"]:
+            best = r
+            break
+    if best:
+        res.update(slug=best["slug"], source="kick", title=f"Kick: {best['slug']}", clips=best["clips"])
+        res["videos"] = best["videos"] + yv
+        res["kick"] = best["slug"]
+        res["suggest"] = [s for s in res["suggest"] if s != best["slug"]]
+    else:
+        res["videos"] = yv
+        res["title"] = f"YouTube: {text}"
+        res["source"] = "youtube-arama"
+    if not res["videos"] and not res["clips"] and not res["shorts"]:
+        raise RuntimeError(f'"{text}" için bir şey bulunamadı. Başka bir şekilde yazmayı dene.')
+    return res
 
 
 def _is_short(v):

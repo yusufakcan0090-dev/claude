@@ -43,7 +43,7 @@
     <div class="search-card glass">
       <div class="search-row">
         <div class="kick-badge" id="srcBadge">ARA</div>
-        <input id="channelInput" placeholder="Kick kanalı, YouTube/Twitch linki ya da YouTube'da ara (örn. rraenee · okan bayülgen kesit)" autocomplete="off" spellcheck="false">
+        <input id="channelInput" placeholder="Ne istersen yaz: yayıncı adı (yanlış yazsan da bulur), konu, link... (örn. raene · okan bayülgen · komik anlar)" autocomplete="off" spellcheck="false">
         <button id="searchBtn" class="btn primary glow"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Ara</button>
       </div>
       <div class="search-alt">
@@ -51,6 +51,7 @@
         <button id="localBtn" class="btn ghost"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Dosya ekle (video · müzik · resim)</button>
         <span id="recentChannel" class="recent"></span>
       </div>
+      <div class="explore" id="suggestRow" hidden></div>
       <div class="explore" id="exploreChips"></div>
     </div>
 

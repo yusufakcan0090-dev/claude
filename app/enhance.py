@@ -38,7 +38,17 @@ MODELS = {
     "anime": ("realesrgan-x4plus-anime", 4),     # çizgi film / anime
 }
 DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu": 25, "blok": True,
-           "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True}
+           "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True,
+           # yüz
+           "yuz": False, "yuz_guc": 70,
+           # gelişmiş netlik
+           "ai_guc": 100, "detay": 0, "yumusat": 0, "bant": False,
+           # renk ve görüntü
+           "sicaklik": 0, "golge": 0, "parlak_alan": 0, "gamma": 0, "vinyet": 0, "gren": 0, "oto_renk": False,
+           # çıktı ve ses
+           "kalite": "yuksek", "codec": "h264", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True}
+FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
+             "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
 CHUNK = 240  # bir seferde işlenen kare (disk dolmasın)
 
 
@@ -92,6 +102,67 @@ def ensure_tool(name, job=None, lo=0.0, hi=0.05):
     return p
 
 
+def _download(url, dest, job=None, lo=0.0, hi=0.05, label="indiriliyor"):
+    from curl_cffi import requests as creq
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(dest.suffix + ".part")
+    r = creq.get(url, stream=True, timeout=600, allow_redirects=True)
+    try:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length") or 0)
+        got = 0
+        with open(tmp, "wb") as f:
+            for chunk in r.iter_content():
+                f.write(chunk)
+                got += len(chunk)
+                if job and total:
+                    job.set(lo + (hi - lo) * got / total, f"{label} %{int(got * 100 / total)}")
+    finally:
+        r.close()
+    if tmp.stat().st_size < 10000:
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError("İndirme başarısız: " + url)
+    tmp.replace(dest)
+
+
+def _venv_python():
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe" and (exe.parent / "python.exe").exists():
+        return str(exe.parent / "python.exe")
+    return str(exe)
+
+
+def ensure_face(job=None, lo=0.0, hi=0.06):
+    """Yüz netleştirme için model ve paketler (ilk seferde ~350 MB)."""
+    d = AI / "yuz"
+    gfp, yun, ortdir = d / "GFPGANv1.4.onnx", d / "yunet.onnx", d / "ort"
+    py = _venv_python()
+    try:
+        import cv2  # noqa: F401
+    except Exception:
+        if job:
+            job.set(lo, "Yüz netleştirme paketleri kuruluyor (ilk seferlik)...")
+        r = run([py, "-m", "pip", "install", "opencv-python-headless", "--disable-pip-version-check", "-q"], timeout=900)
+        if r.returncode != 0:
+            raise RuntimeError("Yüz paketi kurulamadı: " + (r.stderr or "")[-200:])
+    if IS_WIN and not (ortdir / "onnxruntime").exists():
+        if job:
+            job.set(lo, "Ekran kartı (DirectML) desteği kuruluyor (ilk seferlik)...")
+        r = run([py, "-m", "pip", "install", "onnxruntime-directml", "--no-deps", "--target", str(ortdir), "--disable-pip-version-check", "-q"], timeout=900)
+        if r.returncode != 0:
+            shutil.rmtree(ortdir, ignore_errors=True)  # yoksa işlemciyle çalışır
+    if not yun.exists():
+        _download(FACE_URLS["yunet"], yun, job, lo, lo + (hi - lo) * .1, "Yüz bulucu indiriliyor")
+    if not gfp.exists():
+        _download(FACE_URLS["gfpgan"], gfp, job, lo + (hi - lo) * .1, hi, "Yüz netleştirme modeli indiriliyor (~340 MB)")
+    return py, gfp, yun, (ortdir if (ortdir / "onnxruntime").exists() else None)
+
+
+def face_cmd(target, strength):
+    py, gfp, yun, ortdir = ensure_face()
+    return [py, str(Path(__file__).with_name("face_worker.py")), str(target), str(int(strength)), str(gfp), str(yun), str(ortdir or "")]
+
+
 _AI_OK = None
 
 
@@ -117,6 +188,17 @@ def ai_works(job=None):
 
 
 # ---------------------------------------------------------------- filtreler
+def out_size(w, h, o):
+    """Çıkış boyutu: biçim (Reels 9:16 vb.) seçildiyse o şekilde, yoksa videonun kendi şekli."""
+    b = o.get("bicim") or "kaynak"
+    if b == "kaynak":
+        return target_size(w, h, o.get("hedef", "1080"))
+    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160}.get(str(o.get("hedef")), min(w, h) if o.get("hedef") == "kaynak" else 1080)
+    rw, rh = {"9:16k": (9, 16), "9:16b": (9, 16), "4:5k": (4, 5), "4:5b": (4, 5), "1:1k": (1, 1), "1:1b": (1, 1)}.get(b, (9, 16))
+    W, H = short, round(short * rh / rw)
+    return W - W % 2, H - H % 2
+
+
 def target_size(w, h, hedef):
     if hedef == "kaynak":
         return w - w % 2, h - h % 2
@@ -142,16 +224,61 @@ def pre_filters(o):
 
 
 def post_filters(o, W, H):
-    f = [f"scale={W}:{H}:flags=lanczos"]
+    b = o.get("bicim") or "kaynak"
+    if b.endswith("k"):  # ekranı doldur (kenarlardan kırp)
+        f = [f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H},setsar=1"]
+    elif b.endswith("b"):  # bulanık arka plan + video ortada
+        f = [f"split[kqa][kqb];[kqa]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},boxblur=24:3,eq=brightness=-0.06[kqbg];"
+             f"[kqb]scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos[kqfg];[kqbg][kqfg]overlay=(W-w)/2:(H-h)/2,setsar=1"]
+    else:
+        f = [f"scale={W}:{H}:flags=lanczos"]
+    y = int(o.get("yumusat") or 0)
+    if y > 0:  # kenar yumuşatma (tırtıkları azaltır, kenarları korur)
+        f.append(f"smartblur=lr={0.6 + y / 100 * 2.4:.2f}:ls={0.15 + y / 100 * 0.6:.2f}:lt=-2")
+    if o.get("bant"):
+        f.append("deband=1thr=0.02:2thr=0.02:3thr=0.02:range=16:blur=1")
+    dt = int(o.get("detay") or 0)
+    if dt > 0:  # detay / doku güçlendirme (yerel kontrast)
+        f.append(f"unsharp=13:13:{dt / 100 * 0.9:.2f}:13:13:0")
     k = int(o.get("keskin") or 0)
     if k > 0:
         f.append(f"cas=strength={min(1.0, k / 100 * 0.9):.2f}")
         if k > 60:  # çizgileri daha da belirginleştir
             f.append(f"unsharp=5:5:{(k - 60) / 40 * 0.8:.2f}:5:5:0")
-    b, c, s = float(o.get("parlak") or 0), float(o.get("kontrast") or 0), float(o.get("doygun") or 0)
-    if b or c or s:
-        f.append(f"eq=brightness={b / 200:.3f}:contrast={1 + c / 100:.3f}:saturation={max(0, 1 + s / 100):.3f}")
+    if o.get("oto_renk"):
+        f.append("normalize=blackpt=black:whitept=white:smoothing=40:independence=0.5")
+    sc = int(o.get("sicaklik") or 0)
+    if sc:
+        f.append(f"colortemperature=temperature={6500 - sc * 30:.0f}:mix=1:pl=1")
+    b, c, s, g = float(o.get("parlak") or 0), float(o.get("kontrast") or 0), float(o.get("doygun") or 0), float(o.get("gamma") or 0)
+    if b or c or s or g:
+        f.append(f"eq=brightness={b / 200:.3f}:contrast={1 + c / 100:.3f}:saturation={max(0, 1 + s / 100):.3f}:gamma={max(0.3, 1 + g / 100):.3f}")
+    gs, hs = float(o.get("golge") or 0), float(o.get("parlak_alan") or 0)
+    if gs or hs:
+        f.append(f"curves=all='0/0 0.25/{min(0.5, max(0.02, 0.25 + gs / 100 * 0.15)):.3f} 0.75/{min(0.98, max(0.5, 0.75 + hs / 100 * 0.15)):.3f} 1/1'")
+    v = int(o.get("vinyet") or 0)
+    if v > 0:
+        f.append(f"vignette=angle={0.15 + v / 100 * 0.6:.3f}")
+    gr = int(o.get("gren") or 0)
+    if gr > 0:
+        f.append(f"noise=alls={max(1, int(gr / 100 * 22))}:allf=t")
     return f
+
+
+def audio_filters(o):
+    a = []
+    if o.get("ses_temizle"):
+        a += ["highpass=f=70", "afftdn=nr=14:nf=-35"]
+    if o.get("ses_dengele"):
+        a.append("loudnorm=I=-14:TP=-1.5:LRA=11")
+    return ",".join(a)
+
+
+def encoder_args(o):
+    q = {"yuksek": 15, "normal": 19, "kucuk": 24}.get(o.get("kalite") or "yuksek", 15)
+    if o.get("codec") == "h265":
+        return ["-c:v", "libx265", "-preset", "medium", "-crf", str(q + 2), "-tag:v", "hvc1", "-pix_fmt", "yuv420p"]
+    return ["-c:v", "libx264", "-preset", "medium", "-crf", str(q), "-pix_fmt", "yuv420p"]
 
 
 def _vf(parts):
@@ -162,10 +289,11 @@ def _vf(parts):
 def preview(path, t, opts):
     o = settings(opts)
     info = probe(path)
-    W, H = target_size(info["width"], info["height"], o["hedef"])
+    W, H = out_size(info["width"], info["height"], o)
     key = hashlib.md5(json.dumps([str(path), round(float(t), 2), o, W, H], sort_keys=True).encode()).hexdigest()[:16]
     d = CACHE / "kalite" / key
     before, after = d / "once.jpg", d / "sonra.jpg"
+    MW, MH = target_size(info["width"], info["height"], o["hedef"])
     if after.exists():
         return key, W, H, bool(o["model"] != "klasik" and _AI_OK)
     d.mkdir(parents=True, exist_ok=True)
@@ -173,7 +301,7 @@ def preview(path, t, opts):
     r = run([FFMPEG, "-y", "-ss", f"{float(t):.3f}", "-i", str(path), "-frames:v", "1", str(raw)])
     if not raw.exists():
         raise RuntimeError("Kare alınamadı: " + (r.stderr or "")[-200:])
-    run([FFMPEG, "-y", "-i", str(raw), "-vf", f"scale={W}:{H}:flags=bicubic", "-q:v", "2", str(before)])
+    run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(post_filters({"bicim": o.get("bicim")}, W, H)).replace("lanczos", "bicubic"), "-q:v", "2", str(before)])
     pre = d / "on.png"
     run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(pre_filters(o)), str(pre)])
     src = pre
@@ -187,6 +315,21 @@ def preview(path, t, opts):
         run([str(exe), "-i", str(pre), "-o", str(up), "-n", name, "-s", str(sc)], cwd=str(exe.parent), timeout=300)
         if up.exists():
             src, used_ai = up, True
+    if o.get("yuz"):
+        fc = d / "yuz.png"
+        shutil.copy(src, fc)
+        r = run(face_cmd(fc, o.get("yuz_guc", 70)), timeout=600)
+        if r.returncode != 0:
+            raise RuntimeError("Yüz netleştirme çalışmadı: " + (r.stderr or "")[-250:])
+        src = fc
+    g = int(o.get("ai_guc", 100))
+    if used_ai and g < 100:  # yapay zekâ gücü: orijinalle karıştır
+        mix = d / "karisim.png"
+        run([FFMPEG, "-y", "-i", str(src), "-i", str(pre), "-filter_complex",
+             f"[0]scale={MW}:{MH}:flags=lanczos,setsar=1[a];[1]scale={MW}:{MH}:flags=lanczos,setsar=1[b];[b][a]blend=all_mode=normal:all_opacity={g / 100:.2f}",
+             str(mix)])
+        if mix.exists():
+            src = mix
     run([FFMPEG, "-y", "-i", str(src), "-vf", _vf(post_filters(o, W, H)), "-q:v", "2", str(after)])
     if not after.exists():
         raise RuntimeError("Önizleme oluşturulamadı")
@@ -226,26 +369,51 @@ def _ff(cmd, job):
     return r
 
 
+def _run_lines(cmd, job, lo, hi, msg):
+    """'i/toplam' satırı basan işçiyi çalıştırıp ilerleme göster."""
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW, text=True, encoding="utf-8", errors="replace")
+    err = []
+    th = threading.Thread(target=lambda: err.append(p.stderr.read()), daemon=True)
+    th.start()
+    for line in p.stdout:
+        if job.cancelled:
+            p.kill()
+            raise RuntimeError("İptal edildi")
+        a, _, b = line.strip().partition("/")
+        if a.isdigit() and b.isdigit():
+            job.set(lo + (hi - lo) * int(a) / max(1, int(b)), msg)
+    p.wait()
+    th.join(2)
+    return p.returncode, "".join(err)
+
+
 def process(job, path, opts):
     o = settings(opts)
     path = Path(path)
     info = probe(path)
-    dur, sfps = float(info["duration"] or 0), float(info["fps"] or 30)
-    if dur <= 0:
+    full, sfps = float(info["duration"] or 0), float(info["fps"] or 30)
+    if full <= 0:
         raise RuntimeError("Video süresi okunamadı")
-    W, H = target_size(info["width"], info["height"], o["hedef"])
+    t0 = max(0.0, min(float(o.get("bas") or 0), full - 0.2))
+    t1 = float(o.get("bit") or 0)
+    t1 = full if t1 <= t0 else min(t1, full)
+    dur = t1 - t0
+    W, H = out_size(info["width"], info["height"], o)
     tfps = sfps if o["fps"] == "kaynak" else float(o["fps"])
     mult = max(1.0, tfps / sfps)
     use_ai = o["model"] != "klasik"
     if use_ai and not ai_works(job):
         use_ai = False
-        job.set(0.05, "Ekran kartında yapay zekâ çalışmadı, klasik mod kullanılıyor...")
+        job.set(0.04, "Ekran kartında yapay zekâ çalışmadı, klasik mod kullanılıyor...")
     use_rife = mult > 1.01 and o.get("fps_ai", True)
     if use_rife:
         try:
-            ensure_tool("rife", job, 0.05, 0.08)
+            ensure_tool("rife", job, 0.04, 0.06)
         except Exception:
             use_rife = False
+    use_face = bool(o.get("yuz"))
+    if use_face:
+        ensure_face(job, 0.06, 0.09)
     folder = Path(load_settings().get("cikti_klasoru") or (Path.home() / "Videos"))
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{safe_name(path.stem, 60)}_HD.mp4"
@@ -256,20 +424,36 @@ def process(job, path, opts):
     work = CACHE / "kalite_is" / job.id
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
-    enc = ["-c:v", "libx264", "-preset", "medium", "-crf", "16", "-pix_fmt", "yuv420p"]
+    enc = encoder_args(o)
+    af = audio_filters(o)
+    aud = (["-c:a", "aac", "-b:a", "192k"] + (["-af", af] if af else [])) if o.get("ses", True) else ["-an"]
+    MW, MH = target_size(info["width"], info["height"], o["hedef"])  # ara adımlar videonun kendi şeklinde
+    # kalan süre: işin mesajına eklenir
+    t_start = time.time()
+    _set = job.set
+
+    def set_eta(p=None, msg=None):
+        if p is not None and msg and p > 0.04:
+            el = time.time() - t_start
+            rem = el * (1 - p) / max(p, 1e-3)
+            msg = f"{msg} · kalan ~{int(rem // 60)} dk {int(rem % 60):02d} sn" if rem >= 60 else f"{msg} · kalan ~{int(rem)} sn"
+        _set(p, msg)
+    job.set = set_eta
     try:
-        # yapay zekâ ve RIFE yoksa: tek geçişte bitir (hızlı)
-        if not use_ai and not use_rife:
+        # yapay zekâ, yüz ve RIFE yoksa: tek geçişte bitir (hızlı)
+        if not use_ai and not use_rife and not use_face:
             vf = pre_filters(o) + post_filters(o, W, H)
             if mult > 1.01:
                 vf.append(f"minterpolate=fps={tfps:g}:mi_mode=mci:mc_mode=aobmc:vsbmc=1")
             from core import run_ffmpeg_progress
-            cmd = [FFMPEG, "-y", "-i", str(path), "-vf", _vf(vf), *enc, "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
+            cmd = [FFMPEG, "-y", "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}", "-i", str(path), "-map", "0:v:0", "-map", "0:a:0?",
+                   "-vf", _vf(vf), *enc, *aud, "-movflags", "+faststart", str(out)]
             code, err = run_ffmpeg_progress(cmd, dur, lambda p: job.set(0.08 + 0.9 * p, f"Kalite artırılıyor (klasik) %{int(p * 100)}"), lambda: job.cancelled)
             if code != 0:
                 raise RuntimeError("Kalite artırma başarısız: " + (err or "")[-250:])
             job.set(1, "Hazır! " + out.name)
             return {"path": str(out), "name": out.name}
+        f0 = int(round(t0 * sfps))
         total_frames = max(1, int(dur * sfps))
         chunks = list(range(0, total_frames, CHUNK))
         segs = []
@@ -277,38 +461,47 @@ def process(job, path, opts):
         if o["model"] == "hizli":
             sc = int(o.get("olcek") or 2)
         rexe, fexe = tool_path("realesrgan"), tool_path("rife")
+        g = int(o.get("ai_guc", 100))
         for ci, a in enumerate(chunks):
             n = min(CHUNK, total_frames - a)
-            lo, hi = 0.08 + 0.88 * ci / len(chunks), 0.08 + 0.88 * (ci + 1) / len(chunks)
+            lo, hi = 0.09 + 0.87 * ci / len(chunks), 0.09 + 0.87 * (ci + 1) / len(chunks)
+            span = lambda x, y: (lo + (hi - lo) * x, lo + (hi - lo) * y)  # noqa: E731
             label = f"Parça {ci + 1}/{len(chunks)}"
             d_in, d_up, d_mid, d_fps = (work / x for x in ("in", "up", "mid", "fps"))
             for d in (d_in, d_up, d_mid, d_fps):
                 shutil.rmtree(d, ignore_errors=True)
                 d.mkdir()
             job.set(lo, f"{label}: kareler çıkarılıyor...")
-            _ff([FFMPEG, "-y", "-ss", f"{a / sfps:.4f}", "-i", str(path), "-frames:v", str(n), "-vf", _vf(pre_filters(o)),
+            _ff([FFMPEG, "-y", "-ss", f"{(f0 + a) / sfps:.4f}", "-i", str(path), "-frames:v", str(n), "-vf", _vf(pre_filters(o)),
                  "-q:v", "2", "-start_number", "1", str(d_in / "%08d.jpg")], job)
             n = _count(d_in) or n
             cur = d_in
             if use_ai:
                 code, err = _run_watch([str(rexe), "-i", str(d_in), "-o", str(d_up), "-n", model, "-s", str(sc), "-f", "jpg"],
-                                       job, d_up, n, lo + (hi - lo) * .05, lo + (hi - lo) * (.6 if use_rife else .9),
-                                       f"{label}: yapay zekâ netleştiriyor...", cwd=str(rexe.parent))
+                                       job, d_up, n, *span(.05, .5), f"{label}: yapay zekâ netleştiriyor...", cwd=str(rexe.parent))
                 if code != 0 or _count(d_up) < n:
                     raise RuntimeError("Yapay zekâ netleştirme başarısız: " + err[-250:])
                 cur = d_up
+            if use_face:
+                code, err = _run_lines(face_cmd(cur, o.get("yuz_guc", 70)), job, *span(.5, .7), f"{label}: yüzler netleştiriliyor...")
+                if code != 0:
+                    raise RuntimeError("Yüz netleştirme başarısız: " + err[-250:])
+            if use_ai and (g < 100 or use_rife):
+                if g < 100:
+                    _ff([FFMPEG, "-y", "-i", str(cur / "%08d.jpg"), "-i", str(d_in / "%08d.jpg"), "-filter_complex",
+                         f"[0]scale={MW}:{MH}:flags=lanczos,setsar=1[a];[1]scale={MW}:{MH}:flags=lanczos,setsar=1[b];[b][a]blend=all_mode=normal:all_opacity={g / 100:.2f}",
+                         "-q:v", "2", str(d_mid / "%08d.jpg")], job)
+                else:
+                    _ff([FFMPEG, "-y", "-i", str(cur / "%08d.jpg"), "-vf", f"scale={MW}:{MH}:flags=lanczos", "-q:v", "2", str(d_mid / "%08d.jpg")], job)
+                cur = d_mid
+            rate = sfps
             if use_rife:
-                # RIFE'ı hedef boyutta çalıştır (4K karelerde çok yavaşlamasın)
-                _ff([FFMPEG, "-y", "-i", str(cur / "%08d.jpg"), "-vf", f"scale={W}:{H}:flags=lanczos", "-q:v", "2", str(d_mid / "%08d.jpg")], job)
                 want = max(2, int(round(n * mult)))
-                code, err = _run_watch([str(fexe), "-i", str(d_mid), "-o", str(d_fps), "-m", "rife-v4.6", "-n", str(want), "-f", "%08d.jpg"],
-                                       job, d_fps, want, lo + (hi - lo) * .6, lo + (hi - lo) * .9,
-                                       f"{label}: ara kareler üretiliyor ({tfps:g} FPS)...", cwd=str(fexe.parent))
+                code, err = _run_watch([str(fexe), "-i", str(cur), "-o", str(d_fps), "-m", "rife-v4.6", "-n", str(want), "-f", "%08d.jpg"],
+                                       job, d_fps, want, *span(.7, .9), f"{label}: ara kareler üretiliyor ({tfps:g} FPS)...", cwd=str(fexe.parent))
                 if code != 0 or _count(d_fps) < 2:
                     raise RuntimeError("Akıcılaştırma (RIFE) başarısız: " + err[-250:])
                 cur, rate = d_fps, sfps * (_count(d_fps) / n)
-            else:
-                rate = sfps
             seg = work / f"seg{ci:04d}.mp4"
             job.set(lo + (hi - lo) * .92, f"{label}: video yazılıyor...")
             _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / "%08d.jpg"), "-vf", _vf(post_filters(o, W, H)),
@@ -321,12 +514,13 @@ def process(job, path, opts):
         lst = work / "liste.txt"
         lst.write_text("".join(f"file '{s.as_posix()}'\n" for s in segs), "utf-8")
         job.set(0.97, "Parçalar birleştiriliyor...")
-        _ff([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(path), "-map", "0:v", "-map", "1:a?",
-             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out)], job)
+        _ff([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}", "-i", str(path),
+             "-map", "0:v", "-map", "1:a?", "-c:v", "copy", *aud, "-shortest", "-movflags", "+faststart", str(out)], job)
         job.set(1, "Hazır! " + out.name)
         return {"path": str(out), "name": out.name}
     except Exception:
         out.unlink(missing_ok=True)
         raise
     finally:
+        job.set = _set
         shutil.rmtree(work, ignore_errors=True)

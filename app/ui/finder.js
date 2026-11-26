@@ -43,6 +43,10 @@
       F.slug = r.slug; F.videos = r.videos; F.shorts = r.shorts || []; F.clips = r.clips; F.selClips.clear();
       KS.state.settings.son_kanal = r.slug;
       F.renderVideos(); F.renderShorts(); F.renderClips(); F.renderRecent();
+      const sg = $('#suggestRow'), sug = (r.suggest || []).filter(Boolean);
+      sg.hidden = !sug.length && !r.kick;
+      sg.innerHTML = (r.kick ? `<span class="ex-l">Kick'te bulunan: <b style="color:#53fc18">${KS.esc(r.kick)}</b></span>` : '') + (sug.length ? `<span class="ex-l">${r.kick ? ' · ' : ''}Benzer Kick kanalları:</span>` + sug.map(s => `<button data-sg="${KS.esc(s)}">🟢 ${KS.esc(s)}</button>`).join('') : '');
+      $$('[data-sg]', sg).forEach(b => b.onclick = () => { input.value = b.dataset.sg; input.dispatchEvent(new Event('input')); F.search(); });
       if (!r.videos.length && r.clips.length) F.tab('clips');
       if (r.errors.length) KS.toast(KS.esc(r.errors.join(' · ')), 'err', [], 7000);
     } catch (e) {

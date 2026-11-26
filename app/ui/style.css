@@ -1035,3 +1035,21 @@ html[data-tema=acik] :is(canvas,video,img,.pj-thumb,.proj-prev,.sw,.ae-color,.la
 .kq-sl input{width:100%}
 .kq-chk{font-size:12.5px}
 .kq-go{margin-top:8px;height:44px;font-size:15px}
+
+.kq-side{padding:0;gap:0}
+.kq-scroll{flex:1;overflow:auto;padding:6px 14px 10px;display:flex;flex-direction:column;gap:6px}
+.kq-foot{padding:10px 14px;border-top:1px solid #2e2e2e;display:flex;flex-direction:column;gap:6px}
+.kq-foot .kq-go{margin:0}
+.kq-g{border-bottom:1px solid #2c2c2c;padding:4px 0}
+.kq-g>summary{cursor:pointer;list-style:none;font-size:13px;font-weight:600;color:#e2e2e2;padding:7px 0}
+.kq-g>summary::before{content:"▸  ";color:#888}.kq-g[open]>summary::before{content:"▾  "}
+.kq-gb{display:flex;flex-direction:column;gap:8px;padding:2px 0 10px}
+.kq-range>div{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:8px;font-size:12.5px;color:#cfcfcf;margin-bottom:4px}
+.kq-range b{color:#3c95ec;font-weight:500}
+
+.kq-side .btn{flex:none}
+.kq-foot .kq-go{min-height:44px;height:44px}
+.kq-foot .btn.sm{min-height:30px}
+.kq-status{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#cfcfcf}
+.kq-status .progress{height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden}
+.kq-status .progress i{display:block;height:100%;background:#2d8ceb;transition:width .3s}
