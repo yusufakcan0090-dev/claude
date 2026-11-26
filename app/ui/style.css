@@ -953,3 +953,27 @@ body.on-editor{background:#0e0e0e}
 .st-more .fix-list{margin:10px 0}
 .st-sys{display:flex;gap:16px;font-size:12px;padding:10px 0 4px;border-top:1px solid #2c2c2c}
 .st-sys .ok{color:#4aa44c}.st-sys .no{color:#e8920d}
+
+.explore{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
+.explore .ex-l{font-size:12px;color:var(--muted);margin-right:2px}
+.explore button{padding:5px 11px;border-radius:999px;border:1px solid #333;background:#262626;color:#cfcfcf;font-size:12px}
+.explore button:hover{border-color:#2d8ceb;color:#fff}
+.explore button.on{background:#2d8ceb;border-color:#2d8ceb;color:#fff}
+
+/* altyazı stil düzenleyici */
+.cs{display:flex;flex-direction:column;gap:8px;padding:8px 10px 12px}
+.cs-h{font-size:11px;color:#8a8a8a;text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.cs .preset-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+.cs .preset{border-radius:6px;background:#1b1b1b;border:1px solid #333;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;color:#aaa;font-size:11px}
+.cs .preset.active{border-color:#2d8ceb;background:#2d8ceb22}
+.cs .cap-preset{font-size:15px;white-space:nowrap}
+.cs .font-opt{font-size:15px;padding:7px 4px;border-radius:6px;background:#1b1b1b;border-color:#333}
+.cs .font-opt.active{border-color:#2d8ceb;background:#2d8ceb22}
+.cs .sw{width:24px;height:24px;border-radius:5px}
+.cs-sl{display:grid;grid-template-columns:96px 1fr 38px;gap:8px;align-items:center;font-size:12px;color:#bdbdbd}
+.cs-sl b{font-weight:400;color:#3c95ec;text-align:right}
+.cs-pos{display:flex;gap:4px}
+.cs-pos button{flex:1;padding:5px 0;border-radius:5px;background:#1b1b1b;border:1px solid #333;color:#bbb;font-size:12px}
+.cs-pos button.on{background:#2d8ceb;border-color:#2d8ceb;color:#fff}
+.cs-chk{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cs-foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}

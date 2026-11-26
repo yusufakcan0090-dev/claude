@@ -93,7 +93,10 @@ def list_source(text):
         return list_channel(text)
     if not is_url:
         if " " not in text:
-            return list_channel(text)  # tek kelime: Kick kanal adı
+            try:
+                return list_channel(text)  # tek kelime: önce Kick kanal adı
+            except Exception:
+                pass  # böyle bir kanal yoksa YouTube'da ara
         vids = _entries(f"ytsearch40:{text}", 40)
         return {"slug": text, "source": "youtube-arama", "title": f"YouTube: {text}", "videos": vids, "clips": [], "errors": []}
     url = text

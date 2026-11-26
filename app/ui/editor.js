@@ -506,7 +506,7 @@
   /* =========================================================== seçim & paneller */
   E.select = sel => {
     E.sel = sel; E.selKey = null;
-    if (sel && sel.type === 'cap') E.rt('style'); else if (sel) E.lt('controls');
+    if (sel) E.lt('controls');
     E.renderControls(); E.renderTlLayers(); E.drawTimeline(); E.drawGizmo(); E.renderProject(); E.renderInfo();
   };
   E.lt = name => { $$('#leftTabs .ae-tab').forEach(b => b.classList.toggle('active', b.dataset.lt === name)); $$('.lt-panel').forEach(p => p.classList.toggle('active', p.id === 'lt-' + name)); };
@@ -659,7 +659,8 @@
     $('#ecTab').firstChild.textContent = 'Efekt Kontrolleri' + (lname ? ': ' + (lname.length > 18 ? lname.slice(0, 18) + '…' : lname) : '');
     if (!s || (!o && s.type !== 'cap')) { el.innerHTML = '<div class="ec-empty">Katman seçilmedi. Zaman çizelgesinde ya da kompozisyonda bir katmana tıkla.</div>'; return; }
     let h = `<div class="ec2-head">${KS.esc(P().title)} • <b>&nbsp;${KS.esc(s.type === 'cap' ? 'Altyazı' : lname)}</b></div>`;
-    if (s.type === 'cap') h += '<div class="ec-empty">Altyazı görünümü sağdaki <b>Karakter</b> panelinde, metinler <b>Altyazı</b> panelinde.</div>';
+    const keep = E._ecFor === (s.type + s.id) ? el.scrollTop : 0; E._ecFor = s.type + s.id;
+    if (s.type === 'cap') { el.innerHTML = h + capStyleHtml(); bindCapStyle(el); el.scrollTop = keep; return; }
     else if (s.type === 'video') h += clipControls(o) + vfxHtml() + '<div class="ec-empty">Efekt eklemek için sağdaki Efektler ve Ön Ayarlar\'da bir efekte çift tıkla.</div>';
     else if (s.type === 'text') h += efx('Yazı', `<div class="erow full"><span></span><textarea class="ae-ta" id="ecText" spellcheck="false" rows="2">${KS.esc(o.text)}</textarea></div>` +
         erow('Yazı tipi', sel('o.font', o.font || 'poppins-black', Object.keys(FONT_CSS).map(f => [f, FONT_NAME[f]]))) +
@@ -682,7 +683,7 @@
     else if (s.type === 'music') h += efx('Ses', erow('Ses düzeyi', scrub('mvol', (o.vol ?? .25) * 100, Math.round((o.vol ?? .25) * 100) + '%')) + erow('Başlangıç', `<span style="color:#ccc">${E.tc(o.s || 0)}</span> <button class="ae-btn" data-mstart>Buraya al</button>`), '', false);
     else if (s.type === 'zoom') h += efx('Zoom Vurgusu', erow('Güç', scrub('zz', ((o.z || 1.25) - 1) * 100, Math.round(((o.z || 1.25) - 1) * 100) + '%')) + erow('Süre', scrub('zd', o.d || .8, (+o.d || .8).toFixed(2) + ' sn', .02)) + erow('Sarsıntı', chk('o.shake', 'Açık', o.shake)));
     el.innerHTML = h;
-    bindControls(el, s, o);
+    bindControls(el, s, o); el.scrollTop = keep;
   };
   E.renderControlsLive = () => { if (E._dragSnap || !E.sel || !TRANSFORMABLE.includes(E.sel.type)) return; if ($('#lt-controls').contains(document.activeElement)) return; E.renderControls(); };
   function clipControls(c) {
@@ -834,12 +835,13 @@
     const flagged = list.reduce((n, c) => n + c.words.filter(w => w.p < .55).length, 0), mw = p.style.maxWords || 3;
     const missing = clips().filter(c => c.has_audio && !(c.captions || []).length && c.subs_status !== 'calisiyor').length;
     el.innerHTML = `<div class="subs-tools">${flagged ? `<button class="chip warn" id="nextFlag">⚠ ${flagged} kontrol et</button>` : '<span class="chip" style="color:#4aa44c">✓ Temiz</span>'}
-        <button class="chip" id="capRedo">Yeniden çıkar</button>${missing ? `<button class="chip" id="capMiss">+ ${missing} klip için çıkar</button>` : ''}<button class="chip" id="capDict">Sözlük</button></div>
+        <button class="chip" id="capRedo">Yeniden çıkar</button>${missing ? `<button class="chip" id="capMiss">+ ${missing} klip için çıkar</button>` : ''}<button class="chip" id="capDict">Sözlük</button><button class="chip" id="capStyle">🎨 Görünüm</button></div>
       <div class="subs-tools"><span class="hint">Ekranda kelime:</span>${[1, 2, 3, 4].map(n => `<button class="chip ${n === mw ? 'on' : ''}" data-mw="${n}">${n}</button>`).join('')}</div>
       <div class="cap-list" id="capList">${list.map((c, i) => `<div class="cap" data-ci="${i}"><span class="ct">${KS.fmt(c.s, true)}</span><div class="tx" contenteditable="true" spellcheck="false">${c.cap.words.map(w => w.p < .55 ? `<span class="fl">${KS.esc(w.w)}</span>` : KS.esc(w.w)).join(' ')}</div><button class="x" title="Sil">${KS.icon.x}</button></div>`).join('')}</div>`;
     $('#capRedo').onclick = async () => { if (await KS.confirm('Altyazıyı baştan çıkar?', 'Yaptığın düzeltmeler silinecek.', 'Baştan çıkar', true)) E.transcribe(clips().map(c => c.id)); };
     const cm = $('#capMiss'); if (cm) cm.onclick = () => E.transcribe();
     $('#capDict').onclick = () => KS.go('settings');
+    $('#capStyle').onclick = () => E.select({ type: 'cap', id: 'cap' });
     const nf = $('#nextFlag'); if (nf) nf.onclick = E.nextFlag;
     $$('[data-mw]', el).forEach(b => b.onclick = async () => { await E.flush(); const before = snap(), r = await KS.api(`/api/project/${p.id}/rechunk`, { maxWords: +b.dataset.mw }); E.history.push(before); r.clips.forEach(x => { const c = clips().find(q => q.id === x.id); if (c) c.captions = x.captions; }); p.style.maxWords = +b.dataset.mw; E.renderSubs(); E.render(); E.drawTimeline(); E.updateUndo(); });
     $$('.cap', el).forEach(row => {
@@ -879,30 +881,45 @@
   });
   KS.hooks.jobDone.push(j => { if (j.kind === 'altyazi' && j.status === 'hata' && P()) { clips().forEach(c => { if (c.subs_status === 'calisiyor') c.subs_status = 'hata'; }); E.renderSubs(); } });
 
-  /* --- Karakter (AE Karakter paneli: altyazı görünümü) --- */
-  E.renderStyle = () => {
-    const st = P().style, el = $('#rt-style');
-    el.innerHTML = `${erow('Yazı tipi', sel('font', st.font, Object.keys(FONT_CSS).map(f => [f, FONT_NAME[f]])))}
-      ${erow('Dolgu rengi', colorBox(st.color, 'color'))}
-      ${erow('Kontur rengi', colorBox(st.outline, 'outline'))}
-      ${erow('Vurgu rengi', colorBox(st.hl, 'hl'))}
-      ${erow('<b style="font:700 12px Georgia">T</b>&nbsp; Boyut', scrub('csize', st.size, st.size + ' px'))}
-      ${erow('Kontur kalınlığı', scrub('cow', st.outlineW, st.outlineW + ' px', .2))}
-      ${erow('Dikey konum', scrub('cy', st.y, '%' + st.y.toFixed(1), .2))}
-      <div class="erow full"><span></span><span style="display:flex;flex-direction:column;gap:4px">${chk('upper', 'TT  Tümü büyük harf', st.upper)}${chk('karaoke', 'Konuşulan kelimeyi vurgula', st.karaoke)}${chk('anim', 'Pop animasyon', st.anim)}${chk('shadow', 'Gölge', st.shadow)}</span></div>
-      <div class="erow full"><span></span><span><button class="ae-btn" id="styleDefault">Varsayılan yap</button></span></div>
-      <div class="hint" style="padding:0 6px">Hazır altyazı stilleri: Efektler ve Ön Ayarlar → Animasyon Ön Ayarları. Konumu kompozisyonda sürükleyerek de değiştirebilirsin.</div>`;
-    $$('[data-selk]', el).forEach(s => { s.onkeydown = e => e.stopPropagation(); s.onchange = () => E.change(() => st[s.dataset.selk] = s.value); });
-    $$('input[type=color]', el).forEach(i => i.onchange = () => E.change(() => st[i.dataset.k] = i.value.toUpperCase()));
-    $$('[data-chk]', el).forEach(c => c.onchange = () => E.change(() => st[c.dataset.chk] = c.checked));
-    $$('[data-scrub]', el).forEach(sp => sp.onmousedown = e => {
-      e.preventDefault(); const x0 = e.clientX, v0 = +sp.dataset.v, step = +sp.dataset.step, k = sp.dataset.scrub; E.beginDrag();
-      const mv = ev => { const v = v0 + (ev.clientX - x0) * step * (ev.shiftKey ? 10 : 1); if (k === 'csize') st.size = Math.round(KS.clamp(v, 30, 220)); if (k === 'cy') st.y = KS.clamp(+v.toFixed(1), 3, 97); if (k === 'cow') st.outlineW = Math.round(KS.clamp(v, 0, 20)); E.render(); };
-      const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); E.endDrag(); E.renderStyle(); };
-      addEventListener('mousemove', mv); addEventListener('mouseup', up);
-    });
-    $('#styleDefault').onclick = () => KS.api('/api/defaults', { style: st }).then(() => KS.toast('Yeni kliplerde bu stil kullanılacak', 'ok'));
-  };
+  /* --- Altyazı stili: kolay düzenleyici (Efekt Kontrolleri'nde ve Karakter panelinde) --- */
+  const SW = ['#FFFFFF', '#FFE14D', '#FF3D8B', '#22D3EE', '#3DFFA2', '#FF3B3B', '#B388FF', '#FF8A00', '#000000'];
+  const swRow = (cur, key, list = SW) => `<div class="swatches">${list.map(c => `<button class="sw ${(cur || '').toUpperCase() === c ? 'active' : ''}" style="background:${c}" data-sk="${key}" data-c="${c}"></button>`).join('')}<label class="sw custom" title="Özel renk"><input type="color" value="${(cur || '#FFFFFF').slice(0, 7)}" data-sk="${key}"></label></div>`;
+  function capStyleHtml() {
+    const st = P().style, mw = st.maxWords || 3;
+    return `<div class="cs">
+      <div class="cs-h">Hazır stiller</div>
+      <div class="preset-grid">${CAP_PRESETS.map((pr, i) => { const s = pr.s, act = ['font', 'color', 'hl', 'outline'].every(k => (st[k] || '').toString().toUpperCase() === (s[k] || '').toString().toUpperCase()); return `<button class="preset ${act ? 'active' : ''}" data-cp="${i}"><div class="cap-preset" style="font-family:'${FONT_CSS[s.font]}';color:${s.color};-webkit-text-stroke:${Math.min(3, s.outlineW / 3)}px ${s.outline};paint-order:stroke fill">${s.upper ? 'BU ÇOK' : 'Bu çok'}&nbsp;<span style="color:${s.karaoke ? s.hl : s.color}">${s.upper ? 'İYİ' : 'iyi'}</span></div><span>${pr.name}</span></button>`; }).join('')}</div>
+      <div class="cs-h">Yazı tipi</div>
+      <div class="font-grid">${Object.keys(FONT_CSS).map(f => `<button class="font-opt ${st.font === f ? 'active' : ''}" data-font="${f}" style="font-family:'${FONT_CSS[f]}'">${FONT_NAME[f]}</button>`).join('')}</div>
+      <div class="cs-h">Boyut ve konum</div>
+      <div class="cs-sl"><span>Boyut</span><input type="range" min="30" max="200" value="${st.size}" data-rng="size"><b>${st.size}</b></div>
+      <div class="cs-sl"><span>Yükseklik</span><input type="range" min="3" max="97" step="0.5" value="${st.y}" data-rng="y"><b>%${Math.round(st.y)}</b></div>
+      <div class="cs-sl"><span>Kenar kalınlığı</span><input type="range" min="0" max="20" value="${st.outlineW}" data-rng="outlineW"><b>${st.outlineW}</b></div>
+      <div class="cs-pos">${[['Üst', 18], ['Orta', 50], ['Alt-orta', 68], ['Alt', 82]].map(([n, v]) => `<button data-ypos="${v}" class="${Math.abs(st.y - v) < 1 ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="cs-h">Yazı rengi</div>${swRow(st.color, 'color')}
+      <div class="cs-h">Konuşulan kelimenin rengi</div>${swRow(st.hl, 'hl')}
+      <div class="cs-h">Kenar rengi</div>${swRow(st.outline, 'outline', ['#000000', '#FFFFFF', '#5B2BFF', '#FF3D8B', '#1A1A2E', '#2D8CEB'])}
+      <div class="cs-h">Ekranda kaç kelime</div>
+      <div class="cs-pos">${[1, 2, 3, 4].map(n => `<button data-mw="${n}" class="${n === mw ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="cs-h">Seçenekler</div>
+      <div class="cs-chk">${chk('upper', 'BÜYÜK HARF', st.upper)}${chk('karaoke', 'Kelime vurgusu', st.karaoke)}${chk('anim', 'Pop animasyon', st.anim)}${chk('shadow', 'Gölge', st.shadow)}</div>
+      <div class="cs-foot"><button class="ae-btn" data-sdef>Bu stili varsayılan yap</button><button class="ae-btn" data-sedit>Altyazı metnini düzenle</button></div>
+      <div class="hint">İpucu: altyazıyı kompozisyonda tutup yukarı-aşağı sürükleyebilir, Ctrl + tekerlek ile büyütebilirsin.</div></div>`;
+  }
+  function bindCapStyle(el) {
+    const st = P().style, again = () => { E.renderStyle(); if (E.sel && E.sel.type === 'cap') E.renderControls(); };
+    $$('[data-cp]', el).forEach(b => b.onclick = () => { E.change(() => Object.assign(st, CAP_PRESETS[+b.dataset.cp].s)); again(); });
+    $$('[data-font]', el).forEach(b => b.onclick = () => { E.change(() => st.font = b.dataset.font); again(); });
+    $$('.sw[data-c]', el).forEach(b => b.onclick = () => { E.change(() => st[b.dataset.sk] = b.dataset.c); again(); });
+    $$('input[type=color][data-sk]', el).forEach(i => i.onchange = () => { E.change(() => st[i.dataset.sk] = i.value.toUpperCase()); again(); });
+    $$('[data-chk]', el).forEach(c => c.onchange = () => { E.change(() => st[c.dataset.chk] = c.checked); again(); });
+    $$('[data-ypos]', el).forEach(b => b.onclick = () => { E.change(() => st.y = +b.dataset.ypos); again(); });
+    $$('[data-rng]', el).forEach(r => { KS.paintRange(r); r.onkeydown = e => e.stopPropagation(); r.onpointerdown = E.beginDrag; r.oninput = () => { const k = r.dataset.rng; st[k] = +r.value; r.nextElementSibling.textContent = k === 'y' ? '%' + Math.round(+r.value) : r.value; E.render(); }; r.onchange = () => { E.endDrag(); again(); }; });
+    $$('[data-mw]', el).forEach(b => b.onclick = async () => { await E.flush(); const before = snap(), r = await KS.api(`/api/project/${P().id}/rechunk`, { maxWords: +b.dataset.mw }); E.history.push(before); r.clips.forEach(x => { const c = clips().find(q => q.id === x.id); if (c) c.captions = x.captions; }); st.maxWords = +b.dataset.mw; E.renderSubs(); E.render(); E.drawTimeline(); E.updateUndo(); again(); });
+    $$('[data-sdef]', el).forEach(b => b.onclick = () => KS.api('/api/defaults', { style: st }).then(() => KS.toast('Yeni kliplerde bu stil kullanılacak', 'ok')));
+    $$('[data-sedit]', el).forEach(b => b.onclick = () => E.rt('subs'));
+  }
+  E.renderStyle = () => { const el = $('#rt-style'), k = el.scrollTop; el.innerHTML = capStyleHtml(); bindCapStyle(el); el.scrollTop = k; };
 
   /* =========================================================== katman ekleme */
   const needClips = () => { if (!clips().length) { KS.toast('Önce video ekle (Ctrl+I)', 'err'); return true; } return false; };
@@ -1151,7 +1168,18 @@
     if (E.selKey) return E.ctx(e.clientX, e.clientY, [['Doğrusal', () => setEase('lin')], ['Easy Ease (F9)', () => setEase('ease')], ['Easy Ease Giriş (Shift+F9)', () => setEase('in')], ['Easy Ease Çıkış (Ctrl+Shift+F9)', () => setEase('out')], ['Hold (Ctrl+Alt+H)', () => setEase('hold')], null, ['Keyframe sil', E.deleteSel]]);
     if (r && !r.sub && r.obj) { E.select(r.type === 'video' ? { type: 'video', id: r.obj.id } : { type: r.type, id: r.id }); E.layerMenu(e.clientX, e.clientY); }
   });
+  // orta tuşla (tekerleğe basılı tutup) zaman çizelgesinde gezin
+  const midPan = e => {
+    if (e.button !== 1) return false;
+    e.preventDefault(); const sx = e.clientX, sy = e.clientY, l0 = scroll.scrollLeft, t0 = scroll.scrollTop; document.body.style.cursor = 'grabbing';
+    const mv = ev => { scroll.scrollLeft = l0 - (ev.clientX - sx); scroll.scrollTop = t0 - (ev.clientY - sy); };
+    const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); document.body.style.cursor = ''; };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up); return true;
+  };
+  $('#tlLayers').addEventListener('mousedown', e => { midPan(e); });
+  [tlc, $('#tlLayers')].forEach(el => el.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); }));
   tlc.addEventListener('mousedown', e => {
+    if (midPan(e)) return;
     if (!P() || e.button !== 0) return;
     const rc = tlc.getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top, rows = E.rows(), t = x2t(mx), near = tt => Math.abs(tx2(tt) - mx) < 6;
     if (my < scroll.scrollTop + RULER) {
@@ -1311,7 +1339,7 @@
     ['Dosya', [['Yeni Proje...', 'Ctrl+N', E.newProjectDialog], ['Projeleri Aç...', '', E.projectsDialog], null, ['İçe Aktar...', 'Ctrl+I', () => KS.addFile()], null, ['Kaydet', 'Ctrl+S', () => { $('#saveState').classList.add('dirty'); E.flush(); }], ['Dışa Aktar...', 'Ctrl+M', E.exportDialog]]],
     ['Düzenle', [['Geri Al', 'Ctrl+Z', E.undo], ['Yinele', 'Ctrl+Shift+Z', E.redo], null, ['Çoğalt', 'Ctrl+D', E.duplicate], ['Katmanı Böl', 'Ctrl+Shift+D', E.split], ['Sil', 'Delete', E.deleteSel], null, ['Seçimi kaldır', 'F2', () => E.select(null)]]],
     ['Kompozisyon', [['Kompozisyon Ayarları...', 'Ctrl+K', E.compSettings], null, ['Çalışma alanı başı', 'B', () => setWork('a')], ['Çalışma alanı sonu', 'N', () => setWork('b')], ['Çalışma alanını kaldır', '', () => E.change(() => delete P().work)], null, ['Oynat / Durdur', 'Boşluk', E.toggle]]],
-    ['Katman', [['Yeni → Yazı', 'Ctrl+Alt+Shift+T', () => E.addText()], ['Yeni → Düz Renk', 'Ctrl+Y', () => E.addShape('rect', null, true)], ['Yeni → Ayar Katmanı', 'Ctrl+Alt+Y', () => E.addFx('glow')], ['Yeni → Dikdörtgen', 'Q', () => E.addShape('rect')], ['Yeni → Elips', 'Q', () => E.addShape('ellipse')], null, ['Öne getir', 'Ctrl+Shift+]', () => E.layerOrder('front')], ['Bir öne', 'Ctrl+]', () => E.layerOrder('up')], ['Bir geri', 'Ctrl+[', () => E.layerOrder('down')], ['En geriye', 'Ctrl+Shift+[', () => E.layerOrder('back')], null, ['Keyframe: Easy Ease', 'F9', () => setEase('ease')], ['Keyframe: Hold', 'Ctrl+Alt+H', () => setEase('hold')]]],
+    ['Katman', [['Altyazı Stilini Düzenle', '', () => E.select({ type: 'cap', id: 'cap' })], null, ['Yeni → Yazı', 'Ctrl+Alt+Shift+T', () => E.addText()], ['Yeni → Düz Renk', 'Ctrl+Y', () => E.addShape('rect', null, true)], ['Yeni → Ayar Katmanı', 'Ctrl+Alt+Y', () => E.addFx('glow')], ['Yeni → Dikdörtgen', 'Q', () => E.addShape('rect')], ['Yeni → Elips', 'Q', () => E.addShape('ellipse')], null, ['Öne getir', 'Ctrl+Shift+]', () => E.layerOrder('front')], ['Bir öne', 'Ctrl+]', () => E.layerOrder('up')], ['Bir geri', 'Ctrl+[', () => E.layerOrder('down')], ['En geriye', 'Ctrl+Shift+[', () => E.layerOrder('back')], null, ['Keyframe: Easy Ease', 'F9', () => setEase('ease')], ['Keyframe: Hold', 'Ctrl+Alt+H', () => setEase('hold')]]],
     ['Efekt', [['Zoom vurgusu', '', () => E.addZoom(false)], ['Sarsıntılı zoom', '', () => E.addZoom(true)], null, ...Object.entries(KS.fx.LIST).slice(0, 14).map(([k, v]) => [v[0], '', () => E.addFx(k)]), null, ['Tüm efektler...', '', () => E.rt('fx')]]],
     ['Görünüm', [['Yakınlaştır', '.', () => E.zoomView(1.25)], ['Uzaklaştır', ',', () => E.zoomView(.8)], ['Sığdır', 'Shift+/', E.fit], null, ['Tam kalite', '', () => { $('#qualSel').value = '1'; $('#qualSel').onchange({ target: $('#qualSel') }); }], ['Yarım kalite', '', () => { $('#qualSel').value = '0.5'; $('#qualSel').onchange({ target: $('#qualSel') }); }], null, ['Paneli büyüt', '`', E.maxPanel]]],
     ['Pencere', [['Proje', '', () => E.lt('project')], ['Efekt Kontrolleri', 'F3', () => E.lt('controls')], ['Efektler ve Ön Ayarlar', '', () => E.rt('fx')], ['Altyazı', '', () => E.rt('subs')], ['Karakter', '', () => E.rt('style')]]],

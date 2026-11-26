@@ -87,6 +87,19 @@
     $('#dlB', md.el).onclick = async () => { md.close(); await new Promise(r => setTimeout(r, 260)); const r = await dl({ url, title: title || (type === 'clip' ? 'Kick klip' : 'Video') }); if (!r) return; r.jobs.forEach(KS.trackJob); KS.openJobs(); };
   };
 
+  /* keşfet: isim yazmadan YouTube'da kategori araması */
+  const EXPLORE = [
+    ['😂 Komik anlar', 'komik anlar türkçe'], ['🎙 Talk show kesitleri', 'talk show komik kesitler türkçe'], ['📺 Okan Bayülgen', 'okan bayülgen komik kesit'],
+    ['🤍 Beyaz Show', 'beyaz show komik anlar'], ['🎤 Stand-up', 'stand up türkçe komik'], ['🎧 Podcast kesitleri', 'podcast kesit türkçe'],
+    ['🎮 Yayıncı komik anlar', 'yayıncı komik anlar türkçe'], ['🟢 Kick komik anlar', 'kick yayıncı komik anlar'], ['🟣 Twitch komik anlar', 'twitch türkiye komik anlar'],
+    ['📖 Yayıncı anıları', 'yayıncı anısını anlatıyor'], ['👻 Korku hikayeleri', 'yaşanmış korku hikayesi anlatıyor'], ['🕹 Oyun komik anlar', 'oyun komik anlar türkçe'],
+    ['🎤 Sokak röportajı', 'sokak röportajı komik'], ['📹 Kamera şakası', 'kamera şakası türkçe'], ['😳 Tepki videoları', 'tepki videosu türkçe komik'],
+    ['⚽ Futbol komik anlar', 'futbol komik anlar türkçe'], ['🐶 Komik hayvanlar', 'komik hayvan videoları'], ['🎬 Efsane sahneler', 'türk dizi efsane sahneler'],
+    ['🗣 Ünlü röportajları', 'ünlü röportaj komik anlar'], ['😡 Sinir krizi anlar', 'yayıncı sinirlendi anlar'], ['🔥 Viral videolar', 'türkiye viral video'],
+  ];
+  $('#exploreChips').innerHTML = '<span class="ex-l">Keşfet:</span>' + EXPLORE.map(([n, q], i) => `<button data-ex="${i}">${n}</button>`).join('');
+  $$('#exploreChips [data-ex]').forEach(b => b.onclick = () => { const q = EXPLORE[+b.dataset.ex][1]; $$('#exploreChips button').forEach(x => x.classList.toggle('on', x === b)); input.value = q; input.dispatchEvent(new Event('input')); F.search(); });
+
   F.renderRecent = () => {
     const s = KS.state.settings.son_kanal;
     $('#recentChannel').innerHTML = s ? `Son: <button>${KS.esc(s)}</button>` : '';
