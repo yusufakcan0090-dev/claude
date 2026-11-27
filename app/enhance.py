@@ -451,6 +451,12 @@ def _vf(parts):
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
 
 
+def size_tag(W, H):
+    """Dosya adı için boyut etiketi: 8K, 4K, 2K, FullHD, HD."""
+    m = min(W, H)
+    return "8K" if m >= 4320 else "4K" if m >= 2160 else "2K" if m >= 1440 else "FullHD" if m >= 1080 else "HD" if m >= 720 else "iyilestirilmis"
+
+
 def is_image(path):
     return Path(path).suffix.lower() in IMAGE_EXT
 
@@ -535,10 +541,15 @@ def process_image(job, path, opts):
     ext = {"png": ".png", "jpg": ".jpg", "webp": ".webp"}.get(o.get("foto_bicim") or "png", ".png")
     folder = Path(load_settings().get("cikti_klasoru") or (Path.home() / "Pictures"))
     folder.mkdir(parents=True, exist_ok=True)
-    out = folder / f"{safe_name(path.stem, 60)}_HD{ext}"
+    try:
+        _i = probe(path)
+        W, H = out_size(_i["width"], _i["height"], o)
+    except Exception:
+        W = H = 0
+    out = folder / f"{safe_name(path.stem, 60)}_{size_tag(W, H)}{ext}"
     i = 2
     while out.exists():
-        out = folder / f"{safe_name(path.stem, 60)}_HD_{i}{ext}"
+        out = folder / f"{safe_name(path.stem, 60)}_{size_tag(W, H)}_{i}{ext}"
         i += 1
     job.extra = {"t0": time.time(), "parca": "Fotoğraf"}
     job.set(0.5, "Yapay zekâ fotoğrafı netleştiriyor...")
@@ -696,10 +707,10 @@ def process(job, path, opts, resume=None):
         ensure_face(job, 0.06, 0.09, o.get("yuz_model") or "gfpgan")
     folder = Path(load_settings().get("cikti_klasoru") or (Path.home() / "Videos"))
     folder.mkdir(parents=True, exist_ok=True)
-    out = folder / f"{safe_name(path.stem, 60)}_HD.mp4"
+    out = folder / f"{safe_name(path.stem, 60)}_{size_tag(W, H)}.mp4"
     i = 2
     while out.exists():
-        out = folder / f"{safe_name(path.stem, 60)}_HD_{i}.mp4"
+        out = folder / f"{safe_name(path.stem, 60)}_{size_tag(W, H)}_{i}.mp4"
         i += 1
     if not resume:
         shutil.rmtree(work, ignore_errors=True)
@@ -754,6 +765,8 @@ def process(job, path, opts, resume=None):
             vf = pre_filters(o) + post_filters(o, W, H)
             if mult > 1.01:
                 vf.append(f"minterpolate=fps={tfps:g}:mi_mode=mci:mc_mode=aobmc:vsbmc=1")
+            elif abs(tfps - sfps) > 0.01:  # FPS düşürme (ör. 30 -> 24)
+                vf.append(f"fps={tfps:g}")
             from core import run_ffmpeg_progress
             cmd = [FFMPEG, "-y", "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}", "-i", str(path), "-map", "0:v:0", "-map", "0:a:0?",
                    "-vf", _vf(vf), *enc, *aud, "-movflags", "+faststart", str(out)]

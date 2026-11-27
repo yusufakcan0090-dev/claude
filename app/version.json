@@ -1,7 +1,9 @@
 {
- "version": "1.12.8",
+ "version": "1.12.9",
  "date": "2026-11-27",
  "notes": [
+  "Düzeltme: FPS düşürme (ör. 30 → 24) artık çalışıyor",
+  "Çıkan dosya adı gerçek boyutu gösteriyor (_2K, _4K, _FullHD)",
   "Yeni logo: beyaz zemin, mavi-mor 'bek' yazısı",
   "Kalite: her bölümde '↺ Sıfırla' tuşu (Netlik, Renk, Yüz, FPS, Çıktı, Serbest ayar, Koruma...)",
   "Köşedeki 'işlem sürüyor' kutusu kalktı; süren işler sol menüde küçük halka olarak görünüyor, tıklayınca liste açılır",
