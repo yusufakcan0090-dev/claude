@@ -47,7 +47,7 @@ DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu
            # renk ve görüntü
            "sicaklik": 0, "golge": 0, "parlak_alan": 0, "gamma": 0, "vinyet": 0, "gren": 0, "oto_renk": False,
            # çıktı ve ses
-           "kalite": "yuksek", "codec": "h264", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True}
+           "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True}
 FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
 CHUNK = 240  # bir seferde işlenen kare (disk dolmasın)
@@ -133,6 +133,32 @@ def _venv_python():
     return str(exe)
 
 
+def ensure_ort(job=None, lo=0.0):
+    """Yapay zekâ modelleri için paketler: OpenCV + (Windows'ta) DirectML'li onnxruntime. Dönen: (python, ort_klasörü|None)."""
+    ortdir = AI / "yuz" / "ort"
+    py = _venv_python()
+    try:
+        import cv2  # noqa: F401
+    except Exception:
+        if job:
+            job.set(lo, "Yapay zekâ paketleri kuruluyor (ilk seferlik)...")
+        r = run([py, "-m", "pip", "install", "opencv-python-headless", "--disable-pip-version-check", "-q"], timeout=900)
+        if r.returncode != 0:
+            raise RuntimeError("Paket kurulamadı: " + (r.stderr or "")[-200:])
+    if IS_WIN and not (ortdir / "onnxruntime").exists():
+        if job:
+            job.set(lo, "Ekran kartı (DirectML) desteği kuruluyor (ilk seferlik)...")
+        r = run([py, "-m", "pip", "install", "onnxruntime-directml", "--no-deps", "--target", str(ortdir), "--disable-pip-version-check", "-q"], timeout=900)
+        if r.returncode != 0:
+            shutil.rmtree(ortdir, ignore_errors=True)  # yoksa işlemciyle çalışır
+    if not IS_WIN:
+        try:
+            import onnxruntime  # noqa: F401
+        except Exception:
+            run([py, "-m", "pip", "install", "onnxruntime", "--disable-pip-version-check", "-q"], timeout=900)
+    return py, (ortdir if (ortdir / "onnxruntime").exists() else None)
+
+
 def ensure_face(job=None, lo=0.0, hi=0.06):
     """Yüz netleştirme için model ve paketler (ilk seferde ~350 MB)."""
     d = AI / "yuz"
@@ -194,7 +220,8 @@ def out_size(w, h, o):
     b = o.get("bicim") or "kaynak"
     if b == "kaynak":
         return target_size(w, h, o.get("hedef", "1080"))
-    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160}.get(str(o.get("hedef")), min(w, h) if o.get("hedef") == "kaynak" else 1080)
+    hd = str(o.get("hedef"))
+    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160}.get(hd) or (min(w, h) * (int(hd[1]) if hd in ("x2", "x4") else 1) if hd in ("kaynak", "x2", "x4") else 1080)
     rw, rh = {"9:16k": (9, 16), "9:16b": (9, 16), "4:5k": (4, 5), "4:5b": (4, 5), "1:1k": (1, 1), "1:1b": (1, 1)}.get(b, (9, 16))
     W, H = short, round(short * rh / rw)
     return W - W % 2, H - H % 2
@@ -203,6 +230,9 @@ def out_size(w, h, o):
 def target_size(w, h, hedef):
     if hedef == "kaynak":
         return w - w % 2, h - h % 2
+    if str(hedef) in ("x2", "x4"):
+        k = int(str(hedef)[1])
+        return min(16384, w * k) // 2 * 2, min(16384, h * k) // 2 * 2
     short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160}.get(str(hedef), 1080)
     if w >= h:
         nh = short
@@ -287,22 +317,32 @@ def _vf(parts):
 
 
 # ---------------------------------------------------------------- önizleme (tek kare)
-def preview(path, t, opts):
+IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
+
+
+def is_image(path):
+    return Path(path).suffix.lower() in IMAGE_EXT
+
+
+def preview(path, t, opts, final=None):
+    """Tek kareyi işler. final verilirse (fotoğraf) sonucu tam kalitede oraya yazar."""
     o = settings(opts)
     info = probe(path)
     W, H = out_size(info["width"], info["height"], o)
-    key = hashlib.md5(json.dumps([str(path), round(float(t), 2), o, W, H], sort_keys=True).encode()).hexdigest()[:16]
+    key = hashlib.md5(json.dumps([str(path), round(float(t), 2), o, W, H, Path(path).stat().st_mtime], sort_keys=True).encode()).hexdigest()[:16]
     d = CACHE / "kalite" / key
     before, after = d / "once.jpg", d / "sonra.jpg"
     MW, MH = target_size(info["width"], info["height"], o["hedef"])
-    if after.exists():
+    if after.exists() and not final:
         return key, W, H, bool(o["model"] != "klasik" and _AI_OK)
     d.mkdir(parents=True, exist_ok=True)
     raw = d / "kare.png"
-    r = run([FFMPEG, "-y", "-ss", f"{float(t):.3f}", "-i", str(path), "-frames:v", "1", str(raw)])
+    seek = [] if is_image(path) else ["-ss", f"{float(t):.3f}"]
+    r = run([FFMPEG, "-y", *seek, "-i", str(path), "-frames:v", "1", str(raw)])
     if not raw.exists():
         raise RuntimeError("Kare alınamadı: " + (r.stderr or "")[-200:])
-    run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(post_filters({"bicim": o.get("bicim")}, W, H)).replace("lanczos", "bicubic"), "-q:v", "2", str(before)])
+    if not final:
+        run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(post_filters({"bicim": o.get("bicim")}, W, H)).replace("lanczos", "bicubic"), "-q:v", "2", str(before)])
     pre = d / "on.png"
     run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(pre_filters(o)), str(pre)])
     src = pre
@@ -331,10 +371,50 @@ def preview(path, t, opts):
              str(mix)])
         if mix.exists():
             src = mix
+    if final:
+        final = Path(final)
+        q = ["-q:v", "1", "-qmin", "1"] if final.suffix.lower() in (".jpg", ".jpeg") else (["-quality", "95"] if final.suffix.lower() == ".webp" else [])
+        gr = int(o.get("gren") or 0)
+        vf = post_filters(o, W, H)
+        if gr > 0:  # fotoğrafta zamana bağlı gren yerine sabit gren
+            vf = [x.replace(":allf=t", "") for x in vf]
+        run([FFMPEG, "-y", "-i", str(src), "-vf", _vf(vf), "-frames:v", "1", *q, str(final)])
+        if not final.exists():
+            raise RuntimeError("Fotoğraf kaydedilemedi")
+        return key, W, H, used_ai
     run([FFMPEG, "-y", "-i", str(src), "-vf", _vf(post_filters(o, W, H)), "-q:v", "2", str(after)])
     if not after.exists():
         raise RuntimeError("Önizleme oluşturulamadı")
     return key, W, H, used_ai
+
+
+def process_image(job, path, opts):
+    """Fotoğraf kalitesini artırır ve çıktı klasörüne kaydeder."""
+    o = settings(opts)
+    path = Path(path)
+    job.set(0.05, "Hazırlanıyor...")
+    if o["model"] != "klasik":
+        ensure_tool("realesrgan", job, 0.05, 0.3)
+        if not ai_works(job):
+            job.set(0.3, "Ekran kartında yapay zekâ çalışmadı, klasik mod kullanılıyor...")
+    if o.get("yuz"):
+        ensure_face(job, 0.3, 0.45)
+    ext = {"png": ".png", "jpg": ".jpg", "webp": ".webp"}.get(o.get("foto_bicim") or "png", ".png")
+    folder = Path(load_settings().get("cikti_klasoru") or (Path.home() / "Pictures"))
+    folder.mkdir(parents=True, exist_ok=True)
+    out = folder / f"{safe_name(path.stem, 60)}_HD{ext}"
+    i = 2
+    while out.exists():
+        out = folder / f"{safe_name(path.stem, 60)}_HD_{i}{ext}"
+        i += 1
+    job.extra = {"t0": time.time(), "parca": "Fotoğraf"}
+    job.set(0.5, "Yapay zekâ fotoğrafı netleştiriyor...")
+    job.extra["asama"] = job.message
+    _check(job)
+    preview(path, 0, opts, final=out)
+    _check(job)
+    job.set(1, "Hazır! " + out.name)
+    return {"path": str(out), "name": out.name, "image": True}
 
 
 # ---------------------------------------------------------------- tüm video

@@ -86,7 +86,9 @@
       <div class="big-choice">
         <button id="dlA" ${type === 'clip' ? 'style="opacity:.5"' : ''}><span class="e">✨</span><b>Anları Bul</b><small>Uzun yayınsa en iyi anları bulayım.</small></button>
         <button id="dlB"><span class="e">✂️</span><b>İndir ve Düzenle</b><small>Kısa bir klipse direkt indirip editöre koyayım.</small></button>
+        <button id="dlC" ${type === 'clip' ? 'style="opacity:.5"' : ''}><span class="e">🤖</span><b>Otomatik Edit</b><small>En iyi anları seçip hazır kısa videolar yapayım.</small></button>
       </div>`);
+    $('#dlC', md.el).onclick = () => { md.close(); setTimeout(() => KS.autoEdit({ url, title: title || 'Video' }), 280); };
     $('#dlA', md.el).onclick = () => { md.close(); setTimeout(() => KS.findMoments({ url, title: title || 'Video' }), 280); };
     $('#dlB', md.el).onclick = async () => { md.close(); await new Promise(r => setTimeout(r, 260)); const r = await dl({ url, title: title || (type === 'clip' ? 'Kick klip' : 'Video') }); if (!r) return; r.jobs.forEach(KS.trackJob); KS.openJobs(); };
   };
@@ -129,9 +131,11 @@
           <div class="card-title">${KS.esc(v.title)}</div>
           <div class="card-meta">${v.channel ? `<span>${KS.esc(v.channel)}</span>` : ''}${v.timestamp ? `<span>${KS.ago(v.timestamp)}</span>` : ''}${v.views ? `<span>👁 ${KS.num(v.views)}</span>` : ''}</div>
           <div class="card-actions">${isShort ? `<button class="btn primary glow sm" style="flex:1" data-dl="${i}">${KS.icon.down}İndir ve Düzenle</button>` : `<button class="btn primary glow sm" style="flex:1" data-an="${i}">${KS.icon.spark}Anları Bul</button>`}
+            ${!isShort ? `<button class="btn ghost sm" data-auto="${i}" title="Otomatik Edit: en iyi anları seçip hazır kısa videolar yap">🤖</button>` : ''}
             ${!isShort && v.duration && v.duration < 600 ? `<button class="btn ghost sm" data-dl="${i}" title="Kısa video: direkt indir ve düzenle">${KS.icon.down}</button>` : ''}</div>
         </div>
       </div>`).join('');
+    $$('[data-auto]', g).forEach(b => b.onclick = e => { e.stopPropagation(); const v = list[+b.dataset.auto]; KS.autoEdit({ url: v.url, title: v.title }); });
     $$('[data-an]', g).forEach(b => b.onclick = e => {
       e.stopPropagation();
       const v = list[+b.dataset.an];

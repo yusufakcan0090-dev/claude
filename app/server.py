@@ -177,7 +177,7 @@ def _after_add(p, clip=None):
             start_transcribe(p["id"], p["title"], [clip["id"]] if clip else None)
 
 
-def _place(job, path, title, kind, meta, target=None, trim=None):
+def _place(job, path, title, kind, meta, target=None, trim=None, fmt=None):
     """İndirilen videoyu yeni projeye ya da var olan projeye koy."""
     if target:
         try:
@@ -186,7 +186,7 @@ def _place(job, path, title, kind, meta, target=None, trim=None):
             return {"project": p["id"], "added": True}
         except Exception:
             pass  # proje silinmişse yeni proje aç
-    p = create_project(path, title, kind, meta, (load_settings().get("son_bicim") or "dikey"))
+    p = create_project(path, title, kind, meta, fmt or (load_settings().get("son_bicim") or "dikey"))
     if trim:
         c = p["clips"][0]
         c["in"], c["out"] = round(trim[0], 3), round(min(c["src_dur"], trim[1]), 3)
@@ -219,7 +219,7 @@ def job_analyze(job, src, title, local, mode="orta", count=20):
     return {"analysis": aid, "count": len(moments)}
 
 
-def job_moment(job, aid, m, target=None):
+def job_moment(job, aid, m, target=None, fmt=None):
     a = read_json(ANALIZ / f"{aid}.json")
     if not a:
         raise RuntimeError("Analiz bulunamadı")
@@ -227,16 +227,137 @@ def job_moment(job, aid, m, target=None):
     title = f"{a['title']} - {m.get('label', 'An')} {int(start // 60)}.{int(start % 60):02d}"
     if a["local"]:
         # bilgisayardaki video: kopyalamaya gerek yok, aralığı direkt kullan
-        r = _place(job, a["source"], title, "an", {"analysis": aid, "moment": m}, target, (start, end))
+        r = _place(job, a["source"], title, "an", {"analysis": aid, "moment": m}, target, (start, end), fmt)
     else:
         pad = 1.5
         path, _ = kick.download(job, a["source"], title, 0, 0.95, section=(max(0, start - pad), end + pad))
         real = model.media_info(path)["src_dur"]
         extra = max(0.0, real - (end - start))
         lead = min(pad, extra / 2) if extra > 0.5 else 0.0
-        r = _place(job, path, title, "an", {"analysis": aid, "moment": m}, target, (lead, lead + end - start))
+        r = _place(job, path, title, "an", {"analysis": aid, "moment": m}, target, (lead, lead + end - start), fmt)
     job.set(1, "Projeye eklendi" if r["added"] else "An hazır, editörde aç")
     return r
+
+
+class _Sub:
+    """Bir işin ilerlemesini başka bir işin lo..hi aralığına yansıtır."""
+    def __init__(self, job, lo, hi, prefix=""):
+        self.job, self.lo, self.hi, self.prefix = job, lo, hi, prefix
+
+    def set(self, progress=None, message=None):
+        self.job.set(None if progress is None else self.lo + (self.hi - self.lo) * max(0, min(1, progress)),
+                     None if message is None else self.prefix + message)
+
+    def __getattr__(self, k):
+        return getattr(self.job, k)
+
+
+def _words_text(words, every=6):
+    """Kelimeleri yapay zekâ için zaman damgalı metne çevirir: '[12.3] bir iki üç ...'"""
+    out, cur = [], []
+    for i, w in enumerate(words):
+        if i % every == 0:
+            if cur:
+                out.append(" ".join(cur))
+            cur = [f"[{w['s']:.1f}]"]
+        cur.append(w["w"])
+    if cur:
+        out.append(" ".join(cur))
+    return " ".join(out)
+
+
+def project_text(p, limit=6000):
+    t = " ".join(w["w"] for c in p.get("clips") or [] for w in (c.get("words") or []) if c.get("in", 0) - .2 <= w["s"] <= c.get("out", 1e9))
+    return t[:limit]
+
+
+def job_autoedit(job, src, local, title, count=3, fmt="dikey", subs=True):
+    """Otomatik edit: en iyi anları bul (ses + yapay zekâ), her biri için hazır bir kısa video projesi aç."""
+    import ai
+    count = max(1, min(10, int(count or 3)))
+    use_ai = ai.enabled()
+    cfg = analyzer.MODES["orta"]
+    path = src if local else kick.download(_Sub(job, 0, .3, "Video alınıyor: "), src, title, 0, 1, preview=True)[0]
+    base = 0.02 if local else 0.3
+    info = probe(path)
+    job.set(base, "Ses analiz ediliyor...")
+    db = analyzer.energy_curve(job, path, info["duration"], base, base + .15)
+    moments, curve = analyzer.find_moments(db, info["duration"], before=cfg["before"], after=cfg["after"],
+                                           max_count=max(count * 3, 8) if use_ai else count, max_len=cfg["max_len"], ext=cfg["ext"])
+    if not moments:
+        raise RuntimeError("Bu videoda belirgin bir an bulunamadı.")
+    aid = new_id("a")
+    write_json(ANALIZ / f"{aid}.json", {"id": aid, "title": title, "source": src, "local": local, "preview": path,
+                                        "mode": "orta", "duration": info["duration"], "moments": moments,
+                                        "curve": curve, "created": time.time()})
+    picks, words_of = [], {}
+    p0 = base + .15
+    if use_ai:
+        cands = []
+        for i, m in enumerate(moments):
+            if job.cancelled:
+                raise RuntimeError("İptal edildi")
+            lo, hi = p0 + .35 * i / len(moments), p0 + .35 * (i + 1) / len(moments)
+            job.set(lo, f"Konuşmalar dinleniyor ({i + 1}/{len(moments)})...")
+            try:
+                ws = transcribe.transcribe_range(_Sub(job, lo, hi), path, max(0, m["start"] - 5), min(info["duration"], m["end"] + 5), 0, 1)
+            except Exception:
+                ws = []
+            words_of[i] = ws
+            cands.append({"i": i, "start": m["start"], "end": m["end"], "score": m.get("score", 0), "text": _words_text(ws)})
+        job.set(p0 + .36, "Yapay zekâ en iyi anları seçiyor...")
+        try:
+            sel = ai.pick_moments(cands, count, maxlen=cfg["max_len"] + 20)
+        except Exception as e:
+            job.set(p0 + .37, f"Yapay zekâ seçemedi ({str(e)[:60]}), ses heyecanına göre seçiliyor...")
+            sel = []
+        for x in sel:
+            if 0 <= x["aday"] < len(moments):
+                m = moments[x["aday"]]
+                a, b = max(m["start"] - 5, x["bas"]), min(m["end"] + 5, x["bit"])
+                if b - a < 3:
+                    a, b = m["start"], m["end"]
+                picks.append({**m, "start": round(max(0, a), 2), "end": round(min(info["duration"], b), 2),
+                              "label": x["baslik"] or m.get("label", "An"), "neden": x["neden"], "_i": x["aday"]})
+        p0 += .4
+    if not picks:
+        picks = [{**m, "_i": i} for i, m in sorted(enumerate(moments), key=lambda t: -t[1].get("score", 0))[:count]]
+    made = []
+    for k, m in enumerate(picks):
+        if job.cancelled:
+            raise RuntimeError("İptal edildi")
+        lo, hi = p0 + (.97 - p0) * k / len(picks), p0 + (.97 - p0) * (k + 1) / len(picks)
+        sub = _Sub(job, lo, hi, f"Video {k + 1}/{len(picks)}: ")
+        r = job_moment(sub, aid, m, None, fmt)
+        pid = r["project"]
+        with _plock:
+            p = load_project(pid)
+            if m.get("label") and use_ai:
+                p["title"] = m["label"]
+            p.setdefault("meta", {})["oto_edit"] = {"neden": m.get("neden", ""), "kaynak": title}
+            ws = words_of.get(m.get("_i"))
+            if subs and local and ws:  # yerel videoda zaten dinlenen kelimeleri kullan (tekrar beklemesin)
+                c = p["clips"][0]
+                c["words"] = ws
+                mw = int((p.get("style") or {}).get("maxWords") or 3)
+                c["captions"] = transcribe.chunk_words([w for w in ws if c["in"] - .2 <= w["s"] <= c["out"]], max_words=mw)
+                c["subs_status"] = "hazir"
+            save_project(p)
+        if subs and not (local and words_of.get(m.get("_i"))):
+            start_transcribe(pid, p["title"])
+        if use_ai:
+            try:
+                txt = " ".join(w["w"] for w in (words_of.get(m.get("_i")) or []) if m["start"] - .2 <= w["s"] <= m["end"])
+                meta = ai.write_meta(p["title"], txt, title)
+                with _plock:
+                    p = load_project(pid)
+                    p["paylasim"] = meta
+                    save_project(p)
+            except Exception:
+                pass
+        made.append(pid)
+    job.set(1, f"{len(made)} video hazır" + (" · altyazılar çıkarılıyor" if subs and not local else ""))
+    return {"projects": made, "project": made[0] if made else None, "open": True}
 
 
 def job_export(job, pid, opts):
@@ -793,6 +914,10 @@ def api_kalite_start():
     if not Path(path).exists():
         return jsonify(error="Video bulunamadı"), 400
     opts = d.get("opts") or {}
+    if enhance.is_image(path):
+        save_settings({"kalite_foto_ayar": opts})
+        j = JOBS.start("kalite", "Fotoğraf: " + Path(path).stem[:40], enhance.process_image, path, opts, heavy=True)
+        return jsonify(job=j.id)
     save_settings({"kalite_ayar": opts})
     j = JOBS.start("kalite", "Kalite: " + Path(path).stem[:40], enhance.process, path, opts, heavy=True)
     return jsonify(job=j.id)
@@ -833,8 +958,10 @@ def api_kalite_info():
     if not Path(p).exists():
         return jsonify(error="Video bulunamadı"), 400
     i = probe(p)
-    return jsonify(path=p, name=Path(p).name, duration=i["duration"], width=i["width"], height=i["height"], fps=i["fps"],
-                   opts=enhance.settings(), ai_tools=bool(enhance.tool_path("realesrgan")))
+    img = enhance.is_image(p)
+    opts = {**enhance.DEFAULT, "model": "gercek", "hedef": "x2", "keskin": 30, "gurultu": 15, **(load_settings().get("kalite_foto_ayar") or {})} if img else enhance.settings()
+    return jsonify(path=p, name=Path(p).name, duration=0 if img else i["duration"], width=i["width"], height=i["height"], fps=i["fps"],
+                   image=img, opts=opts, ai_tools=bool(enhance.tool_path("realesrgan")))
 
 
 @app.get("/media/kalite_src")
@@ -862,6 +989,182 @@ def api_snapshot():
         i += 1
     out.write_bytes(base64.b64decode(data))
     return jsonify(path=str(out), name=out.name)
+
+
+# ================================================================ yapay zekâ
+@app.post("/api/ai/test")
+def api_ai_test():
+    import ai
+    k = ((request.get_json(force=True) or {}).get("key") or "").strip()
+    if not k:
+        return jsonify(error="Anahtar boş"), 400
+    try:
+        ai.test(k)
+    except Exception as e:
+        return jsonify(error=str(e).replace("KOTA:", "").replace("MODEL:", "")), 400
+    save_settings({"gemini_anahtar": k})
+    ai._MODELS["pick"] = None
+    try:
+        m = ai.pick_model(force=True)
+    except Exception:
+        m = ""
+    return jsonify(ok=True, model=m)
+
+
+@app.get("/api/ai/chat")
+def api_ai_history():
+    import assistant
+    import ai
+    return jsonify(chat=assistant.history(), enabled=ai.enabled())
+
+
+@app.post("/api/ai/chat")
+def api_ai_chat():
+    import assistant
+    d = request.get_json(force=True) or {}
+    msg = (d.get("message") or "").strip()
+    if not msg:
+        return jsonify(error="Mesaj boş"), 400
+    try:
+        return jsonify(assistant.chat(msg[:4000], d.get("ctx") or {}))
+    except Exception as e:
+        return jsonify(error=str(e).replace("KOTA:", "").replace("MODEL:", "")[:300]), 400
+
+
+@app.post("/api/ai/reset")
+def api_ai_reset():
+    import assistant
+    assistant.reset()
+    return jsonify(ok=True)
+
+
+@app.post("/api/ai/meta/<pid>")
+def api_ai_meta(pid):
+    import ai
+    p = load_project(pid)
+    if not p:
+        return jsonify(error="Proje bulunamadı"), 404
+    d = request.get_json(force=True) or {}
+    try:
+        meta = ai.write_meta(p.get("title") or "", project_text(p), (p.get("meta") or {}).get("oto_edit", {}).get("kaynak", ""), d.get("not") or "")
+    except Exception as e:
+        return jsonify(error=str(e).replace("KOTA:", "").replace("MODEL:", "")[:300]), 400
+    with _plock:
+        p = load_project(pid)
+        p["paylasim"] = meta
+        save_project(p)
+    return jsonify(meta)
+
+
+@app.post("/api/project/<pid>/paylasim")
+def api_paylasim_save(pid):
+    d = request.get_json(force=True) or {}
+    with _plock:
+        p = load_project(pid)
+        if not p:
+            return jsonify(error="Proje bulunamadı"), 404
+        p["paylasim"] = {**(p.get("paylasim") or {}), **{k: v for k, v in d.items() if k in ("youtube", "tiktok", "instagram")}}
+        save_project(p)
+    return jsonify(ok=True)
+
+
+@app.post("/api/autoedit")
+def api_autoedit():
+    d = request.get_json(force=True) or {}
+    local = bool(d.get("local"))
+    src = d.get("path") if local else d.get("url")
+    if not src:
+        return jsonify(error="Kaynak yok"), 400
+    if local and not Path(src).exists():
+        return jsonify(error="Dosya bulunamadı"), 400
+    title = d.get("title") or (Path(src).stem if local else "Yayın")
+    fmt = d.get("format") if model.valid_format(d.get("format") or "") else (load_settings().get("son_bicim") or "dikey")
+    save_settings({"oto_adet": int(d.get("count") or 3), "oto_altyazi_ekle": bool(d.get("subs", True))})
+    j = JOBS.start("otoedit", "Otomatik edit: " + title[:36], job_autoedit, src, local, title, int(d.get("count") or 3), fmt,
+                   bool(d.get("subs", True)), heavy=True)
+    return jsonify(job=j.id)
+
+
+# ================================================================ görsel araçları
+@app.post("/api/gorsel/arkaplan")
+def api_gorsel_bg():
+    import imgtools
+    path = (request.get_json(force=True) or {}).get("path") or ""
+    if not Path(path).exists():
+        return jsonify(error="Dosya bulunamadı"), 400
+    j = JOBS.start("gorsel", "Arka plan siliniyor: " + Path(path).stem[:30], imgtools.job_remove_bg, path, heavy=True)
+    return jsonify(job=j.id)
+
+
+@app.post("/api/gorsel/nesne")
+def api_gorsel_nesne():
+    import imgtools
+    d = request.get_json(force=True) or {}
+    path = d.get("path") or ""
+    if not Path(path).exists():
+        return jsonify(error="Dosya bulunamadı"), 400
+    if not d.get("mask"):
+        return jsonify(error="Silinecek yeri fırçayla boya"), 400
+    j = JOBS.start("gorsel", "Nesne siliniyor: " + Path(path).stem[:30], imgtools.job_inpaint, path, d["mask"], heavy=True)
+    return jsonify(job=j.id)
+
+
+@app.get("/api/project/<pid>/frames")
+def api_frames(pid):
+    """Kapak için projeden aday kareler."""
+    p = load_project(pid)
+    if not p or not p.get("clips"):
+        return jsonify(error="Projede video yok"), 400
+    c = p["clips"][0]
+    n = 8
+    out = []
+    d = CACHE / "kapak" / pid
+    d.mkdir(parents=True, exist_ok=True)
+    for i in range(n):
+        t = c["in"] + (c["out"] - c["in"]) * (i + .5) / n
+        f = d / f"k{i}_{int(t * 1000)}.jpg"
+        if not f.exists():
+            run([FFMPEG, "-y", "-ss", f"{t:.3f}", "-i", c["source"], "-frames:v", "1", "-vf", "scale='min(1920,iw)':-2", "-q:v", "2", str(f)])
+        if f.exists():
+            out.append({"t": round(t, 2), "url": f"/media/kapak/{pid}/{f.name}"})
+    return jsonify(frames=out, title=(p.get("paylasim") or {}).get("youtube", {}).get("baslik") or p.get("title"))
+
+
+@app.get("/media/kapak/<pid>/<name>")
+def media_kapak(pid, name):
+    f = CACHE / "kapak" / safe_name(pid) / safe_name(name)
+    if not f.exists():
+        return "", 404
+    return send_file(f)
+
+
+# ================================================================ paylaşım: hazırla ve aç
+UPLOAD_URLS = {"youtube": "https://www.youtube.com/upload", "tiktok": "https://www.tiktok.com/tiktokstudio/upload",
+               "instagram": "https://www.instagram.com/"}
+
+
+@app.post("/api/open_url")
+def api_open_url():
+    import webbrowser
+    url = (request.get_json(force=True) or {}).get("url") or ""
+    if not url.startswith(("https://", "http://")):
+        return jsonify(error="Geçersiz adres"), 400
+    webbrowser.open(url)
+    return jsonify(ok=True)
+
+
+@app.post("/api/share/open")
+def api_share_open():
+    import webbrowser
+    d = request.get_json(force=True) or {}
+    url = UPLOAD_URLS.get(d.get("platform") or "")
+    if not url:
+        return jsonify(error="Platform yok"), 400
+    path = d.get("path") or ""
+    if path and Path(path).exists() and IS_WIN:
+        popen(["explorer", "/select,", str(Path(path))])
+    webbrowser.open(url)
+    return jsonify(ok=True)
 
 
 @app.post("/api/reveal")

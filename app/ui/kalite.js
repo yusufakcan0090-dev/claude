@@ -10,15 +10,17 @@
   Q.load = async path => {
     try {
       const r = await KS.api('/api/kalite/info?path=' + encodeURIComponent(path));
+      if (Q.brush) { Q.brush = null; mask = null; bBox.hidden = true; }
       Q.src = r; Q.opts = Object.assign({}, DEF, r.opts, { bas: 0, bit: 0 });
-      $('#kqName').textContent = `${r.name} · ${r.width}×${r.height} · ${Math.round(r.fps)} FPS · ${fmt(r.duration)}`;
+      $('#page-kalite').classList.toggle('kq-photo', !!r.image);
+      $('#kqName').textContent = r.image ? `${r.name} · ${r.width}×${r.height} · Fotoğraf` : `${r.name} · ${r.width}×${r.height} · ${Math.round(r.fps)} FPS · ${fmt(r.duration)}`;
       const t = $('#kqT'); t.max = Math.max(.1, r.duration - .05).toFixed(2); t.value = Math.min(r.duration / 3, r.duration).toFixed(2); KS.paintRange(t);
       $('#kqDur').textContent = fmt(r.duration);
       $('#kqEmpty').hidden = true;
       Q.renderSide(); Q.preview();
     } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
   };
-  $('#kqPick').onclick = async () => { try { const f = await KS.api('/api/pick_any', {}); if (f && f.path) { if (f.kind && f.kind !== 'video') return KS.toast('Bir video seç', 'err'); Q.load(f.path); } } catch (e) { KS.toast(KS.esc(e.message), 'err'); } };
+  $('#kqPick').onclick = async () => { try { const f = await KS.api('/api/pick_any', {}); if (f && f.path) { if (f.kind && f.kind !== 'video' && f.kind !== 'image') return KS.toast('Bir video ya da fotoğraf seç', 'err'); Q.load(f.path); } } catch (e) { KS.toast(KS.esc(e.message), 'err'); } };
 
   /* --- ayarlar --- */
   const seg = (key, list, cur) => `<div class="seg kq-seg" data-k="${key}">${list.map(([v, n, tip]) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${tip ? `title="${tip}"` : ''}>${n}</button>`).join('')}</div>`;
@@ -29,20 +31,26 @@
   Q.DEF = DEF;
   const NOPV = new Set(['fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;
-  Q.open = Q.open || { ai: true, net: true };
+  Q.open = Q.open || { ai: true, net: true, gorsel: true };
   const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary>${title}</summary><div class="kq-gb">${body}</div></details>`;
   Q.renderSide = () => {
     const o = Q.opts, el = $('#kqSide');
     if (!o) { el.innerHTML = ''; return; }
     Object.keys(DEF).forEach(k => { if (o[k] === undefined) o[k] = DEF[k]; });
-    const m = MODELS.find(x => x[0] === o.model) || MODELS[0], dur = Q.src ? Q.src.duration : 0, keep = el.scrollTop;
+    const m = MODELS.find(x => x[0] === o.model) || MODELS[0], dur = Q.src ? Q.src.duration : 0, keep = el.scrollTop, img = !!(Q.src && Q.src.image);
+    const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K']] : TARGETS;
     el.innerHTML = `<div class="kq-scroll">
+      ${img ? grp('gorsel', 'Görsel araçları', Q.brush ? `<small class="kq-note">Silmek istediğin yeri <b>fareyle boya</b> (kırmızı). Sonra "Boyanan yeri sil"e bas.</small>
+          ${sl('fircaBoy', 'Fırça boyutu', 5, 200, Q.brush.size)}
+          <div class="kq-tools"><button class="btn primary sm" id="kqInp">🩹 Boyanan yeri sil</button><button class="btn ghost sm" id="kqBClr">Temizle</button><button class="btn ghost sm" id="kqBOff">Vazgeç</button></div>`
+        : `<div class="kq-tools"><button class="btn ghost sm" id="kqBg">✂️ Arka planı sil</button><button class="btn ghost sm" id="kqBOn">🩹 Nesne sil (fırça)</button></div>
+          <small class="kq-note">Bilgisayarında, ücretsiz yapay zekâ ile çalışır. İlk kullanımda model iner (~170-200 MB). Sonuç ayrı bir dosya olarak kaydedilir.</small>`) : ''}
       ${grp('ai', 'Yapay zekâ ve çözünürlük', `${seg('model', MODELS, o.model)}<small class="kq-note">${m[2]}</small>
         ${o.model === 'hizli' ? `<div class="kq-h">Yapay zekâ büyütme</div>${seg('olcek', [['2', '2x'], ['4', '4x (daha net, yavaş)']], o.olcek)}` : ''}
         ${o.model !== 'klasik' ? sl('ai_guc', 'Yapay zekâ gücü (azaltınca daha doğal)', 0, 100, o.ai_guc) : ''}
-        <div class="kq-h">Çıkış çözünürlüğü</div>${seg('hedef', TARGETS, o.hedef)}
-        <div class="kq-h">Biçim (ekran şekli)</div>${seg('bicim', [['kaynak', 'Videonun kendisi'], ['9:16k', 'Reels 9:16 (doldur)'], ['9:16b', 'Reels 9:16 (bulanık arka)'], ['4:5k', '4:5 gönderi'], ['1:1k', 'Kare']], o.bicim)}
-        <small class="kq-note">${Q.src ? `Videon ${Q.src.width}×${Q.src.height} (${Q.ratio()}). ` : ''}Reels/TikTok için 9:16 seç: "doldur" kenarlardan biraz kırpar, "bulanık arka" hiçbir şeyi kesmez.</small>`)}
+        <div class="kq-h">Çıkış çözünürlüğü</div>${seg('hedef', TG, o.hedef)}
+        <div class="kq-h">Biçim (ekran şekli)</div>${seg('bicim', [['kaynak', what + ' kendisi'], ['9:16k', 'Reels 9:16 (doldur)'], ['9:16b', 'Reels 9:16 (bulanık arka)'], ['4:5k', '4:5 gönderi'], ['1:1k', 'Kare']], o.bicim)}
+        <small class="kq-note">${Q.src ? `${img ? 'Fotoğrafın' : 'Videon'} ${Q.src.width}×${Q.src.height} (${Q.ratio()}). ` : ''}Reels/TikTok için 9:16 seç: "doldur" kenarlardan biraz kırpar, "bulanık arka" hiçbir şeyi kesmez.</small>`)}
       ${grp('yuz', 'Yüz netleştirme', `${chk('yuz', 'Yüzleri yapay zekâ ile netleştir')}${o.yuz ? sl('yuz_guc', 'Yüz netleştirme gücü', 0, 100, o.yuz_guc) : ''}<small class="kq-note">Bulanık yüzleri (yayıncı, kamera) netleştirir. İlk kullanımda model indirilir (~350 MB).</small>`)}
       ${grp('net', 'Netlik', `${sl('keskin', 'Keskinlik / çizgi netliği', 0, 100, o.keskin)}${sl('detay', 'Detay / doku güçlendirme', 0, 100, o.detay)}
         ${sl('gurultu', 'Gürültü / karıncalanma azaltma', 0, 100, o.gurultu)}${sl('yumusat', 'Kenar yumuşatma (tırtıkları azaltır)', 0, 100, o.yumusat)}
@@ -52,8 +60,9 @@
         ${sl('sicaklik', 'Sıcaklık (soğuk ↔ sıcak)', -100, 100, o.sicaklik)}${sl('gamma', 'Gamma (orta tonlar)', -50, 50, o.gamma)}
         ${sl('golge', 'Gölgeler (karanlık alanlar)', -100, 100, o.golge)}${sl('parlak_alan', 'Parlak alanlar', -100, 100, o.parlak_alan)}
         ${sl('vinyet', 'Vinyet (kenar karartma)', 0, 100, o.vinyet)}${sl('gren', 'Film greni', 0, 100, o.gren)}`)}
-      ${grp('fps', 'Akıcılık (FPS)', `${seg('fps', FPS, o.fps)}${chk('fps_ai', 'Ara kareleri yapay zekâ ile üret (daha doğal)')}`)}
-      ${grp('cikti', 'Çıktı ve ses', `<div class="kq-h">Dosya kalitesi</div>${seg('kalite', [['yuksek', 'Yüksek'], ['normal', 'Normal'], ['kucuk', 'Küçük dosya']], o.kalite)}
+      ${img ? grp('cikti', 'Kayıt', `<div class="kq-h">Dosya biçimi</div>${seg('foto_bicim', [['png', 'PNG (kayıpsız)'], ['jpg', 'JPG (küçük)'], ['webp', 'WebP']], o.foto_bicim || 'png')}`) : ''}
+      ${img ? '' : grp('fps', 'Akıcılık (FPS)', `${seg('fps', FPS, o.fps)}${chk('fps_ai', 'Ara kareleri yapay zekâ ile üret (daha doğal)')}`)}
+      ${img ? '' : grp('cikti', 'Çıktı ve ses', `<div class="kq-h">Dosya kalitesi</div>${seg('kalite', [['yuksek', 'Yüksek'], ['normal', 'Normal'], ['kucuk', 'Küçük dosya']], o.kalite)}
         <div class="kq-h">Video formatı</div>${seg('codec', [['h264', 'H.264 (her yerde açılır)'], ['h265', 'H.265 (yarı boyut)']], o.codec)}
         <div class="kq-h">Sadece bir aralığı işle</div>
         <div class="kq-range"><div><span>Başlangıç</span><b>${fmt(o.bas)}</b><button class="btn ghost sm" data-set="bas">Şu anki kare</button></div>
@@ -61,7 +70,7 @@
           ${o.bas || o.bit ? '<button class="btn ghost sm" data-set="tum">Tüm videoyu işle</button>' : ''}</div>
         <div class="kq-h">Ses</div>${chk('ses', 'Sesi koru')}${o.ses ? chk('ses_temizle', 'Sesteki uğultu ve cızırtıyı temizle') + chk('ses_dengele', 'Ses seviyesini dengele / yükselt') : ''}`)}
       <small class="kq-note">${Q.src ? Q.estimate() : ''}</small></div>
-      <div class="kq-foot"><button class="btn primary glow kq-go" id="kqGo">✨ Kaliteyi Artır</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
+      <div class="kq-foot"><button class="btn primary glow kq-go" id="kqGo">✨ ${img ? 'Fotoğrafı İyileştir' : 'Kaliteyi Artır'}</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
     $('.kq-scroll', el).scrollTop = keep;
     $$('.kq-g', el).forEach(d => d.addEventListener('toggle', () => { Q.open[d.dataset.g] = d.open; }));
     $$('.kq-seg', el).forEach(g => $$('button', g).forEach(b => b.onclick = () => { const k = g.dataset.k; Q.opts[k] = b.dataset.v; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (!NOPV.has(k)) Q.previewSoon(); }));
@@ -69,10 +78,17 @@
     $$('[data-c]', el).forEach(c => c.onchange = () => { const k = c.dataset.c; Q.opts[k] = c.checked; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (!NOPV.has(k)) Q.previewSoon(); });
     $$('[data-set]', el).forEach(b => b.onclick = () => { const k = b.dataset.set, t = +$('#kqT').value; if (k === 'tum') { Q.opts.bas = 0; Q.opts.bit = 0; } else Q.opts[k] = +t.toFixed(2); if (Q.opts.bit && Q.opts.bit <= Q.opts.bas) Q.opts.bit = 0; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; });
     $('#kqGo').onclick = Q.start; Q.status();
+    if ($('#kqBg')) $('#kqBg').onclick = async () => { try { const r = await KS.api('/api/gorsel/arkaplan', { path: Q.src.path }); KS.trackJob(r.job); } catch (e) { KS.toast(KS.esc(e.message), 'err'); } };
+    if ($('#kqBOn')) $('#kqBOn').onclick = () => Q.brushOn();
+    if ($('#kqBOff')) $('#kqBOff').onclick = () => Q.brushOff();
+    if ($('#kqBClr')) $('#kqBClr').onclick = () => Q.brushClear();
+    if ($('#kqInp')) $('#kqInp').onclick = () => Q.inpaint();
+    const fb = $('[data-r="fircaBoy"]'); if (fb) fb.oninput = () => { Q.brush.size = +fb.value; $('#kqv_fircaBoy').textContent = fb.value; KS.paintRange(fb); };
     $('#kqReset').onclick = () => { Q.opts = Object.assign({}, DEF); Q.renderSide(); Q.previewSoon(); };
   };
   Q.ratio = () => { const w = Q.src.width, h = Q.src.height, r = w / h; const known = [[9 / 16, '9:16 dikey'], [3 / 4, '3:4'], [4 / 5, '4:5'], [1, '1:1 kare'], [16 / 9, '16:9 yatay'], [4 / 3, '4:3']]; const k = known.reduce((b, x) => Math.abs(x[0] - r) < Math.abs(b[0] - r) ? x : b); return Math.abs(k[0] - r) < .03 ? k[1] : r.toFixed(2); };
   Q.estimate = () => {
+    if (Q.src.image) { const o = Q.opts; return o.model === 'klasik' && !o.yuz ? 'Birkaç saniyede biter.' : 'Ekran kartına göre birkaç saniye ile 1 dakika arası sürer.'; }
     const s = Q.src, o = Q.opts, d = (o.bit > o.bas ? o.bit : s.duration) - (o.bas || 0), fr = d * s.fps;
     if (o.model === 'klasik' && !o.yuz && (o.fps === 'kaynak' || !o.fps_ai)) return `İşlenecek: ${fmt(d)} · Tahmini süre: ${Math.max(1, Math.round(d / 40))} dk civarı.`;
     const per = o.model === 'klasik' ? 0 : (o.model === 'hizli' ? (o.olcek == 4 ? .12 : .05) : .35) * Math.max(1, s.width * s.height / 2073600);
@@ -86,7 +102,7 @@
   Q.previewSoon = () => { clearTimeout(pvT); pvT = setTimeout(Q.preview, 450); };
   Q.preview = async () => {
     if (!Q.src) return;
-    const n = ++pvN, t = +$('#kqT').value;
+    const n = ++pvN, t = Q.src.image ? 0 : +$('#kqT').value;
     $('#kqLoad').hidden = false; $('#kqLoadT').textContent = Q.src.ai_tools || Q.opts.model === 'klasik' ? 'Önizleme hazırlanıyor...' : 'İlk seferde yapay zekâ aracı indiriliyor (~50 MB)...';
     try {
       const r = await KS.api('/api/kalite/preview', { path: Q.src.path, t, opts: Q.opts });
@@ -144,9 +160,63 @@
     if (onHandle || Q.zoom === 1) mv(e);
   });
 
+  /* --- nesne silme fırçası (fotoğraf) --- */
+  const bBox = $('#kqBrush'), bCv = $('#kqBCanvas');
+  let mask = null, bImgEl = null;
+  Q.brushOn = () => {
+    if (!Q.src || !Q.src.image) return;
+    Q.open.gorsel = true;
+    Q.brush = { size: (Q.brush && Q.brush.size) || 40 };
+    mask = document.createElement('canvas'); mask.width = Q.src.width; mask.height = Q.src.height;
+    const mc = mask.getContext('2d'); mc.fillStyle = '#000'; mc.fillRect(0, 0, mask.width, mask.height);
+    bImgEl = new Image(); bImgEl.onload = () => Q.brushDraw(); bImgEl.src = '/media/kalite_src?path=' + encodeURIComponent(Q.src.path);
+    bCv.width = Q.src.width; bCv.height = Q.src.height;
+    bBox.hidden = false; stage.hidden = true; handle.hidden = true; $('#kqTagL').hidden = $('#kqTagR').hidden = true;
+    Q.brushFit(); Q.renderSide();
+  };
+  Q.brushOff = () => { Q.brush = null; mask = null; bBox.hidden = true; stage.hidden = false; handle.hidden = false; $('#kqTagL').hidden = $('#kqTagR').hidden = false; Q.renderSide(); };
+  Q.brushClear = () => { if (!mask) return; const mc = mask.getContext('2d'); mc.fillStyle = '#000'; mc.fillRect(0, 0, mask.width, mask.height); Q.brushDraw(); };
+  Q.brushFit = () => {
+    if (!Q.brush) return;
+    const vw = view.clientWidth, vh = view.clientHeight, s = Math.min(vw / bCv.width, vh / bCv.height);
+    Object.assign(bCv.style, { width: bCv.width * s + 'px', height: bCv.height * s + 'px' });
+  };
+  new ResizeObserver(() => Q.brushFit()).observe(view);
+  Q.brushDraw = () => {
+    const c = bCv.getContext('2d');
+    c.clearRect(0, 0, bCv.width, bCv.height);
+    if (bImgEl && bImgEl.complete) c.drawImage(bImgEl, 0, 0, bCv.width, bCv.height);
+    if (!mask) return;
+    // maske: kırmızı yarı saydam
+    const t = document.createElement('canvas'); t.width = mask.width; t.height = mask.height; const tc = t.getContext('2d');
+    tc.drawImage(mask, 0, 0); tc.globalCompositeOperation = 'source-in';
+    const d = tc.getImageData(0, 0, t.width, t.height), px = d.data;
+    for (let i = 0; i < px.length; i += 4) { const v = px[i]; px[i] = 255; px[i + 1] = 40; px[i + 2] = 40; px[i + 3] = v * .55; }
+    tc.putImageData(d, 0, 0); c.drawImage(t, 0, 0);
+  };
+  let painting = false, last = null;
+  const toImg = e => { const r = bCv.getBoundingClientRect(); return { x: (e.clientX - r.left) * bCv.width / r.width, y: (e.clientY - r.top) * bCv.height / r.height, k: bCv.width / r.width }; };
+  const stroke = (a, b) => {
+    const mc = mask.getContext('2d'); mc.strokeStyle = '#fff'; mc.fillStyle = '#fff'; mc.lineCap = 'round'; mc.lineJoin = 'round';
+    mc.lineWidth = Q.brush.size * b.k; mc.beginPath(); mc.moveTo(a.x, a.y); mc.lineTo(b.x, b.y); mc.stroke();
+    mc.beginPath(); mc.arc(b.x, b.y, Q.brush.size * b.k / 2, 0, Math.PI * 2); mc.fill();
+  };
+  let rafB = 0; const redraw = () => { if (!rafB) rafB = requestAnimationFrame(() => { rafB = 0; Q.brushDraw(); }); };
+  bCv.addEventListener('mousedown', e => { if (!Q.brush || e.button !== 0) return; e.preventDefault(); e.stopPropagation(); painting = true; last = toImg(e); stroke(last, last); redraw(); });
+  addEventListener('mousemove', e => { if (!painting) return; const p = toImg(e); stroke(last, p); last = p; redraw(); });
+  addEventListener('mouseup', () => { painting = false; });
+  bBox.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
+  Q.inpaint = async () => {
+    if (!mask) return;
+    try {
+      const r = await KS.api('/api/gorsel/nesne', { path: Q.src.path, mask: mask.toDataURL('image/png') });
+      KS.trackJob(r.job); Q.brushOff();
+    } catch (e) { KS.toast(KS.esc(e.message), 'err'); }
+  };
+
   /* --- tüm videoyu işle --- */
   Q.start = async () => {
-    if (!Q.src) return KS.toast('Önce bir video seç', 'err');
+    if (!Q.src) return KS.toast('Önce bir video ya da fotoğraf seç', 'err');
     if (Q.job()) return;
     try {
       const r = await KS.api('/api/kalite/start', { path: Q.src.path, opts: Q.opts });
@@ -162,7 +232,7 @@
     return h ? `${h} sa ${m} dk` : `${m} dk ${String(sec).padStart(2, '0')} sn`;
   };
   const clock = s => { const d = new Date(Date.now() + s * 1000); return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); };
-  Q.job = () => (KS.state.jobs || []).find(x => x.kind === 'kalite' && (x.status === 'calisiyor' || x.status === 'bekliyor'));
+  Q.job = () => (KS.state.jobs || []).find(x => (x.kind === 'kalite' || x.kind === 'gorsel') && (x.status === 'calisiyor' || x.status === 'bekliyor'));
   Q.yarim = [];
   Q.loadYarim = async () => { try { Q.yarim = await KS.api('/api/kalite/yarim'); } catch (e) { Q.yarim = []; } Q.status(); };
   Q.status = () => {
@@ -213,8 +283,8 @@
     }
     const ex = j.extra || {}, p = Math.round((j.progress || 0) * 1000) / 10, wait = j.status === 'bekliyor';
     box.classList.toggle('paused', !!j.paused);
-    $('#kqRunT').textContent = j.paused ? '⏸ Duraklatıldı' : wait ? 'Sırada bekliyor' : 'Kalite artırılıyor';
-    $('#kqRunN').textContent = j.title.replace(/^Kalite: /, '');
+    $('#kqRunT').textContent = j.paused ? '⏸ Duraklatıldı' : wait ? 'Sırada bekliyor' : /^Fotoğraf: /.test(j.title) ? 'Fotoğraf iyileştiriliyor' : j.kind === 'gorsel' ? j.title.split(':')[0] : 'Kalite artırılıyor';
+    $('#kqRunN').textContent = j.title.replace(/^[^:]+: /, '');
     $('#kqRunP').textContent = `%${p.toFixed(p < 10 ? 1 : 0)}`;
     $('#kqProg').style.width = p + '%';
     const eta = ex.eta;

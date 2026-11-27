@@ -71,7 +71,7 @@ KS.go = page => {
   if (page === 'editor' && KS.editor) KS.editor.onShow();
   if (page === 'kalite' && KS.kalite) setTimeout(KS.kalite.layout, 30);
 };
-$$('.nav-btn').forEach(b => b.onclick = () => KS.go(b.dataset.page));
+$$('.nav-btn[data-page]').forEach(b => b.onclick = () => KS.go(b.dataset.page));
 document.addEventListener('click', e => { const g = e.target.closest('[data-goto]'); if (g) KS.go(g.dataset.goto); });
 
 /* ---------- bildirimler ---------- */
@@ -167,7 +167,7 @@ KS.tour = () => {
 /* ---------- işler ---------- */
 let jobsOpen = false, lastJobStatus = {}, pollTimer = null;
 KS._doneAt = {};
-const jobIcon = { indir: '⬇', analiz: '✨', an: '✂', altyazi: '💬', aktar: '🎬', guncelle: '🔄' };
+const jobIcon = { indir: '⬇', analiz: '✨', an: '✂', altyazi: '💬', aktar: '🎬', guncelle: '🔄', kalite: '💎', otoedit: '🤖', gorsel: '🖼' };
 KS.renderJobs = () => {
   const now = Date.now() / 1000;
   // bitenler 5 sn sonra listeden düşer; hiç iş yoksa kutu tamamen gizlenir
@@ -309,12 +309,12 @@ KS.addFile = async () => {
 
 KS.handleFile = async f => {
   if (f.error) return KS.toast(KS.esc(f.error), 'err');
-  if (KS.page === 'kalite' && f.kind === 'video' && KS.kalite) return KS.kalite.load(f.path);
+  if (KS.page === 'kalite' && (f.kind === 'video' || f.kind === 'image') && KS.kalite) return KS.kalite.load(f.path);
   const ed = KS.editor;
   if (f.kind === 'video') {
     // video direkt eklenir: açık proje varsa ona, yoksa yeni projeye
     const long = (f.duration || 0) > 180, asOv = KS._asOverlay; KS._asOverlay = false;
-    const moments = long ? [{ label: 'Anları Bul', fn: () => KS.findMoments({ local: true, path: f.path, title: f.title }) }] : [];
+    const moments = long ? [{ label: '🤖 Otomatik Edit', primary: true, fn: () => KS.autoEdit({ local: true, path: f.path, title: f.title }) }, { label: 'Anları Bul', fn: () => KS.findMoments({ local: true, path: f.path, title: f.title }) }] : [];
     try {
       if (ed && ed.project) {
         KS.go('editor');
@@ -412,6 +412,10 @@ KS.renderSettings = () => {
       ${row('Görünüm', 'Programın renkleri', `<div class="seg" id="setTheme">${[['koyu', 'Koyu'], ['dahakoyu', 'Daha koyu'], ['acik', 'Açık']].map(([v, n]) => `<button data-v="${v}" class="${(s.tema || 'koyu') === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
       ${row('Güncelleme', up.available ? `Yeni sürüm hazır: v${KS.esc(up.latest)}` : (up.current ? `v${KS.esc(up.current)} · güncel` : KS.esc(($('#verTag') || {}).textContent || 'Kontrol edilmedi')), `<button class="btn ${up.available ? 'primary' : 'ghost'} sm" id="setUpd">${up.available ? 'Güncelle' : 'Kontrol et'}</button>`)}
     </div>
+    <div class="st-sec"><h3>Yapay Zekâ</h3>
+      ${row('Gemini anahtarı', s.gemini_anahtar ? '✓ Bağlı · asistan, otomatik edit ve paylaşım metni açık' : 'Ücretsiz alınır: Google AI Studio → Create API key', `<input class="inp" id="setKey" type="password" value="${KS.esc(s.gemini_anahtar || '')}" placeholder="AIza..."><button class="btn primary sm" id="setKeySave">Kaydet</button>`)}
+      ${row('Anahtar nasıl alınır?', 'Google hesabınla giriş yap, "Create API key"e bas, kopyala', '<button class="btn ghost sm" id="setKeyGet">AI Studio\'yu aç</button>' + (s.gemini_anahtar ? '<button class="btn ghost sm" id="setKeyDel">Kaldır</button>' : ''))}
+    </div>
     <div class="st-sec"><h3>Altyazı</h3>
       ${row('Otomatik altyazı', 'Klip inince altyazıyı kendisi çıkarsın', `<button class="sw-tog ${s.oto_altyazi ? 'on' : ''}" id="setAuto"><i></i></button>`)}
       ${row('Hız / doğruluk', '', `<div class="seg" id="setModel"><button data-v="large-v3" class="${s.whisper_model !== 'turbo' ? 'on' : ''}">En doğru</button><button data-v="turbo" class="${s.whisper_model === 'turbo' ? 'on' : ''}">Daha hızlı</button></div>`)}
@@ -435,6 +439,10 @@ KS.renderSettings = () => {
   $('#setAuto').onclick = () => save({ oto_altyazi: !s.oto_altyazi }).then(KS.renderSettings);
   $$('#setTheme button').forEach(b => b.onclick = () => save({ tema: b.dataset.v }).then(() => { KS.applyTheme(); KS.renderSettings(); }));
   $('#setTour').onclick = () => KS.tour();
+  $('#setKey').addEventListener('keydown', e => e.stopPropagation());
+  $('#setKeySave').onclick = () => KS.ai.saveKey($('#setKey').value, $('#setKeySave'));
+  $('#setKeyGet').onclick = () => KS.openUrl('https://aistudio.google.com/apikey');
+  if ($('#setKeyDel')) $('#setKeyDel').onclick = () => save({ gemini_anahtar: '' }).then(KS.renderSettings);
   $('#setKeys').onclick = () => KS.modal(`<h2>Klavye Kısayolları</h2><p class="msub">After Effects ile aynı</p>${KS.shortcutsHtml()}<div class="mfoot"><button class="btn primary" data-close>Tamam</button></div>`, { wide: true });
   $('#fixAdd').onclick = async () => {
     const x = $('#fixA').value.trim(), y = $('#fixB').value.trim();

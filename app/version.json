@@ -1,10 +1,13 @@
 {
- "version": "1.6.2",
- "date": "2026-11-26",
+ "version": "1.7.0",
+ "date": "2026-11-27",
  "notes": [
-  "Kalite Artır: yeni ilerleme kartı — büyük yüzde, kalan süre, bitiş saati, geçen süre, parça",
-  "Duraklat / Devam et ve İptal düğmeleri; duraklatınca ekran kartı serbest kalır",
-  "Uygulama kapanınca iş duraklar; tekrar açınca 'Yarım kaldı → Devam et' ile kaldığı yerden sürer",
-  "Kalite sayfasında üstteki 'işlem sürüyor' kutusu artık yazıların üstüne binmiyor"
+  "Yapay zekâ asistanı: soldaki 'Asistan'a yaz, işleri o yapsın (klip arama, otomatik edit, altyazı, dışa aktarma, kalite artırma, paylaşım metni)",
+  "Otomatik Edit: yayındaki en iyi anları seçip altyazılı, hazır kısa videolar yapar (Klip Bulucu'daki 🤖 düğmesi)",
+  "Paylaş: YouTube Shorts / TikTok / Instagram Reels için başlık, açıklama, etiket; tek tuşla kopyala ve yükleme sayfasını aç",
+  "Kapak yap: videodan kare seç, büyük yazıyla YouTube / Reels kapağı kaydet",
+  "Fotoğraf kalitesi artırma: Kalite sayfasına fotoğraf sürükle (2 kat / 4 kat büyütme, yüz, renk)",
+  "Görsel araçları: arka plan silme ve fırçayla nesne silme (bilgisayarda, ücretsiz)",
+  "Ayarlar → Yapay Zekâ: ücretsiz Gemini anahtarını buraya ekle"
  ]
 }
