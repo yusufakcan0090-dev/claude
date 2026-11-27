@@ -34,13 +34,13 @@ def windows_fixes():
     except Exception:
         pass
     root = Path(__file__).resolve().parent.parent
-    marker = root / "veri" / ".kisayol_v3"
+    marker = root / "veri" / ".kisayol_v4"
     if marker.exists():
         return
     try:
         import subprocess
         import tempfile
-        ico = root / "app" / "ui" / "icon.ico"
+        ico = root / "app" / "ui" / "bek_simge.ico"
         pyw = root / ".venv" / "Scripts" / "pythonw.exe"
         main_py = root / "app" / "main.py"
         ps = f"""
@@ -53,6 +53,7 @@ $s.WorkingDirectory = '{root}'
 $s.IconLocation = '{ico},0'
 $s.Description = 'B.E.K - Bul, Editle, Kaliteyi artir'
 $s.Save()
+try {{ & "$env:SystemRoot\\System32\\ie4uinit.exe" -show }} catch {{}}
 """
         f = Path(tempfile.gettempdir()) / "ks_kisayol.ps1"
         f.write_text(ps, encoding="utf-8-sig")

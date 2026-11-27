@@ -61,7 +61,7 @@ Section "B.E.K" SecMain
   WriteRegStr HKCU "${UNKEY}" "DisplayName" "B.E.K"
   WriteRegStr HKCU "${UNKEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNKEY}" "Publisher" "Animeci"
-  WriteRegStr HKCU "${UNKEY}" "DisplayIcon" "$INSTDIR\app\ui\icon.ico"
+  WriteRegStr HKCU "${UNKEY}" "DisplayIcon" "$INSTDIR\app\ui\bek_simge.ico"
   WriteRegStr HKCU "${UNKEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UNKEY}" "UninstallString" '"$INSTDIR\Kaldir.exe"'
   WriteRegDWORD HKCU "${UNKEY}" "NoModify" 1

@@ -77,7 +77,7 @@ try {
   $s.TargetPath = Join-Path $Root '.venv\Scripts\pythonw.exe'
   $s.Arguments = '"' + (Join-Path $Root 'app\main.py') + '"'
   $s.WorkingDirectory = $Root
-  $s.IconLocation = Join-Path $Root 'app\ui\icon.ico'
+  $s.IconLocation = Join-Path $Root 'app\ui\bek_simge.ico'
   $s.Save()
   W "LOG|Masaüstüne kısayol eklendi"
 } catch { W "LOG|Kısayol eklenemedi: $($_.Exception.Message)" }

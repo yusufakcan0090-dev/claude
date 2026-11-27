@@ -1,7 +1,8 @@
 {
- "version": "1.12.9",
+ "version": "1.12.10",
  "date": "2026-11-27",
  "notes": [
+  "Masaüstü simgesi yeni logoya geçiyor (Windows simge önbelleği yenilenir)",
   "Düzeltme: FPS düşürme (ör. 30 → 24) artık çalışıyor",
   "Çıkan dosya adı gerçek boyutu gösteriyor (_2K, _4K, _FullHD)",
   "Yeni logo: beyaz zemin, mavi-mor 'bek' yazısı",
