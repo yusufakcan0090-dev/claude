@@ -102,6 +102,7 @@ DEFAULT_SETTINGS = {
     "oto_altyazi": False,
     "tema": "koyu",
     "tur_goruldu": False,
+    "oto_guncelle": True,
     "son_kanal": "",
     "varsayilan_stil": None,
     "varsayilan_duzen": None,

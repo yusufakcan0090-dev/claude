@@ -1,8 +1,7 @@
 {
- "version": "1.10.0",
+ "version": "1.10.1",
  "date": "2026-11-27",
  "notes": [
-  "Yeni Dönüştür sayfası: video, ses ve fotoğrafları istediğin biçime çevir (MP4, MOV, MKV, WEBM, AVI, GIF, MP3, WAV, M4A, FLAC, OGG, JPG, PNG, WEBP, BMP, TIFF, ICO)",
-  "Birden fazla dosyayı tek seferde çevirir; \"Aynı kalite\" seçiliyse mümkün olduğunda kalite kaybı olmadan saniyeler içinde çevirir"
+  "Tam otomatik güncelleme: program açıkken de 15 dakikada bir bakar, yeni sürümü boşta olduğun bir anda kendisi kurar (iş sürerken beklemeye alır). Ayarlar'dan kapatılabilir."
  ]
 }

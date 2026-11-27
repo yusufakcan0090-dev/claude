@@ -411,6 +411,7 @@ KS.renderSettings = () => {
     <div class="st-sec"><h3>Genel</h3>
       ${row('Kayıt klasörü', KS.esc(s.cikti_klasoru || ''), '<button class="btn ghost sm" id="setOutOpen">Aç</button><button class="btn ghost sm" id="setOutBtn">Değiştir</button>')}
       ${row('Görünüm', 'Programın renkleri', `<div class="seg" id="setTheme">${[['koyu', 'Koyu'], ['dahakoyu', 'Daha koyu'], ['acik', 'Açık']].map(([v, n]) => `<button data-v="${v}" class="${(s.tema || 'koyu') === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
+      ${row('Otomatik güncelleme', s.oto_guncelle !== false ? 'Açık · yeni sürüm gelince boşta olduğun bir anda kendisi kurar' : 'Kapalı · yeni sürüm gelince sadece haber verir', `<label class="ae-chk"><input type="checkbox" id="setAutoUpd" ${s.oto_guncelle !== false ? 'checked' : ''}> Açık</label>`)}
       ${row('Güncelleme', up.available ? `Yeni sürüm hazır: v${KS.esc(up.latest)}` : (up.current ? `v${KS.esc(up.current)} · güncel` : KS.esc(($('#verTag') || {}).textContent || 'Kontrol edilmedi')), `<button class="btn ${up.available ? 'primary' : 'ghost'} sm" id="setUpd">${up.available ? 'Güncelle' : 'Kontrol et'}</button>`)}
     </div>
     <div class="st-sec"><h3>Yapay Zekâ</h3>
@@ -434,6 +435,7 @@ KS.renderSettings = () => {
   const save = patch => KS.api('/api/settings', patch).then(r => { KS.state.settings = r; });
   $('#setOutBtn').onclick = async () => { const r = await KS.api('/api/pick_folder', {}); if (r.path) { await save({ cikti_klasoru: r.path }); KS.renderSettings(); } };
   $('#setOutOpen').onclick = () => KS.api('/api/reveal', { path: s.cikti_klasoru }).catch(() => KS.toast('Klasör henüz yok, ilk videoda oluşacak.'));
+  $('#setAutoUpd').onchange = e => save({ oto_guncelle: e.target.checked }).then(KS.renderSettings);
   $('#setUpd').onclick = () => up.available ? KS.updateDialog() : KS.checkUpdate(true, true).then(KS.renderSettings);
   $$('#setModel button').forEach(b => b.onclick = () => save({ whisper_model: b.dataset.v }).then(KS.renderSettings));
   $('#setNames').onchange = e => save({ ipucu_isimler: e.target.value });
@@ -479,7 +481,9 @@ KS.checkUpdate = async (force, manual) => {
     KS.state.update = u;
     $('#verTag').textContent = 'v' + (u.current || '');
     $('#updBtn').hidden = !u.available;
-    if (u.available && !manual) {
+    if (u.available && !manual && (KS.state.settings || {}).oto_guncelle !== false) {
+      // otomatik kurulacak; bildirim yerine sessizce bekle
+    } else if (u.available && !manual) {
       KS.toast(`✨ <b>Yeni sürüm var: v${KS.esc(u.latest)}</b>`, '', [{ label: 'Neler yeni?', primary: true, fn: KS.updateDialog }], 9000);
     } else if (manual) {
       if (u.available) KS.updateDialog();
@@ -510,6 +514,31 @@ KS.hooks.jobDone.push(j => {
   document.body.appendChild(ov);
   setTimeout(() => KS.api('/api/restart', {}).catch(() => { }), 800);
 });
+
+/* ---------- tam otomatik güncelleme: boşta olunca kendisi kurar ---------- */
+KS._lastInput = Date.now();
+['keydown', 'mousedown', 'wheel'].forEach(ev => addEventListener(ev, () => { KS._lastInput = Date.now(); }, true));
+KS._autoUpd = false;
+KS.autoUpdateTick = async () => {
+  const s = KS.state.settings || {};
+  if (s.oto_guncelle === false || KS._autoUpd) return;
+  const u = KS.state.update;
+  if (!u || !u.available) return;
+  const busy = (KS.state.jobs || []).some(j => j.status === 'calisiyor' || j.status === 'bekliyor');
+  const typing = Date.now() - KS._lastInput < 45000;
+  const modal = $('#modalRoot') && $('#modalRoot').classList.contains('show');
+  const chatting = KS.ai && KS.ai.busy;
+  if (busy || typing || modal || chatting) return;  // iş varken ya da kullanırken bölme
+  KS._autoUpd = true;
+  try {
+    if (KS.editor && KS.editor.flush) await KS.editor.flush();
+    KS.toast(`✨ Yeni sürüm v${KS.esc(u.latest)} kuruluyor... Program birazdan kendini yenileyecek.`, '', [], 8000);
+    const r = await KS.api('/api/update/apply', {});
+    KS.trackJob(r.job);
+  } catch (e) { KS._autoUpd = false; }
+};
+setInterval(() => KS.checkUpdate(true, false), 15 * 60 * 1000);  // açıkken de 15 dakikada bir bak
+setInterval(() => KS.autoUpdateTick(), 20 * 1000);
 
 /* ---------- başlat ---------- */
 window.addEventListener('load', async () => {
