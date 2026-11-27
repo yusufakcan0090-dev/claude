@@ -156,7 +156,9 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
         body["generationConfig"]["responseMimeType"] = "application/json"
     from concurrent.futures import ThreadPoolExecutor, FIRST_COMPLETED, wait as fwait
     first = pick_model()
-    order = [first] + [m for m in (_MODELS.get("all") or []) if m != first]
+    lite = _MODELS.get("lite")
+    # hız önce: "lite" modeller genelde birkaç saniyede cevap verir; yarışa en başta katılsın
+    order = ([first] if first and "lite" in first else []) + ([lite] if lite else []) + [first] + [m for m in (_MODELS.get("all") or []) if m != first]
     order = list(dict.fromkeys(order))
 
     def one(model):
@@ -164,7 +166,7 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
         cfg = b["generationConfig"]
         if _ver(model) >= 3:  # Gemini 3+: sıcaklık varsayılan, kısa düşünsün (hızlı cevap)
             cfg.pop("temperature", None)
-            cfg["thinkingConfig"] = {"thinkingLevel": "low"}
+            cfg["thinkingConfig"] = {"thinkingLevel": "minimal" if "lite" in model else "low"}
         else:
             cfg["temperature"] = temperature
         t0 = time.time()

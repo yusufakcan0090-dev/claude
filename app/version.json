@@ -1,7 +1,7 @@
 {
- "version": "1.7.5",
+ "version": "1.7.6",
  "date": "2026-11-27",
  "notes": [
-  "Asistan çok daha hızlı: aynı anda 3 Gemini modeline sorar, ilk gelen cevabı alır; sonra hızlı olanla devam eder"
+  "Asistan: hızlı \"Flash-Lite\" modeli öncelikli — cevaplar birkaç saniyede gelir (önceki model 20 sn sürüyordu)"
  ]
 }
