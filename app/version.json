@@ -1,12 +1,7 @@
 {
- "version": "1.9.0",
+ "version": "1.9.1",
  "date": "2026-11-27",
  "notes": [
-  "💎 Üst Düzey ve 💎 Anime Üst Düzey hazır ayarları: en yüksek kalite",
-  "Yeni yapay zekâ modelleri: Ultra Keskin (4x-UltraSharp), Doğal (Remacri), Aslına sadık (High Fidelity)",
-  "Yüz netleştirmede CodeFormer: yüzler daha gerçekçi, plastik görünmez",
-  "Kayıpsız işleme: ara kareler PNG, hiç kalite kaybı yok",
-  "Titreme azaltma: yapay zekânın kareden kareye kıpırdayan detayları yumuşar",
-  "Üst düzey kodlama: çok düşük sıkıştırma, H.265 ile 10-bit (renk geçişlerinde bant olmaz)"
+  "Kalite Artır paneli yeniden tasarlandı: hazır ayar kartları, model kartları (kalite / hız göstergeli), düzenli bölümler, tahmini süre düğmenin üstünde"
  ]
 }

@@ -6,6 +6,10 @@
     ['ultra', 'Ultra Keskin', 'Gerçek görüntüde en keskin sonuç: çizgiler, yazılar, saç telleri çok net (4x-UltraSharp). İlk kullanımda ~33 MB iner.'],
     ['dogal', 'Doğal', 'Keskin ama doğal doku; ten ve yüzler yapay durmaz (Remacri). İlk kullanımda ~33 MB iner.'],
     ['hifi', 'Aslına sadık', 'Görüntüyü en az değiştiren, en sadık model (High Fidelity). İlk kullanımda ~33 MB iner.'], ['anime_pro', 'Anime Pro', 'Anime ve çizgi film için en iyisi: çizgiler temiz ve keskin, renkler düz ve pürüzsüz (Real-CUGAN). İlk kullanımda ~55 MB iner.'], ['anime', 'Anime (eski)', 'Çizgi film / anime, Real-ESRGAN'], ['klasik', 'Klasik', 'Yapay zekâsız, çok hızlı']];
+  const MMETA = { hizli: [3, 5, 'Video'], gercek: [3, 2, 'Gerçek'], ultra: [5, 2, 'En keskin'], dogal: [4, 2, 'Doğal ten'], hifi: [4, 2, 'Sadık'], anime_pro: [5, 3, 'Anime'], anime: [3, 2, 'Anime'], klasik: [1, 5, 'Yapay zekâsız'] };
+  const dots = (n, cls) => `<span class="kq-dots ${cls}">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+  const modelCards = cur => `<div class="kq-seg kq-models" data-k="model">${MODELS.map(([v, n, d]) => { const mm = MMETA[v] || [3, 3, '']; return `<button data-v="${v}" class="${cur === v ? 'on' : ''}" title="${KS.esc(d)}"><span class="kq-mn">${n}</span><span class="kq-mt">${mm[2]}</span><span class="kq-mr"><em>Kalite</em>${dots(mm[0], 'q')}</span><span class="kq-mr"><em>Hız</em>${dots(mm[1], 's')}</span></button>`; }).join('')}</div>`;
+  const ICON = { gorsel: '🖼️', ai: '🧠', yuz: '🙂', net: '🔍', renk: '🎨', fps: '🎞️', cikti: '💾' };
   /* tek tıkla en iyi sonuç */
   const PRESETS = {
     anime: ['🎌 Anime', 'Anime / çizgi film için en iyi', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
@@ -44,7 +48,7 @@
   const NOPV = new Set(['titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;
   Q.open = Q.open || { ai: true, net: true, gorsel: true };
-  const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary>${title}</summary><div class="kq-gb">${body}</div></details>`;
+  const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary><span class="kq-gi">${(typeof ICON !== 'undefined' && ICON[id]) || '•'}</span>${title}<span class="kq-chev"></span></summary><div class="kq-gb">${body}</div></details>`;
   Q.renderSide = () => {
     const o = Q.opts, el = $('#kqSide');
     if (!o) { el.innerHTML = ''; return; }
@@ -53,13 +57,13 @@
     const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K']] : TARGETS;
     const curP = Object.keys(PRESETS).find(k => Object.entries(PRESETS[k][2]).every(([a, b]) => o[a] === b));
     el.innerHTML = `<div class="kq-scroll">
-      <div class="kq-presets"><div class="kq-h">Hazır ayar · tek tıkla en iyi sonuç</div><div class="kq-pre">${Object.entries(PRESETS).map(([k, v]) => `<button class="${k === curP ? 'on' : ''}" data-pre="${k}" title="${v[1]}"><b>${v[0]}</b><small>${v[1]}</small></button>`).join('')}</div></div>
+      <div class="kq-presets"><div class="kq-ph"><b>Hazır ayarlar</b><span>tek tıkla en iyi sonuç</span></div><div class="kq-pre">${Object.entries(PRESETS).map(([k, v]) => { const [e, ...t] = v[0].split(' '); return `<button class="${k === curP ? 'on' : ''} ${k.includes('ust') ? 'pro' : ''}" data-pre="${k}" title="${v[1]}"><span class="kq-pe">${e}</span><b>${t.join(' ')}</b><small>${v[1]}</small></button>`; }).join('')}</div></div>
       ${img ? grp('gorsel', 'Görsel araçları', Q.brush ? `<small class="kq-note">Silmek istediğin yeri <b>fareyle boya</b> (kırmızı). Sonra "Boyanan yeri sil"e bas.</small>
           ${sl('fircaBoy', 'Fırça boyutu', 5, 200, Q.brush.size)}
           <div class="kq-tools"><button class="btn primary sm" id="kqInp">🩹 Boyanan yeri sil</button><button class="btn ghost sm" id="kqBClr">Temizle</button><button class="btn ghost sm" id="kqBOff">Vazgeç</button></div>`
         : `<div class="kq-tools"><button class="btn ghost sm" id="kqBg">✂️ Arka planı sil</button><button class="btn ghost sm" id="kqBOn">🩹 Nesne sil (fırça)</button></div>
           <small class="kq-note">Bilgisayarında, ücretsiz yapay zekâ ile çalışır. İlk kullanımda model iner (~170-200 MB). Sonuç ayrı bir dosya olarak kaydedilir.</small>`) : ''}
-      ${grp('ai', 'Yapay zekâ ve çözünürlük', `${seg('model', MODELS, o.model)}<small class="kq-note">${m[2]}</small>
+      ${grp('ai', 'Yapay zekâ ve çözünürlük', `<div class="kq-h">Yapay zekâ modeli</div>${modelCards(o.model)}<small class="kq-note kq-mdesc">${m[2]}</small>
         ${o.model === 'hizli' ? `<div class="kq-h">Yapay zekâ büyütme</div>${seg('olcek', [['2', '2x'], ['4', '4x (daha net, yavaş)']], o.olcek)}` : ''}
         ${o.model !== 'klasik' ? sl('ai_guc', 'Yapay zekâ gücü (azaltınca daha doğal)', 0, 100, o.ai_guc) : ''}
         <div class="kq-h">Çıkış çözünürlüğü</div>${seg('hedef', TG, o.hedef)}
@@ -84,8 +88,8 @@
           <div><span>Bitiş</span><b>${o.bit > o.bas ? fmt(o.bit) : 'Sonuna kadar'}</b><button class="btn ghost sm" data-set="bit">Şu anki kare</button></div>
           ${o.bas || o.bit ? '<button class="btn ghost sm" data-set="tum">Tüm videoyu işle</button>' : ''}</div>
         <div class="kq-h">Ses</div>${chk('ses', 'Sesi koru')}${o.ses ? chk('ses_temizle', 'Sesteki uğultu ve cızırtıyı temizle') + chk('ses_dengele', 'Ses seviyesini dengele / yükselt') : ''}`)}
-      <small class="kq-note">${Q.src ? Q.estimate() : ''}</small></div>
-      <div class="kq-foot"><button class="btn primary glow kq-go" id="kqGo">✨ ${img ? 'Fotoğrafı İyileştir' : 'Kaliteyi Artır'}</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
+      </div>
+      <div class="kq-foot">${Q.src ? `<div class="kq-est">⏱ ${Q.estimate()}</div>` : ''}<button class="btn primary glow kq-go" id="kqGo">✨ ${img ? 'Fotoğrafı İyileştir' : 'Kaliteyi Artır'}</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
     $('.kq-scroll', el).scrollTop = keep;
     $$('.kq-g', el).forEach(d => d.addEventListener('toggle', () => { Q.open[d.dataset.g] = d.open; }));
     $$('[data-pre]', el).forEach(b => b.onclick = () => { Object.assign(Q.opts, PRESETS[b.dataset.pre][2]); const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; Q.previewSoon(); });
