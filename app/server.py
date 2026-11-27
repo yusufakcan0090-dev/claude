@@ -1369,6 +1369,54 @@ def api_pick_any():
     return jsonify(describe_file(path))
 
 
+@app.post("/api/donustur/pick")
+def api_donustur_pick():
+    files = []
+    if WINDOW is not None:
+        import webview
+        kind = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+        r = WINDOW.create_file_dialog(kind, allow_multiple=True, file_types=ALL_TYPES)
+        files = list(r or [])
+    else:
+        f = pick_file()
+        files = [f] if f else []
+    return jsonify(files=[donustur_info(f) for f in files])
+
+
+def donustur_info(path):
+    import convert
+    p = Path(path)
+    if not p.exists():
+        return {"path": str(path), "name": p.name, "error": "Dosya bulunamadı"}
+    kind = "image" if convert.is_image(p) else (file_kind(p) or "video")
+    i = convert.streams(p)
+    return {"path": str(p), "name": p.name, "kind": kind, "size": p.stat().st_size, "dur": i["dur"],
+            "w": i["w"], "h": i["h"], "v": i["v"], "a": i["a"]}
+
+
+@app.post("/api/donustur/info")
+def api_donustur_info():
+    paths = (request.get_json(force=True) or {}).get("paths") or []
+    return jsonify(files=[donustur_info(x) for x in paths[:200]])
+
+
+@app.post("/api/donustur")
+def api_donustur():
+    import convert
+    d = request.get_json(force=True) or {}
+    files = [f for f in (d.get("files") or []) if Path(f).exists()]
+    fmt = d.get("format") or "mp4"
+    if not files:
+        return jsonify(error="Dosya seç"), 400
+    if fmt not in convert.FORMATS:
+        return jsonify(error="Biçim seç"), 400
+    o = d.get("opts") or {}
+    save_settings({"donustur_ayar": {"format": fmt, **o}})
+    title = Path(files[0]).stem[:30] + (f" +{len(files) - 1}" if len(files) > 1 else "")
+    j = JOBS.start("donustur", f"Dönüştür → {convert.FORMATS[fmt][0][1:].upper()}: {title}", convert.job_convert, files, fmt, o)
+    return jsonify(job=j.id)
+
+
 @app.post("/api/describe")
 def api_describe():
     return jsonify(describe_file((request.get_json(force=True) or {}).get("path")))

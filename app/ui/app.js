@@ -310,6 +310,7 @@ KS.addFile = async () => {
 KS.handleFile = async f => {
   if (f.error) return KS.toast(KS.esc(f.error), 'err');
   if (KS.page === 'kalite' && (f.kind === 'video' || f.kind === 'image') && KS.kalite) return KS.kalite.load(f.path);
+  if (KS.page === 'donustur' && KS.donustur && ['video', 'audio', 'image'].includes(f.kind)) return KS.donustur.add([f.path]);
   const ed = KS.editor;
   if (f.kind === 'video') {
     // video direkt eklenir: açık proje varsa ona, yoksa yeni projeye

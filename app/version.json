@@ -1,7 +1,8 @@
 {
- "version": "1.9.1",
+ "version": "1.10.0",
  "date": "2026-11-27",
  "notes": [
-  "Kalite Artır paneli yeniden tasarlandı: hazır ayar kartları, model kartları (kalite / hız göstergeli), düzenli bölümler, tahmini süre düğmenin üstünde"
+  "Yeni Dönüştür sayfası: video, ses ve fotoğrafları istediğin biçime çevir (MP4, MOV, MKV, WEBM, AVI, GIF, MP3, WAV, M4A, FLAC, OGG, JPG, PNG, WEBP, BMP, TIFF, ICO)",
+  "Birden fazla dosyayı tek seferde çevirir; \"Aynı kalite\" seçiliyse mümkün olduğunda kalite kaybı olmadan saniyeler içinde çevirir"
  ]
 }
