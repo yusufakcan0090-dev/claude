@@ -489,6 +489,39 @@ def _hook(job, lo, hi, label):
     return h
 
 
+def _download_ffmpeg(job, url, title, lo, hi, section, preview, folder, name):
+    """yt-dlp'den sadece akış adreslerini alıp videoyu (ya da aralığını) doğrudan FFmpeg ile indirir."""
+    import subprocess
+    from core import run_ffmpeg_progress
+    fmt = ("worst[vcodec!=none][acodec!=none]/worst" if preview
+           else "b[height<=1440][vcodec!=none][acodec!=none]/bv*[height<=1440]+ba/b")
+    with _ydl({"format": fmt}) as ydl:
+        info = ydl.extract_info(url, download=False)
+    fmts = info.get("requested_formats") or [info]
+    inputs, maps = [], []
+    seek = ["-ss", f"{section[0]:.3f}"] if section else []
+    for i, f in enumerate(fmts[:2]):
+        hdr = "".join(f"{k}: {v}\r\n" for k, v in (f.get("http_headers") or info.get("http_headers") or {}).items())
+        inputs += (["-headers", hdr] if hdr else []) + seek + ["-i", f["url"]]
+        maps += ["-map", f"{i}:v:0?", "-map", f"{i}:a:0?"] if len(fmts) == 1 else (["-map", f"{i}:v:0"] if i == 0 else ["-map", f"{i}:a:0"])
+    dur = (section[1] - section[0]) if section else float(info.get("duration") or 0)
+    out = folder / (name + f"_{info.get('id') or 'video'}.mp4")
+    cmd = [FFMPEG, "-y", *inputs, *(["-t", f"{dur:.3f}"] if section else []), *maps, "-c", "copy", "-movflags", "+faststart", str(out)]
+    if job:
+        job.set(lo, "İndiriliyor...")
+    code, err = run_ffmpeg_progress(cmd, max(1.0, dur), lambda p: job and job.set(lo + (hi - lo) * p, f"İndiriliyor %{int(p * 100)}"),
+                                    lambda: bool(job and job.cancelled), job=job if job and hasattr(job, "procs") else None)
+    if code != 0 or not out.exists() or out.stat().st_size < 1000:
+        # kopyalama olmadıysa yeniden kodla (bazı akışlarda gerekli)
+        cmd = [FFMPEG, "-y", *inputs, *(["-t", f"{dur:.3f}"] if section else []), *maps, "-c:v", "libx264", "-preset", "veryfast",
+               "-crf", "18", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
+        code, err = run_ffmpeg_progress(cmd, max(1.0, dur), lambda p: job and job.set(lo + (hi - lo) * p, f"İndiriliyor %{int(p * 100)}"),
+                                        lambda: bool(job and job.cancelled))
+        if code != 0 or not out.exists():
+            raise RuntimeError("İndirme başarısız: " + (err or "")[-200:])
+    return str(out), info
+
+
 def download(job, url, title, lo=0.0, hi=1.0, section=None, preview=False):
     """Videoyu indirir, dosya yolunu döndürür.
     section=(start, end) verilirse sadece o aralık indirilir.
@@ -509,9 +542,16 @@ def download(job, url, title, lo=0.0, hi=1.0, section=None, preview=False):
         import yt_dlp.utils
         opts["download_ranges"] = yt_dlp.utils.download_range_func(None, [tuple(section)])
         opts["force_keyframes_at_cuts"] = False
-    with _ydl(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        path = info.get("requested_downloads", [{}])[0].get("filepath") or ydl.prepare_filename(info)
+    try:
+        with _ydl(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            path = info.get("requested_downloads", [{}])[0].get("filepath") or ydl.prepare_filename(info)
+    except Exception as e:
+        if "ffmpeg" not in str(e).lower():
+            raise
+        # yt-dlp bazen ffmpeg'i göremiyor: aralığı kendi ffmpeg'imizle keselim
+        _dbg(f"yt-dlp ffmpeg'i göremedi, kendi ffmpeg'imizle indiriliyor: {str(e)[:150]}")
+        return _download_ffmpeg(job, url, title, lo, hi, section, preview, folder, name)
     p = Path(path)
     if not p.exists():
         cands = sorted(folder.glob(name + "_*"), key=lambda x: x.stat().st_mtime, reverse=True)

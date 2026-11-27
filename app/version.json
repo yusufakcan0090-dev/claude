@@ -1,8 +1,7 @@
 {
- "version": "1.7.7",
+ "version": "1.7.8",
  "date": "2026-11-27",
  "notes": [
-  "Asistan cevabı yazarken anında görünür (kelime kelime akar), beklemeden okumaya başlarsın",
-  "Asistan bir iş yaparken ne yaptığını yazar (Projeler alınıyor… gibi)"
+  "Kick/YouTube'dan an indirme düzeltildi: indirme aracı FFmpeg'i göremediğinde program kendi FFmpeg'iyle indirir (otomatik edit ve Anları Bul artık takılmaz)"
  ]
 }
