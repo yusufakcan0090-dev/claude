@@ -411,6 +411,7 @@ KS.renderSettings = () => {
     <div class="st-sec"><h3>Genel</h3>
       ${row('Kayıt klasörü', KS.esc(s.cikti_klasoru || ''), '<button class="btn ghost sm" id="setOutOpen">Aç</button><button class="btn ghost sm" id="setOutBtn">Değiştir</button>')}
       ${row('Görünüm', 'Programın renkleri', `<div class="seg" id="setTheme">${[['koyu', 'Koyu'], ['dahakoyu', 'Daha koyu'], ['acik', 'Açık']].map(([v, n]) => `<button data-v="${v}" class="${(s.tema || 'koyu') === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
+      ${row('Programı paylaş', 'Arkadaşına bu linki at: indirip çift tıklaması yeter', '<button class="btn ghost sm" id="setShareLink">Linki kopyala</button>')}
       ${row('Otomatik güncelleme', s.oto_guncelle !== false ? 'Açık · yeni sürüm gelince boşta olduğun bir anda kendisi kurar' : 'Kapalı · yeni sürüm gelince sadece haber verir', `<label class="ae-chk"><input type="checkbox" id="setAutoUpd" ${s.oto_guncelle !== false ? 'checked' : ''}> Açık</label>`)}
       ${row('Güncelleme', up.available ? `Yeni sürüm hazır: v${KS.esc(up.latest)}` : (up.current ? `v${KS.esc(up.current)} · güncel` : KS.esc(($('#verTag') || {}).textContent || 'Kontrol edilmedi')), `<button class="btn ${up.available ? 'primary' : 'ghost'} sm" id="setUpd">${up.available ? 'Güncelle' : 'Kontrol et'}</button>`)}
     </div>
@@ -435,6 +436,7 @@ KS.renderSettings = () => {
   const save = patch => KS.api('/api/settings', patch).then(r => { KS.state.settings = r; });
   $('#setOutBtn').onclick = async () => { const r = await KS.api('/api/pick_folder', {}); if (r.path) { await save({ cikti_klasoru: r.path }); KS.renderSettings(); } };
   $('#setOutOpen').onclick = () => KS.api('/api/reveal', { path: s.cikti_klasoru }).catch(() => KS.toast('Klasör henüz yok, ilk videoda oluşacak.'));
+  $('#setShareLink').onclick = async () => { if (await KS.copy('https://github.com/yusufakcan0090-dev/claude/raw/kesit-studyosu/KesitStudyosu_Kurulum.exe')) KS.toast('Link kopyalandı. Arkadaşın indirip çift tıklasın.', 'ok'); };
   $('#setAutoUpd').onchange = e => save({ oto_guncelle: e.target.checked }).then(KS.renderSettings);
   $('#setUpd').onclick = () => up.available ? KS.updateDialog() : KS.checkUpdate(true, true).then(KS.renderSettings);
   $$('#setModel button').forEach(b => b.onclick = () => save({ whisper_model: b.dataset.v }).then(KS.renderSettings));

@@ -1,7 +1,8 @@
 {
- "version": "1.10.1",
+ "version": "1.10.2",
  "date": "2026-11-27",
  "notes": [
-  "Tam otomatik güncelleme: program açıkken de 15 dakikada bir bakar, yeni sürümü boşta olduğun bir anda kendisi kurar (iş sürerken beklemeye alır). Ayarlar'dan kapatılabilir."
+  "Tek dosya kurulum: KesitStudyosu_Kurulum.exe — indir, çift tıkla, İleri'ye bas",
+  "Ayarlar → Programı paylaş: kurulum linkini tek tuşla kopyala"
  ]
 }
