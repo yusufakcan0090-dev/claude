@@ -99,7 +99,7 @@ def ai_cmd(o, inp, out, fmt=None):
     if j:
         cmd += ["-j", j]
     return cmd, str(exe.parent)
-DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu": 25, "blok": True,
+DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "x2", "keskin": 45, "gurultu": 25, "blok": True,
            "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True,
            # yüz
            "yuz": False, "yuz_guc": 70, "yuz_model": "gfpgan",

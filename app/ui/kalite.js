@@ -42,7 +42,7 @@
   /* --- ayarlar --- */
   const seg = (key, list, cur) => `<div class="seg kq-seg" data-k="${key}">${list.map(([v, n, tip]) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${tip ? `title="${tip}"` : ''}>${n}</button>`).join('')}</div>`;
   const sl = (key, label, min, max, cur, hint) => `<div class="kq-sl"><div><span>${label}</span><b id="kqv_${key}">${cur}</b></div><input type="range" min="${min}" max="${max}" value="${cur}" data-r="${key}">${hint ? `<small>${hint}</small>` : ''}</div>`;
-  const DEF = { model: 'hizli', olcek: 2, hedef: '1080', keskin: 45, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
+  const DEF = { model: 'hizli', olcek: 2, hedef: 'x2', keskin: 45, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
     yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 0, kayipsiz: false, ai_guc: 100, detay: 0, yumusat: 0, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
     kalite: 'yuksek', codec: 'h264', bicim: 'kaynak', bas: 0, bit: 0, ses: true, ses_temizle: false, ses_dengele: false,
     supersample: false, ozel_w: 1920, ozel_h: 0, ozel_fps: 60, crf_ozel: false, crf: 16, enc_hiz: '', ses_kbps: 192, tile: 0, bit10: false };
@@ -76,7 +76,7 @@
   KS.api('/api/koruma').then(r => { Q.kor = r; }).catch(() => { });
 
   /* --- büyütme ve çözünürlük: kullanıcı kendi seçer, hazır ayarlar değiştirmez --- */
-  const UPS = [['kaynak', '1x', 'Aynı boyut'], ['x2', '2x', ''], ['x3', '3x', ''], ['x4', '4x', '']];
+  const UPS = [['kaynak', '1x', 'aynı boyut'], ['x2', '2x', 'önerilen'], ['x3', '3x', ''], ['x4', '4x', ''], ['ozel', 'Özel', 'kendin yaz']];
   const RES = [['720', 'HD', '720p'], ['1080', 'Full HD', '1080p'], ['1440', '2K', '1440p'], ['2160', '4K', '2160p'], ['4320', '8K', '4320p'], ['ozel', 'Özel', 'kendin yaz']];
   const outDims = o => {
     if (!Q.src || !Q.src.width) return null;
@@ -90,12 +90,11 @@
   const boyutHtml = (o, img) => {
     const d = outDims(o), k = d && Q.src ? Math.max(d[0] / Q.src.width, d[1] / Q.src.height) : 0;
     const tile = ([v, n, sub]) => `<button data-v="${v}" class="${String(o.hedef) === v ? 'on' : ''}"><b>${n}</b>${sub ? `<small>${sub}</small>` : ''}</button>`;
-    return `<div class="kq-h">Büyütme (kaç kat)</div><div class="seg kq-seg kq-ups" data-k="hedef">${UPS.map(tile).join('')}</div>
-      <div class="kq-h">ya da çözünürlük seç</div><div class="seg kq-seg kq-res" data-k="hedef">${RES.map(tile).join('')}</div>
+    return `<div class="kq-h">Kaç kat büyüsün?</div><div class="seg kq-seg kq-ups" data-k="hedef">${UPS.map(tile).join('')}</div>
       ${o.hedef === 'ozel' ? `<div class="kq-nums"><label class="kq-num"><span>Genişlik</span><input type="number" class="inp" data-n="ozel_w" min="64" max="16384" placeholder="otomatik" value="${o.ozel_w || ''}"></label><b>×</b><label class="kq-num"><span>Yükseklik</span><input type="number" class="inp" data-n="ozel_h" min="64" max="16384" placeholder="otomatik" value="${o.ozel_h || ''}"></label></div><small class="kq-note">Birini boş bırakırsan oran korunur (ör. genişlik 2560, yükseklik boş).</small>` : ''}
       ${d ? `<div class="kq-outd"><span>${Q.src.width}×${Q.src.height}</span><i>→</i><b>${d[0]}×${d[1]}</b><em>${kName(d)}${k > 1.01 ? ' · ' + k.toFixed(1).replace('.', ',') + ' kat büyütme' : k < 0.99 ? ' · küçültme' : ' · aynı boyut'}</em></div>` : ''}
       ${o.bicim && o.bicim !== 'kaynak' ? `<small class="kq-note">Biçim ${o.bicim.slice(0, -1)} seçili: çözünürlük o şekle göre ayarlanır.</small>` : ''}
-      ${String(o.hedef) === '4320' || k > 4.01 ? '<small class="kq-note">⚠️ 8K ya da 4 kattan büyük: çok uzun sürer ve dosya çok büyük olur. Önce kısa bir aralıkla dene.</small>' : ''}
+      ${d && Math.min(...d) > 2160 ? '<small class="kq-note">ℹ️ 4K\'dan büyük: YouTube ve Reels bunu 4K gösterir, dosya çok büyük olur ve uzun sürer. Genelde 2x yeter.</small>' : ''}
       <small class="kq-note">Yapay zekâ seçtiğin boyuta göre kendisi 2x, 3x ya da 4x çalışır.</small>`;
   };
   Q.renderSide = () => {
@@ -103,6 +102,7 @@
     if (!o) { el.innerHTML = ''; return; }
     Object.keys(DEF).forEach(k => { if (o[k] === undefined) o[k] = DEF[k]; });
     if (MODEL_ESKI[o.model]) o.model = MODEL_ESKI[o.model];
+    if (!UPS.some(u => u[0] === String(o.hedef))) o.hedef = 'x2';  // eski 2K/4K/8K seçimleri
     const m = MODELS.find(x => x[0] === o.model) || MODELS[0], dur = Q.src ? Q.src.duration : 0, keep = el.scrollTop, img = !!(Q.src && Q.src.image);
     const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K'], ['ozel', 'Özel']] : TARGETS;
     const curP = Object.keys(PRESETS).find(k => Object.entries(PRESETS[k][2]).every(([a, b]) => o[a] === b));
@@ -113,7 +113,7 @@
           <div class="kq-tools"><button class="btn primary sm" id="kqInp">🩹 Boyanan yeri sil</button><button class="btn ghost sm" id="kqBClr">Temizle</button><button class="btn ghost sm" id="kqBOff">Vazgeç</button></div>`
         : `<div class="kq-tools"><button class="btn ghost sm" id="kqBg">✂️ Arka planı sil</button><button class="btn ghost sm" id="kqBOn">🩹 Nesne sil (fırça)</button></div>
           <small class="kq-note">Bilgisayarında, ücretsiz yapay zekâ ile çalışır. İlk kullanımda model iner (~170-200 MB). Sonuç ayrı bir dosya olarak kaydedilir.</small>`) : ''}
-      ${grp('boyut', 'Büyütme ve çözünürlük', boyutHtml(o, img))}
+      ${grp('boyut', 'Büyütme', boyutHtml(o, img))}
       ${grp('ai', 'Yapay zekâ modeli ve biçim', `<div class="kq-h">Yapay zekâ modeli</div>${modelCards(o.model)}
         ${o.model !== 'klasik' ? sl('ai_guc', 'Yapay zekâ gücü (azaltınca daha doğal)', 0, 100, o.ai_guc) : ''}
         <div class="kq-h">Biçim (ekran şekli)</div>${seg('bicim', [['kaynak', what + ' kendisi'], ['9:16k', 'Reels 9:16 (doldur)'], ['9:16b', 'Reels 9:16 (bulanık arka)'], ['4:5k', '4:5 gönderi'], ['1:1k', 'Kare']], o.bicim)}
