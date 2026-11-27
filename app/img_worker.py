@@ -45,7 +45,7 @@ def to_bgr(img):
     return img
 
 
-def remove_bg(model, src, dst):
+def remove_bg(model, src, dst, clean=False):
     """IS-Net (DIS) ile ön planı bulur, arka planı şeffaf yapar."""
     img = to_bgr(imread(src))
     h, w = img.shape[:2]
@@ -63,6 +63,15 @@ def remove_bg(model, src, dst):
     # kenarları biraz temizle: çok zayıf değerler tamamen şeffaf, güçlüler tamamen dolu
     mask = np.clip((mask - 0.08) / 0.84, 0, 1)
     a = (mask * 255).round().astype(np.uint8)
+    if clean:
+        # küçük kopuk lekeleri at: ana gövde ve ona yakın büyük parçalar kalsın
+        n, lab, st, _ = cv2.connectedComponentsWithStats((a > 100).astype(np.uint8), 8)
+        if n > 2:
+            big = st[1:, cv2.CC_STAT_AREA].max()
+            keep = np.zeros(n, bool)
+            keep[1:] = st[1:, cv2.CC_STAT_AREA] >= big * 0.04
+            grow = cv2.dilate(keep[lab].astype(np.uint8), np.ones((9, 9), np.uint8))
+            a = (a * grow).astype(np.uint8)
     out = np.dstack([img, a])
     imwrite(dst, out)
     print("100/100", flush=True)
@@ -126,6 +135,8 @@ def main():
         a = a[:-1]
     if a[0] == "arkaplan":
         remove_bg(a[1], a[2], a[3])
+    elif a[0] == "kisi":
+        remove_bg(a[1], a[2], a[3], clean=True)
     elif a[0] == "nesne":
         inpaint(a[1], a[2], a[3], a[4])
     else:

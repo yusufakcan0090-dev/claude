@@ -229,6 +229,7 @@
   KS.thumb = async pid => {
     pid = pid || (KS.editor && KS.editor.project && KS.editor.project.id);
     if (!pid) return KS.toast('Önce bir proje aç', 'err');
+    if (KS.kapakFromProject) return KS.kapakFromProject(pid);
     const m = KS.modal(`<h2>🖼 Kapak Yap</h2><p class="msub">Bir kare seç, yazını yaz, kaydet.</p><div id="thBody"><div class="th-load">Kareler hazırlanıyor...</div></div>`, { wide: true });
     let r;
     try { r = await KS.api(`/api/project/${pid}/frames`); } catch (e) { m.close(); return KS.toast(KS.esc(e.message), 'err'); }

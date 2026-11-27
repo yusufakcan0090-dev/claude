@@ -1076,16 +1076,18 @@ def media_kalite_src():
 def api_snapshot():
     import base64
     d = request.get_json(force=True) or {}
-    data = (d.get("data") or "").split(",", 1)[-1]
+    raw = d.get("data") or ""
+    ext = ".jpg" if raw.startswith("data:image/jpeg") else ".png"
+    data = raw.split(",", 1)[-1]
     if not data:
         return jsonify(error="Görüntü yok"), 400
     folder = Path(load_settings().get("cikti_klasoru") or str(Path.home() / "Videos"))
     folder.mkdir(parents=True, exist_ok=True)
-    name = safe_name(d.get("name") or "kare", 80) + ".png"
+    name = safe_name(d.get("name") or "kare", 80) + ext
     out = folder / name
     i = 2
     while out.exists():
-        out = folder / f"{Path(name).stem}_{i}.png"
+        out = folder / f"{Path(name).stem}_{i}{ext}"
         i += 1
     out.write_bytes(base64.b64decode(data))
     return jsonify(path=str(out), name=out.name)
@@ -1257,7 +1259,8 @@ def api_frames(pid):
             run([FFMPEG, "-y", "-ss", f"{t:.3f}", "-i", c["source"], "-frames:v", "1", "-vf", "scale='min(1920,iw)':-2", "-q:v", "2", str(f)])
         if f.exists():
             out.append({"t": round(t, 2), "url": f"/media/kapak/{pid}/{f.name}"})
-    return jsonify(frames=out, title=(p.get("paylasim") or {}).get("youtube", {}).get("baslik") or p.get("title"))
+    return jsonify(frames=out, title=(p.get("paylasim") or {}).get("youtube", {}).get("baslik") or p.get("title"),
+                   source=c["source"], start=c["in"], end=c["out"])
 
 
 @app.get("/media/kapak/<pid>/<name>")
@@ -1530,3 +1533,92 @@ def _tk_dialog(folder):
         return r or None
     except Exception:
         return None
+
+
+# ================================================================ kapak stüdyosu
+def _kapak_dir(sub):
+    d = CACHE / "kapak" / sub
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _media_url(p):
+    from urllib.parse import quote
+    return "/media/video?path=" + quote(str(p))
+
+
+def _kapak_key(p, *extra):
+    import hashlib
+    st = Path(p).stat()
+    return hashlib.md5("|".join(map(str, (p, st.st_mtime, st.st_size) + extra)).encode()).hexdigest()[:16]
+
+
+@app.post("/api/kapak/kare")
+def api_kapak_kare():
+    """Videodan tam çözünürlükte tek kare (fotoğrafsa kendisi)."""
+    d = request.get_json(force=True) or {}
+    p = d.get("path") or ""
+    if not p or not Path(p).exists():
+        return jsonify(error="Dosya bulunamadı"), 400
+    if file_kind(p) == "image":
+        return jsonify(path=p, url=_media_url(p))
+    t = max(0.0, float(d.get("t") or 0))
+    f = _kapak_dir("kare") / f"{_kapak_key(p, round(t, 2))}.png"
+    if not f.exists():
+        run([FFMPEG, "-y", "-ss", f"{t:.3f}", "-i", p, "-frames:v", "1", "-pix_fmt", "rgb24", str(f)])
+    if not f.exists():
+        return jsonify(error="Bu andan kare alınamadı"), 400
+    return jsonify(path=str(f), url=_media_url(f))
+
+
+@app.post("/api/kapak/kareler")
+def api_kapak_kareler():
+    """Videodan seçmek için küçük aday kareler."""
+    d = request.get_json(force=True) or {}
+    p = d.get("path") or ""
+    if not p or not Path(p).exists():
+        return jsonify(error="Dosya bulunamadı"), 400
+    a = float(d.get("start") or 0)
+    b = float(d.get("end") or 0) or probe(p)["duration"] or 1
+    n = max(2, min(16, int(d.get("n") or 10)))
+    out = []
+    for i in range(n):
+        t = a + (b - a) * (i + .5) / n
+        f = _kapak_dir("aday") / f"{_kapak_key(p, round(t, 2))}.jpg"
+        if not f.exists():
+            run([FFMPEG, "-y", "-ss", f"{t:.3f}", "-i", p, "-frames:v", "1", "-vf", "scale=320:-2", "-q:v", "4", str(f)])
+        if f.exists():
+            out.append({"t": round(t, 2), "url": _media_url(f)})
+    return jsonify(frames=out)
+
+
+@app.post("/api/kapak/kes")
+def api_kapak_kes():
+    import imgtools
+    p = (request.get_json(force=True) or {}).get("path") or ""
+    if not p or not Path(p).exists():
+        return jsonify(error="Görsel bulunamadı"), 400
+    j = JOBS.start("kapak", "Kişi kesiliyor", imgtools.job_cutout, p, heavy=True)
+    return jsonify(job=j.id)
+
+
+@app.post("/api/kapak/yazi")
+def api_kapak_yazi():
+    import ai
+    if not ai.enabled():
+        return jsonify(error="Yazı önerisi için Ayarlar → Yapay Zekâ'dan anahtar ekle"), 400
+    d = request.get_json(force=True) or {}
+    konu = (d.get("konu") or "").strip()[:400]
+    if not konu:
+        return jsonify(error="Videonun konusunu yaz"), 400
+    prompt = ("Bir YouTube/Shorts kapağı (thumbnail) üzerine yazılacak kısa, merak uyandıran Türkçe yazılar üret. "
+              "Kurallar: her biri en fazla 4 kelime, BÜYÜK HARF, tıklatan ama yalan olmayan, emoji yok. "
+              "Bir kelimeyi vurgulamak için *yıldız* içine al (en fazla bir kelime). "
+              f"Konu: {konu}\n"
+              'Sadece JSON dön: {"yazilar": ["...", "..."]} — 8 tane.')
+    try:
+        r = ai.ask(prompt, json_mode=True, temperature=0.95)
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+    arr = [str(x).strip() for x in (r.get("yazilar") if isinstance(r, dict) else r) or [] if str(x).strip()]
+    return jsonify(yazilar=arr[:10])

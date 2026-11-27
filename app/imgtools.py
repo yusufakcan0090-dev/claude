@@ -68,3 +68,23 @@ def job_inpaint(job, src, mask_data):
         raise RuntimeError("Nesne silinemedi")
     job.set(1, "Hazır! " + out.name)
     return {"path": str(out), "name": out.name, "image": True}
+
+
+def job_cutout(job, src):
+    """Kapak Stüdyosu: kişiyi kes (önbellekli, çıktı klasörüne yazmaz)."""
+    import hashlib
+    job.extra = {"parca": "Kişi"}
+    st = Path(src).stat()
+    key = hashlib.md5(f"{src}|{st.st_mtime}|{st.st_size}".encode()).hexdigest()[:16]
+    d = enhance.CACHE / "kapak" / "kes"
+    d.mkdir(parents=True, exist_ok=True)
+    out = d / f"{key}_v2.png"
+    if not out.exists():
+        model = ensure_model("arkaplan", job, 0.02, 0.6)
+        tmp = d / f"{key}_yaz.png"
+        _run(job, ["kisi", model, src, tmp], 0.6, "Kişi kesiliyor...")
+        if not tmp.exists():
+            raise RuntimeError("Kişi kesilemedi")
+        tmp.replace(out)
+    job.set(1, "Kişi kesildi")
+    return {"path": str(out)}
