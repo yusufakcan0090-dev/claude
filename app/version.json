@@ -1,7 +1,8 @@
 {
- "version": "1.12.5",
+ "version": "1.12.6",
  "date": "2026-11-27",
  "notes": [
+  "Köşedeki 'işlem sürüyor' kutusu kalktı; süren işler sol menüde küçük halka olarak görünüyor, tıklayınca liste açılır",
   "Kalite: sadece 1x / 2x / 3x / 4x / Özel büyütme (2K/4K/8K kaldırıldı, sonuç boyutu altında yazıyor)",
   "Kalite: hazır ayarlar kaldırıldı, her şeyi kendin seçiyorsun (kaydettiğin kendi ayarların duruyor)",
   "Kurulum dosyası artık BEK_Kurulum.exe (eski link de çalışıyor); Programı paylaş yeni linki kopyalar",

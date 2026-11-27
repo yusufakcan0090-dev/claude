@@ -180,6 +180,9 @@ KS.renderJobs = () => {
   dock.classList.toggle('has', running.length > 0);
   dock.classList.toggle('only-kq', running.length > 0 && running.every(j => j.kind === 'kalite'));
   dock.classList.toggle('open', jobsOpen && running.length > 0);
+  { const sj = $('#sideJobs'), pct = running.length ? Math.round(running.reduce((s, j) => s + j.progress, 0) / running.length * 100) : 0;
+    sj.hidden = !running.length; $('#sideJobsPct').textContent = '%' + pct; $('#sideJobsN').textContent = running.length > 1 ? running.length + ' iş' : 'İş';
+    $('#sideJobsRing').style.strokeDashoffset = String(94.25 * (1 - pct / 100)); sj.classList.toggle('paused', running.some(j => j.paused)); }
   $('#jobsPillText').textContent = running.length ? `${running.length} işlem sürüyor · %${Math.round(running.reduce((s, j) => s + j.progress, 0) / running.length * 100)}` : '';
   const list = $('#jobsList');
   const html = jobs.slice().reverse().map(j => `
@@ -189,10 +192,14 @@ KS.renderJobs = () => {
       <div class="progress"><i style="width:${Math.round((j.status === 'hata' ? 1 : j.progress) * 100)}%;${j.status === 'hata' ? 'background:var(--red);animation:none' : ''}"></i></div>
       <div class="jm">${KS.esc(j.message)}</div>
     </div>`).join('');
-  if (list.dataset.html !== html) { list.innerHTML = html; list.dataset.html = html; }
+  // aynı işler duruyorsa sadece yüzde ve mesajı güncelle (her seferinde baştan çizilince kartlar sönük kalıyordu)
+  const ids = jobs.map(j => j.id + j.status).join(',');
+  if (list.dataset.ids !== ids) { list.innerHTML = html; list.dataset.ids = ids; }
+  else jobs.forEach(j => { const el = list.querySelector(`[data-id="${j.id}"]`); if (!el) return; const b = el.querySelector('.progress i'); if (b) b.style.width = Math.round((j.status === 'hata' ? 1 : j.progress) * 100) + '%'; const m = el.querySelector('.jm'); if (m && m.textContent !== j.message) m.textContent = j.message; });
 };
-document.addEventListener('mousedown', e => { if (jobsOpen && !e.target.closest('#jobsDock')) { jobsOpen = false; KS.renderJobs(); } });
+document.addEventListener('mousedown', e => { if (jobsOpen && !e.target.closest('#jobsDock,#sideJobs')) { jobsOpen = false; KS.renderJobs(); } });
 $('#jobsPill').onclick = () => { jobsOpen = !jobsOpen; KS.renderJobs(); };
+$('#sideJobs').onclick = () => { jobsOpen = !jobsOpen; KS.renderJobs(); };
 $('#jobsList').onclick = e => {
   const c = e.target.closest('[data-cancel]');
   if (c) KS.api(`/api/jobs/${c.dataset.cancel}/cancel`, {}).then(() => KS.toast('İptal ediliyor...'));
