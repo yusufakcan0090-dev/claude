@@ -67,7 +67,8 @@
     txt.value = ''; txt.style.height = 'auto';
     A.chat.push({ rol: 'sen', metin: m }); A.busy = true; A.render();
     try {
-      const r = await KS.api('/api/ai/chat', { message: m, ctx: A.ctx() });
+      const r = await Promise.race([KS.api('/api/ai/chat', { message: m, ctx: A.ctx() }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Gemini çok geç cevap veriyor. Biraz sonra tekrar dene.')), 200000))]);
       A.chat.push({ rol: 'ai', metin: r.reply });
       KS.kickJobs && KS.kickJobs();
       for (const a of r.actions || []) await A.act(a);

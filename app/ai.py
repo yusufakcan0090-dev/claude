@@ -27,14 +27,59 @@ def enabled():
     return bool(key())
 
 
-def _http(method, path, body=None, timeout=180, k=None):
+def _log(msg):
+    import sys
+    print(f"[ai] {time.strftime('%H:%M:%S')} {msg}", file=sys.stderr, flush=True)
+
+
+def _err(code, err):
+    msg, status = err.get("message", ""), err.get("status", "")
+    _log(f"HTTP {code} {status}: {msg[:400]}")
+    if code == 401 or "ACCESS_TOKEN_TYPE_UNSUPPORTED" in json.dumps(err):
+        return AIError("Google bu anahtarı kabul etmedi (401). AI Studio'da yeni bir anahtar oluşturup tekrar dene; "
+                       "anahtarın tamamını kopyaladığından emin ol.")
+    if code == 400 and ("API key" in msg or "API_KEY" in msg):
+        return AIError("Gemini anahtarı geçersiz. Ayarlar → Yapay Zekâ'dan kontrol et.")
+    if code == 403:
+        return AIError("Gemini anahtarının izni yok (anahtar kapatılmış ya da bölge desteklenmiyor).")
+    if code == 429 or status == "RESOURCE_EXHAUSTED":
+        return AIError("KOTA:Gemini ücretsiz kullanım sınırı doldu. Biraz bekleyip tekrar dene.")
+    if code == 404:
+        return AIError("MODEL:" + msg)
+    if code >= 500:
+        return AIError("MESGUL:Gemini şu an çok yoğun, biraz sonra tekrar dene.")
+    return AIError(f"Gemini hatası ({code}): {msg[:300]}")
+
+
+def _http(method, path, body=None, timeout=60, k=None):
+    """Gemini'ye istek. Kesin süre sınırı var (takılıp kalmasın)."""
     k = k or key()
     if not k:
         raise AIError("Yapay zekâ için Ayarlar → Yapay Zekâ kısmına Gemini anahtarını gir.")
     url = f"{BASE}/{path}"
+    t0 = time.time()
+    try:
+        from curl_cffi import requests as creq
+    except Exception:
+        creq = None
+    if creq:
+        try:
+            r = creq.request(method, url, data=json.dumps(body).encode("utf-8") if body is not None else None,
+                             timeout=timeout, headers={"Content-Type": "application/json", "x-goog-api-key": k})
+        except Exception as e:
+            _log(f"bağlantı hatası ({time.time() - t0:.0f} sn): {str(e)[:200]}")
+            if "timed out" in str(e).lower() or "timeout" in str(e).lower():
+                raise AIError("MESGUL:Gemini zamanında cevap vermedi.")
+            raise AIError("İnternete bağlanılamadı. Bağlantını kontrol et.")
+        if r.status_code >= 400:
+            try:
+                err = r.json().get("error", {})
+            except Exception:
+                err = {"message": r.text[:300]}
+            raise _err(r.status_code, err)
+        return r.json()
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method,
-                                 headers={"Content-Type": "application/json", "x-goog-api-key": k})
+    req = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "x-goog-api-key": k})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8"))
@@ -43,41 +88,12 @@ def _http(method, path, body=None, timeout=180, k=None):
             err = json.loads(e.read().decode("utf-8")).get("error", {})
         except Exception:
             err = {}
-        msg, status = err.get("message", ""), err.get("status", "")
-        import sys
-        print(f"[ai] HTTP {e.code} {status}: {msg[:400]}", file=sys.stderr, flush=True)
-        if e.code == 401 or "ACCESS_TOKEN_TYPE_UNSUPPORTED" in json.dumps(err):
-            raise AIError("Google bu anahtarı kabul etmedi (401). AI Studio'da yeni bir anahtar oluşturup tekrar dene; "
-                          "anahtarın tamamını kopyaladığından emin ol.")
-        if e.code == 400 and ("API key" in msg or "API_KEY" in msg):
-            raise AIError("Gemini anahtarı geçersiz. Ayarlar → Yapay Zekâ'dan kontrol et.")
-        if e.code == 403:
-            raise AIError("Gemini anahtarının izni yok (anahtar kapatılmış ya da bölge desteklenmiyor).")
-        if e.code == 429 or status == "RESOURCE_EXHAUSTED":
-            raise AIError("KOTA:Gemini ücretsiz kullanım sınırı doldu. Biraz bekleyip tekrar dene.")
-        if e.code == 404:
-            raise AIError("MODEL:" + msg)
-        if e.code >= 500:
-            raise AIError("MESGUL:Gemini şu an çok yoğun, biraz sonra tekrar dene.")
-        raise AIError(f"Gemini hatası ({e.code}): {msg[:300]}")
-    except urllib.error.URLError as e:
-        import sys
-        print(f"[ai] bağlantı hatası: {e}", file=sys.stderr, flush=True)
-        if "CERTIFICATE" in str(e).upper() or "SSL" in str(e).upper():
-            return _http_curl(method, url, body, timeout, k)
+        raise _err(e.code, err)
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        _log(f"bağlantı hatası: {e}")
+        if "timed out" in str(e).lower():
+            raise AIError("MESGUL:Gemini zamanında cevap vermedi.")
         raise AIError("İnternete bağlanılamadı. Bağlantını kontrol et.")
-    except TimeoutError:
-        raise AIError("Gemini zaman aşımına uğradı, tekrar dene.")
-
-
-def _http_curl(method, url, body, timeout, k):
-    """SSL sertifika sorunu olan bilgisayarlarda curl_cffi ile dene."""
-    from curl_cffi import requests as creq
-    r = creq.request(method, url, data=json.dumps(body) if body is not None else None, timeout=timeout,
-                     headers={"Content-Type": "application/json", "x-goog-api-key": k})
-    if r.status_code >= 400:
-        raise AIError(f"Gemini hatası ({r.status_code}): {r.text[:300]}")
-    return r.json()
 
 
 def _ver(name):
@@ -125,7 +141,7 @@ def pick_model(force=False):
     return _MODELS["pick"]
 
 
-def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7, timeout=180):
+def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7, timeout=60):
     """Ham generateContent çağrısı. contents: Gemini biçiminde mesaj listesi. Dönen: ilk adayın content'i."""
     body = {"contents": contents, "generationConfig": {"temperature": temperature}}
     if system:
@@ -140,18 +156,30 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
     r = None
     while model and len(tried) < 6:
         tried.append(model)
-        if _ver(model) >= 3:  # Gemini 3+: Google sıcaklığı varsayılan (1.0) bırakmayı öneriyor
+        if _ver(model) >= 3:  # Gemini 3+: sıcaklık varsayılan kalsın, kısa düşünsün (hızlı cevap)
             body["generationConfig"].pop("temperature", None)
+            body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "low"}
         else:
             body["generationConfig"]["temperature"] = temperature
+            body["generationConfig"].pop("thinkingConfig", None)
+        t0 = time.time()
+        _log(f"istek → {model}")
         try:
             r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
+            _log(f"cevap ← {model} ({time.time() - t0:.1f} sn)")
             if model != _MODELS.get("pick") and (load_settings().get("ai_model") or "auto") == "auto":
                 _MODELS["pick"] = model  # çalışanla devam et
             break
         except AIError as e:
             s = str(e)
             last = e
+            if "thinking" in s.lower() and "thinkingConfig" in body["generationConfig"]:
+                body["generationConfig"].pop("thinkingConfig", None)  # bu model düşünme ayarını desteklemiyor
+                try:
+                    r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
+                    break
+                except AIError as e2:
+                    s, last = str(e2), e2
             if s.startswith("MESGUL:") and tried.count(model) == 1 and len(tried) == 1:
                 time.sleep(1.5)  # anlık yoğunluk: aynı modeli bir kez daha dene
                 tried.append("")

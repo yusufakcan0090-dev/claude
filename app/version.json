@@ -1,7 +1,8 @@
 {
- "version": "1.7.2",
+ "version": "1.7.3",
  "date": "2026-11-27",
  "notes": [
-  "Asistan: Gemini'nin en yeni modeli yoğun olduğunda (503) otomatik olarak başka bir modele geçer, cevapsız kalmaz"
+  "Asistan: takılıp kalma düzeltildi — her istek için süre sınırı, geç kalırsa başka modele geçer",
+  "Gemini daha kısa düşünür, cevaplar daha hızlı gelir"
  ]
 }
