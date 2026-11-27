@@ -240,3 +240,74 @@ def chat(message, ctx):
         log.append({"rol": "ai", "metin": reply, "t": time.time(), "araclar": used})
         _save(hist, log)
         return {"reply": reply, "actions": actions, "tools": used}
+
+
+TOOL_LABEL = {"projeleri_listele": "Projeler alınıyor", "proje_ac": "Proje açılıyor", "sayfa_ac": "Sayfa açılıyor", "klip_ara": "Aranıyor",
+              "otomatik_edit": "Otomatik edit başlatılıyor", "altyazi_olustur": "Altyazı başlatılıyor", "disa_aktar": "Dışa aktarma başlatılıyor",
+              "kalite_artir": "Kalite artırma başlatılıyor", "paylasim_metni": "Paylaşım metni yazılıyor", "paylas": "Paylaşım hazırlanıyor",
+              "arka_plan_sil": "Arka plan siliniyor", "kapak_yap": "Kapak açılıyor", "isler": "İşlere bakılıyor", "son_dosyalar": "Dosyalara bakılıyor"}
+
+
+def chat_stream(message, ctx):
+    """Akışlı sohbet: olayları sözlük olarak üretir (text / tool / done / error)."""
+    if not _lock.acquire(timeout=120):
+        yield {"type": "error", "message": "Asistan önceki mesajla meşgul, birazdan tekrar dene."}
+        return
+    try:
+        hist, log = _load()
+        hist.append({"role": "user", "parts": [{"text": message}]})
+        log.append({"rol": "sen", "metin": message, "t": time.time()})
+        actions, used, reply = [], [], ""
+        system = SYS + "\n\nDurum:\n" + _ctx_text(ctx)
+        try:
+            for _ in range(MAX_STEPS):
+                content = None
+                step_text = ""
+                for kind, val in ai.stream(hist, system=system, tools=TOOLS):
+                    if kind == "text":
+                        step_text += val
+                        yield {"type": "text", "text": val}
+                    else:
+                        content = val
+                hist.append(content)
+                calls = [p["functionCall"] for p in content.get("parts", []) if "functionCall" in p]
+                if not calls:
+                    if step_text:
+                        reply = (reply + "\n\n" + step_text).strip() if reply else step_text.strip()
+                    break
+                if step_text:
+                    reply = (reply + "\n\n" + step_text).strip()
+                    yield {"type": "text", "text": "\n\n"}
+                resp = []
+                for fc in calls:
+                    nm, args = fc.get("name"), fc.get("args") or {}
+                    yield {"type": "tool", "label": TOOL_LABEL.get(nm, nm)}
+                    try:
+                        res = run_tool(nm, args, ctx, actions)
+                        used.append(nm)
+                    except Exception as e:
+                        res = {"hata": str(e)[:300]}
+                    part = {"functionResponse": {"name": nm, "response": {"sonuc": json.loads(json.dumps(res, default=str))}}}
+                    if fc.get("id"):
+                        part["functionResponse"]["id"] = fc["id"]
+                    resp.append(part)
+                hist.append({"role": "user", "parts": resp})
+                if actions:
+                    yield {"type": "actions", "actions": actions}
+                    actions = []
+        except ai.AIError as e:
+            while hist and hist[-1].get("role") != "user":
+                hist.pop()
+            if hist and hist[-1].get("parts") and "text" in hist[-1]["parts"][0]:
+                hist.pop()
+            _save(hist, log)
+            yield {"type": "error", "message": str(e).replace("KOTA:", "").replace("MODEL:", "").replace("MESGUL:", "")}
+            return
+        if not reply:
+            reply = "Tamamdır." if used else "Bir şey anlayamadım, tekrar yazar mısın?"
+            yield {"type": "text", "text": reply}
+        log.append({"rol": "ai", "metin": reply, "t": time.time(), "araclar": used})
+        _save(hist, log)
+        yield {"type": "done", "reply": reply, "actions": actions}
+    finally:
+        _lock.release()

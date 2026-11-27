@@ -1031,6 +1031,26 @@ def api_ai_chat():
         return jsonify(error=str(e).replace("KOTA:", "").replace("MODEL:", "")[:300]), 400
 
 
+@app.post("/api/ai/stream")
+def api_ai_stream():
+    import json as _json
+    import assistant
+    from flask import Response, stream_with_context
+    d = request.get_json(force=True) or {}
+    msg = (d.get("message") or "").strip()[:4000]
+    if not msg:
+        return jsonify(error="Mesaj boş"), 400
+    ctx = d.get("ctx") or {}
+
+    def gen():
+        try:
+            for ev in assistant.chat_stream(msg, ctx):
+                yield "data: " + _json.dumps(ev, ensure_ascii=False, default=str) + "\n\n"
+        except Exception as e:
+            yield "data: " + _json.dumps({"type": "error", "message": str(e)[:300]}, ensure_ascii=False) + "\n\n"
+    return Response(stream_with_context(gen()), mimetype="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.post("/api/ai/reset")
 def api_ai_reset():
     import assistant

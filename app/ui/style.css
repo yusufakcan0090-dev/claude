@@ -1161,3 +1161,5 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 
 .ai-nav{color:#b9a8ff}
 .ai-nav.on{color:#fff;background:linear-gradient(160deg,rgba(45,140,235,.35),rgba(123,92,255,.3))}
+
+.ai-st{margin-top:6px;font-size:11.5px;color:#8fb8ff;font-style:italic}

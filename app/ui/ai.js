@@ -66,14 +66,35 @@
     const m = txt.value.trim(); if (!m || A.busy) return;
     txt.value = ''; txt.style.height = 'auto';
     A.chat.push({ rol: 'sen', metin: m }); A.busy = true; A.render();
+    const bot = { rol: 'ai', metin: '' }; let bubble = null, status = '';
+    const paint = () => {
+      if (!bubble) { const t = msgs.querySelector('.typing'); if (t) t.remove(); bubble = document.createElement('div'); bubble.className = 'ai-m bot'; msgs.appendChild(bubble); }
+      bubble.innerHTML = md(bot.metin) + (status ? `<div class="ai-st">${KS.esc(status)}…</div>` : '');
+      msgs.scrollTop = msgs.scrollHeight;
+    };
+    const acts = [];
     try {
-      const r = await Promise.race([KS.api('/api/ai/chat', { message: m, ctx: A.ctx() }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Gemini çok geç cevap veriyor. Biraz sonra tekrar dene.')), 200000))]);
-      A.chat.push({ rol: 'ai', metin: r.reply });
+      const res = await fetch('/api/ai/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: m, ctx: A.ctx() }) });
+      if (!res.ok || !res.body) throw new Error('Sunucu hatası ' + res.status);
+      const rd = res.body.getReader(), dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await rd.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+          if (!line.startsWith('data:')) continue;
+          const ev = JSON.parse(line.slice(5));
+          if (ev.type === 'text') { bot.metin += ev.text; status = ''; paint(); }
+          else if (ev.type === 'tool') { status = ev.label; paint(); }
+          else if (ev.type === 'actions') { for (const a of ev.actions || []) { acts.push(a); await A.act(a); } }
+          else if (ev.type === 'error') { bot.metin = ev.message; bot.err = true; }
+          else if (ev.type === 'done') { if (ev.reply && !bot.metin.trim()) bot.metin = ev.reply; for (const a of ev.actions || []) await A.act(a); }
+        }
+      }
       KS.kickJobs && KS.kickJobs();
-      for (const a of r.actions || []) await A.act(a);
-    } catch (e) { A.chat.push({ rol: 'ai', metin: e.message, err: true }); }
-    finally { A.busy = false; A.render(); }
+    } catch (e) { bot.metin = e.message; bot.err = true; }
+    finally { A.chat.push(bot); A.busy = false; A.render(); }
   };
   A.act = async a => {
     try {

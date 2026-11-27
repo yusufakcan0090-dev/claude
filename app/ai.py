@@ -227,6 +227,94 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
     return c
 
 
+def _merge_parts(parts):
+    """Akışla parça parça gelen cevabı tek içeriğe toplar (imzalar korunur)."""
+    out = []
+    for p in parts:
+        if set(p) <= {"text", "thoughtSignature"} and out and set(out[-1]) <= {"text", "thoughtSignature"} \
+                and "thoughtSignature" not in out[-1] and not p.get("thought"):
+            out[-1]["text"] = out[-1].get("text", "") + p.get("text", "")
+            if p.get("thoughtSignature"):
+                out[-1]["thoughtSignature"] = p["thoughtSignature"]
+        else:
+            out.append(dict(p))
+    return out
+
+
+def stream(contents, system=None, tools=None, timeout=45):
+    """Cevabı akış olarak alır. ('text', parça) olayları üretir, en sonda ('done', content).
+    Hızlı model önce denenir; ilk bayt gelmeden hata olursa sıradakine geçer."""
+    body = {"contents": contents, "generationConfig": {}}
+    if system:
+        body["systemInstruction"] = {"parts": [{"text": system}]}
+    if tools:
+        body["tools"] = [{"functionDeclarations": tools}]
+    k = key()
+    if not k:
+        raise AIError("Yapay zekâ için Ayarlar → Yapay Zekâ kısmına Gemini anahtarını gir.")
+    first = pick_model()
+    lite = _MODELS.get("lite")
+    ok = _MODELS.get("ok") if time.time() - _MODELS.get("ok_t", 0) < 1800 else None
+    order = list(dict.fromkeys([m for m in [ok, lite, first] + (_MODELS.get("all") or []) if m]))[:5]
+    last = None
+    for model in order:
+        b = json.loads(json.dumps(body))
+        cfg = b["generationConfig"]
+        if _ver(model) >= 3 and not _MODELS.get("nothink"):
+            cfg["thinkingConfig"] = {"thinkingLevel": "minimal" if "lite" in model else "low"}
+        t0 = time.time()
+        _log(f"akış → {model}")
+        req = urllib.request.Request(f"{BASE}/models/{model}:streamGenerateContent?alt=sse", data=json.dumps(b).encode("utf-8"),
+                                     method="POST", headers={"Content-Type": "application/json", "x-goog-api-key": k})
+        parts, got = [], False
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                for raw in r:
+                    line = raw.decode("utf-8", "replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    d = json.loads(line[5:].strip() or "{}")
+                    if d.get("error"):
+                        raise _err(int(d["error"].get("code") or 500), d["error"])
+                    for c in d.get("candidates") or []:
+                        for p in (c.get("content") or {}).get("parts") or []:
+                            if not got:
+                                _log(f"ilk parça ← {model} ({time.time() - t0:.1f} sn)")
+                            got = True
+                            parts.append(p)
+                            if p.get("text") and not p.get("thought"):
+                                yield ("text", p["text"])
+        except urllib.error.HTTPError as e:
+            try:
+                err = json.loads(e.read().decode("utf-8")).get("error", {})
+            except Exception:
+                err = {}
+            ex = _err(e.code, err)
+            if "thinking" in str(ex).lower():
+                _MODELS["nothink"] = True
+            last = ex
+            if got or not str(ex).startswith(("MODEL:", "MESGUL:", "KOTA:")) and "thinking" not in str(ex).lower():
+                raise ex
+            continue
+        except AIError as e:
+            last = e
+            if got or not str(e).startswith(("MODEL:", "MESGUL:", "KOTA:")):
+                raise
+            continue
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            _log(f"akış bağlantı hatası: {e}")
+            last = AIError("MESGUL:Gemini zamanında cevap vermedi.")
+            if got:
+                raise AIError("Bağlantı yarıda kesildi, tekrar dene.")
+            continue
+        _log(f"akış bitti ← {model} ({time.time() - t0:.1f} sn)")
+        _MODELS["ok"], _MODELS["ok_t"] = model, time.time()
+        yield ("done", {"role": "model", "parts": _merge_parts(parts)})
+        return
+    s = str(last or "Gemini yanıt vermedi.")
+    raise AIError(s.split(":", 1)[1] if s.startswith(("MODEL:", "MESGUL:", "KOTA:")) else s)
+
+
 def text_of(content):
     return "".join(p.get("text", "") for p in content.get("parts", []) if not p.get("thought"))
 
