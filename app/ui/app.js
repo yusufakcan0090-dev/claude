@@ -431,6 +431,10 @@ KS.renderSettings = () => {
         <div class="fix-add"><input class="inp" id="fixA" placeholder="yanlış"><input class="inp" id="fixB" placeholder="doğru"><button class="btn primary sm" id="fixAdd">Ekle</button></div>
       </details>
     </div>
+    <div class="st-sec"><h3>Donanım koruması</h3>
+      ${row('Yük seviyesi', 'Ağır işlerde (kalite artırma, arka plan silme) ekran kartı ve işlemci ne kadar zorlansın', `<div class="seg" id="setKor">${[['sessiz', '🌙 Sessiz'], ['dengeli', '⚖️ Dengeli'], ['tam', '🚀 Tam güç']].map(([v, n]) => `<button data-v="${v}" class="${((s.koruma || {}).mod || 'dengeli') === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
+      ${row('Sıcaklık sınırı', 'Ekran kartı bu sıcaklığa gelince iş durur, soğuyunca devam eder', `<span class="st-kor"><input type="range" min="60" max="90" id="setKorLim" value="${(s.koruma || {}).gpu_limit || 80}"><b id="setKorV">${(s.koruma || {}).gpu_limit || 80}°C</b></span>`)}
+    </div>
     <div class="st-sec"><h3>Yardım</h3>
       ${row('Nasıl kullanılır?', '4 adımda kısa anlatım', '<button class="btn ghost sm" id="setTour">Göster</button>')}
       ${row('Klavye kısayolları', 'After Effects ile aynı', '<button class="btn ghost sm" id="setKeys">Göster</button>')}
@@ -446,6 +450,8 @@ KS.renderSettings = () => {
   $('#setNames').onchange = e => save({ ipucu_isimler: e.target.value });
   $('#setAuto').onclick = () => save({ oto_altyazi: !s.oto_altyazi }).then(KS.renderSettings);
   $$('#setTheme button').forEach(b => b.onclick = () => save({ tema: b.dataset.v }).then(() => { KS.applyTheme(); KS.renderSettings(); }));
+  $$('#setKor button').forEach(b => b.onclick = () => save({ koruma: { ...(s.koruma || {}), mod: b.dataset.v, gpu_limit: { sessiz: 72, dengeli: 80, tam: 86 }[b.dataset.v] } }).then(KS.renderSettings));
+  { const r = $('#setKorLim'); KS.paintRange(r); r.oninput = () => { $('#setKorV').textContent = r.value + '°C'; KS.paintRange(r); }; r.onchange = () => save({ koruma: { ...(s.koruma || {}), gpu_limit: +r.value } }); }
   $('#setTour').onclick = () => KS.tour();
   $('#setKey').addEventListener('keydown', e => e.stopPropagation());
   $('#setKeySave').onclick = () => KS.ai.saveKey($('#setKey').value, $('#setKeySave'));

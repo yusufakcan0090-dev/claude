@@ -41,7 +41,7 @@
     const p = Math.round((j.progress || 0) * 100), run = j.status === 'calisiyor' || j.status === 'bekliyor', ex = j.extra || {};
     const left = ex.eta != null ? ex.eta : (run && p >= 3 && ex.elapsed ? ex.elapsed * (100 - p) / p : null);
     const eta = left != null ? ` · kalan ~${left < 60 ? Math.max(1, Math.round(left)) + ' sn' : Math.round(left / 60) + ' dk'}` : '';
-    return `<div class="tk-job ${j.status === 'hata' ? 'bad' : j.status === 'bitti' ? 'ok' : ''}"><div><b>${run ? U.esc(ex.asama || j.message || label || 'Hazırlanıyor...') : j.status === 'bitti' ? '✓ ' + U.esc(j.message) : '✕ ' + U.esc(j.message)}</b><span>${run ? '%' + p + eta : ''}</span></div>${run ? `<div class="kq-pbar big"><i style="width:${p}%"></i></div>` : ''}</div>`;
+    return `<div class="tk-job ${j.status === 'hata' ? 'bad' : j.status === 'bitti' ? 'ok' : ''}"><div><b>${run ? U.esc(j.guard ? j.message : ex.asama || j.message || label || 'Hazırlanıyor...') : j.status === 'bitti' ? '✓ ' + U.esc(j.message) : '✕ ' + U.esc(j.message)}</b><span>${run ? '%' + p + eta : ''}</span></div>${run ? `<div class="kq-pbar big"><i style="width:${p}%"></i></div>` : ''}</div>`;
   };
   U.findJob = id => id && (KS.state.jobs || []).find(x => x.id === id);
   U.running = j => j && (j.status === 'calisiyor' || j.status === 'bekliyor');

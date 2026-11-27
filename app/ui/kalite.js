@@ -9,7 +9,7 @@
   const MMETA = { hizli: [3, 5, 'Video'], gercek: [3, 2, 'Gerçek'], ultra: [5, 2, 'En keskin'], dogal: [4, 2, 'Doğal ten'], hifi: [4, 2, 'Sadık'], anime_pro: [5, 3, 'Anime'], anime: [3, 2, 'Anime'], klasik: [1, 5, 'Yapay zekâsız'] };
   const dots = (n, cls) => `<span class="kq-dots ${cls}">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
   const modelCards = cur => `<div class="kq-seg kq-models" data-k="model">${MODELS.map(([v, n, d]) => { const mm = MMETA[v] || [3, 3, '']; return `<button data-v="${v}" class="${cur === v ? 'on' : ''}" title="${KS.esc(d)}"><span class="kq-mn">${n}</span><span class="kq-mt">${mm[2]}</span><span class="kq-mr"><em>Kalite</em>${dots(mm[0], 'q')}</span><span class="kq-mr"><em>Hız</em>${dots(mm[1], 's')}</span></button>`; }).join('')}</div>`;
-  const ICON = { gorsel: '🖼️', ai: '🧠', yuz: '🙂', net: '🔍', renk: '🎨', fps: '🎞️', cikti: '💾' };
+  const ICON = { gorsel: '🖼️', ai: '🧠', yuz: '🙂', net: '🔍', renk: '🎨', fps: '🎞️', cikti: '💾', uzman: '⚙️', koruma: '🛡️' };
   /* tek tıkla en iyi sonuç */
   const PRESETS = {
     anime: ['🎌 Anime', 'Anime / çizgi film için en iyi', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
@@ -19,8 +19,8 @@
     anime_ust: ['💎 Anime Üst Düzey', 'Anime, en yüksek kalite (yavaş)', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 30, kayipsiz: true, kalite: 'ust', codec: 'h265' }],
     hizli: ['⚡ Hızlı', 'Çabuk bitsin, yine iyi görünsün', { model: 'hizli', olcek: 2, keskin: 50, detay: 10, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: false, doygun: 0, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
   };
-  const TARGETS = [['kaynak', 'Aynı'], ['720', '720p'], ['1080', '1080p'], ['1440', '2K'], ['2160', '4K']];
-  const FPS = [['kaynak', 'Aynı'], ['30', '30'], ['60', '60'], ['90', '90'], ['120', '120']];
+  const TARGETS = [['kaynak', 'Aynı'], ['720', '720p'], ['1080', '1080p'], ['1440', '2K'], ['2160', '4K'], ['ozel', 'Özel']];
+  const FPS = [['kaynak', 'Aynı'], ['30', '30'], ['60', '60'], ['90', '90'], ['120', '120'], ['ozel', 'Özel']];
   const fmt = s => { s = Math.max(0, s || 0); return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
 
   Q.load = async path => {
@@ -43,21 +43,44 @@
   const sl = (key, label, min, max, cur, hint) => `<div class="kq-sl"><div><span>${label}</span><b id="kqv_${key}">${cur}</b></div><input type="range" min="${min}" max="${max}" value="${cur}" data-r="${key}">${hint ? `<small>${hint}</small>` : ''}</div>`;
   const DEF = { model: 'hizli', olcek: 2, hedef: '1080', keskin: 45, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
     yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 0, kayipsiz: false, ai_guc: 100, detay: 0, yumusat: 0, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
-    kalite: 'yuksek', codec: 'h264', bicim: 'kaynak', bas: 0, bit: 0, ses: true, ses_temizle: false, ses_dengele: false };
+    kalite: 'yuksek', codec: 'h264', bicim: 'kaynak', bas: 0, bit: 0, ses: true, ses_temizle: false, ses_dengele: false,
+    ozel_w: 1920, ozel_h: 0, ozel_fps: 60, crf_ozel: false, crf: 16, enc_hiz: '', ses_kbps: 192, tile: 0, bit10: false };
   Q.DEF = DEF;
-  const NOPV = new Set(['titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
+  const NOPV = new Set(['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10', 'ozel_fps', 'titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;
   Q.open = Q.open || { ai: true, net: true, gorsel: true };
   const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary><span class="kq-gi">${(typeof ICON !== 'undefined' && ICON[id]) || '•'}</span>${title}<span class="kq-chev"></span></summary><div class="kq-gb">${body}</div></details>`;
+
+  /* --- kendi kaydettiğim ayarlar --- */
+  const mine = () => (KS.state.settings && KS.state.settings.kalite_benim) || [];
+  const mineHtml = () => mine().length ? `<div class="kq-mine"><span>⭐ Benim ayarlarım</span>${mine().map((m, i) => `<button data-mine="${i}" title="Uygula">${KS.esc(m.ad)}<i data-mdel="${i}" title="Sil">✕</i></button>`).join('')}</div>` : '';
+  const saveMine = async list => { KS.state.settings = await KS.api('/api/settings', { kalite_benim: list }); };
+  /* --- donanım koruması --- */
+  Q.kor = Q.kor || null;
+  const KMODES = [['sessiz', '🌙 Sessiz', 'En az yük: aralıklarla mola verir, işlemcinin yarısını kullanır. En yavaş ama en serin.'], ['dengeli', '⚖️ Dengeli', 'Önerilen: ekran kartı 80°C olunca dinlenir, bilgisayar donmaz.'], ['tam', '🚀 Tam güç', 'En hızlı: sadece çok ısınırsa (86°C) durur.']];
+  const korumaHtml = () => {
+    const k = Q.kor || {}, mod = k.mod || 'dengeli', d = KMODES.find(x => x[0] === mod);
+    const t = [k.gpu_temp != null ? `Ekran kartı: <b>${Math.round(k.gpu_temp)}°C</b>${k.gpu_util != null ? ` · %${Math.round(k.gpu_util)} kullanım` : ''}` : '', k.cpu_temp != null ? `İşlemci: <b>${k.cpu_temp}°C</b>` : ''].filter(Boolean).join(' · ');
+    return `<div class="seg kq-kor">${KMODES.map(([v, n]) => `<button data-kor="${v}" class="${mod === v ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <small class="kq-note">${d[2]}</small>
+      <div class="kq-sl"><div><span>Ekran kartı sıcaklık sınırı</span><b id="kqKorV">${k.gpu_limit || 80}°C</b></div><input type="range" min="60" max="90" value="${k.gpu_limit || 80}" id="kqKorLim"></div>
+      <div class="kq-kor-live" id="kqKorLive">${t || 'Sıcaklık okunamıyor (NVIDIA olmayan kartlarda). Yine de düşük öncelik ve molalar çalışır.'}</div>
+      <small class="kq-note">İşler bilgisayarı yormayacak şekilde düşük öncelikte çalışır. Sınır aşılırsa iş kendiliğinden durur, soğuyunca kaldığı yerden devam eder. (Ekran kartları ve işlemciler kendini de korur; bu ek bir güvenlik.)</small>`;
+  };
+  const korSave = async patch => { const cur = (KS.state.settings && KS.state.settings.koruma) || {}; KS.state.settings = await KS.api('/api/settings', { koruma: { ...cur, ...patch } }); Q.kor = await KS.api('/api/koruma'); };
+  Q.korTick = async () => { try { Q.kor = await KS.api('/api/koruma'); const el = $('#kqKorLive'); if (el) { const tmp = document.createElement('div'); tmp.innerHTML = korumaHtml(); el.innerHTML = $('#kqKorLive', tmp).innerHTML; } } catch (e) { } };
+
+  setInterval(() => { if (KS.page === 'kalite' && Q.open.koruma && Q.opts) Q.korTick(); }, 4000);
+  KS.api('/api/koruma').then(r => { Q.kor = r; }).catch(() => { });
   Q.renderSide = () => {
     const o = Q.opts, el = $('#kqSide');
     if (!o) { el.innerHTML = ''; return; }
     Object.keys(DEF).forEach(k => { if (o[k] === undefined) o[k] = DEF[k]; });
     const m = MODELS.find(x => x[0] === o.model) || MODELS[0], dur = Q.src ? Q.src.duration : 0, keep = el.scrollTop, img = !!(Q.src && Q.src.image);
-    const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K']] : TARGETS;
+    const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K'], ['ozel', 'Özel']] : TARGETS;
     const curP = Object.keys(PRESETS).find(k => Object.entries(PRESETS[k][2]).every(([a, b]) => o[a] === b));
     el.innerHTML = `<div class="kq-scroll">
-      <div class="kq-presets"><div class="kq-ph"><b>Hazır ayarlar</b><span>tek tıkla en iyi sonuç</span></div><div class="kq-pre">${Object.entries(PRESETS).map(([k, v]) => { const [e, ...t] = v[0].split(' '); return `<button class="${k === curP ? 'on' : ''} ${k.includes('ust') ? 'pro' : ''}" data-pre="${k}" title="${v[1]}"><span class="kq-pe">${e}</span><b>${t.join(' ')}</b><small>${v[1]}</small></button>`; }).join('')}</div></div>
+      <div class="kq-presets"><div class="kq-ph"><b>Hazır ayarlar</b><span>tek tıkla en iyi sonuç</span></div><div class="kq-pre">${Object.entries(PRESETS).map(([k, v]) => { const [e, ...t] = v[0].split(' '); return `<button class="${k === curP ? 'on' : ''} ${k.includes('ust') ? 'pro' : ''}" data-pre="${k}" title="${v[1]}"><span class="kq-pe">${e}</span><b>${t.join(' ')}</b><small>${v[1]}</small></button>`; }).join('')}</div>${mineHtml()}</div>
       ${img ? grp('gorsel', 'Görsel araçları', Q.brush ? `<small class="kq-note">Silmek istediğin yeri <b>fareyle boya</b> (kırmızı). Sonra "Boyanan yeri sil"e bas.</small>
           ${sl('fircaBoy', 'Fırça boyutu', 5, 200, Q.brush.size)}
           <div class="kq-tools"><button class="btn primary sm" id="kqInp">🩹 Boyanan yeri sil</button><button class="btn ghost sm" id="kqBClr">Temizle</button><button class="btn ghost sm" id="kqBOff">Vazgeç</button></div>`
@@ -66,7 +89,7 @@
       ${grp('ai', 'Yapay zekâ ve çözünürlük', `<div class="kq-h">Yapay zekâ modeli</div>${modelCards(o.model)}<small class="kq-note kq-mdesc">${m[2]}</small>
         ${o.model === 'hizli' ? `<div class="kq-h">Yapay zekâ büyütme</div>${seg('olcek', [['2', '2x'], ['4', '4x (daha net, yavaş)']], o.olcek)}` : ''}
         ${o.model !== 'klasik' ? sl('ai_guc', 'Yapay zekâ gücü (azaltınca daha doğal)', 0, 100, o.ai_guc) : ''}
-        <div class="kq-h">Çıkış çözünürlüğü</div>${seg('hedef', TG, o.hedef)}
+        <div class="kq-h">Çıkış çözünürlüğü</div>${seg('hedef', TG, o.hedef)}${o.hedef === 'ozel' ? `<div class="kq-nums"><label class="kq-num"><span>Genişlik</span><input type="number" class="inp" data-n="ozel_w" min="64" max="16384" placeholder="otomatik" value="${o.ozel_w || ''}"></label><b>×</b><label class="kq-num"><span>Yükseklik</span><input type="number" class="inp" data-n="ozel_h" min="64" max="16384" placeholder="otomatik" value="${o.ozel_h || ''}"></label></div><small class="kq-note">İstediğin boyutu yaz. Birini boş bırakırsan oran korunur (ör. genişlik 2560, yükseklik boş).</small>` : ''}
         <div class="kq-h">Biçim (ekran şekli)</div>${seg('bicim', [['kaynak', what + ' kendisi'], ['9:16k', 'Reels 9:16 (doldur)'], ['9:16b', 'Reels 9:16 (bulanık arka)'], ['4:5k', '4:5 gönderi'], ['1:1k', 'Kare']], o.bicim)}
         <small class="kq-note">${Q.src ? `${img ? 'Fotoğrafın' : 'Videon'} ${Q.src.width}×${Q.src.height} (${Q.ratio()}). ` : ''}Reels/TikTok için 9:16 seç: "doldur" kenarlardan biraz kırpar, "bulanık arka" hiçbir şeyi kesmez.</small>`)}
       ${grp('yuz', 'Yüz netleştirme', `${chk('yuz', 'Yüzleri yapay zekâ ile netleştir')}${o.yuz ? `<div class="kq-h">Yüz modeli</div>${seg('yuz_model', [['codeformer', 'CodeFormer (daha gerçekçi)'], ['gfpgan', 'GFPGAN']], o.yuz_model)}` + sl('yuz_guc', 'Yüz netleştirme gücü', 0, 100, o.yuz_guc) : ''}<small class="kq-note">Bulanık yüzleri (yayıncı, kamera) netleştirir. İlk kullanımda model indirilir (~350 MB).</small>`)}
@@ -79,7 +102,7 @@
         ${sl('golge', 'Gölgeler (karanlık alanlar)', -100, 100, o.golge)}${sl('parlak_alan', 'Parlak alanlar', -100, 100, o.parlak_alan)}
         ${sl('vinyet', 'Vinyet (kenar karartma)', 0, 100, o.vinyet)}${sl('gren', 'Film greni', 0, 100, o.gren)}`)}
       ${img ? grp('cikti', 'Kayıt', `<div class="kq-h">Dosya biçimi</div>${seg('foto_bicim', [['png', 'PNG (kayıpsız)'], ['jpg', 'JPG (küçük)'], ['webp', 'WebP']], o.foto_bicim || 'png')}`) : ''}
-      ${img ? '' : grp('fps', 'Akıcılık (FPS)', `${seg('fps', FPS, o.fps)}${chk('fps_ai', 'Ara kareleri yapay zekâ ile üret (daha doğal)')}`)}
+      ${img ? '' : grp('fps', 'Akıcılık (FPS)', `${seg('fps', FPS, o.fps)}${o.fps === 'ozel' ? `<div class="kq-nums"><label class="kq-num"><span>Kare hızı (FPS)</span><input type="number" class="inp" data-n="ozel_fps" min="1" max="240" placeholder="60" value="${o.ozel_fps || ''}"></label></div>` : ''}${chk('fps_ai', 'Ara kareleri yapay zekâ ile üret (daha doğal)')}`)}
       ${img ? '' : grp('cikti', 'Çıktı ve ses', `<div class="kq-h">Dosya kalitesi</div>${seg('kalite', [['ust', 'Üst düzey'], ['yuksek', 'Yüksek'], ['normal', 'Normal'], ['kucuk', 'Küçük dosya']], o.kalite)}${o.kalite === 'ust' ? '<small class="kq-note">Çok düşük sıkıştırma, özenli kodlama. H.265 seçersen 10-bit kaydeder (renk geçişlerinde bant olmaz).</small>' : ''}
         ${chk('kayipsiz', 'Kayıpsız işle (ara kareler PNG: hiç kalite kaybı olmaz, diskte çok yer ister)')}
         <div class="kq-h">Video formatı</div>${seg('codec', [['h264', 'H.264 (her yerde açılır)'], ['h265', 'H.265 (yarı boyut)']], o.codec)}
@@ -88,6 +111,15 @@
           <div><span>Bitiş</span><b>${o.bit > o.bas ? fmt(o.bit) : 'Sonuna kadar'}</b><button class="btn ghost sm" data-set="bit">Şu anki kare</button></div>
           ${o.bas || o.bit ? '<button class="btn ghost sm" data-set="tum">Tüm videoyu işle</button>' : ''}</div>
         <div class="kq-h">Ses</div>${chk('ses', 'Sesi koru')}${o.ses ? chk('ses_temizle', 'Sesteki uğultu ve cızırtıyı temizle') + chk('ses_dengele', 'Ses seviyesini dengele / yükselt') : ''}`)}
+      ${grp('uzman', 'Serbest ayar (uzman)', `<small class="kq-note">Hazır ayarların üstüne istediğini değiştir. Bilmiyorsan dokunma, otomatik zaten en iyisini seçer.</small>
+        ${img ? '' : chk('crf_ozel', 'Sıkıştırmayı kendim seçeyim (CRF)')}${!img && o.crf_ozel ? sl('crf', 'CRF: düşük = daha kaliteli, büyük dosya (0 = kayıpsız)', 0, 40, o.crf) : ''}
+        ${img ? '' : `<div class="kq-h">Kodlama hızı</div>${seg('enc_hiz', [['', 'Otomatik'], ['hizli', 'Hızlı'], ['orta', 'Orta'], ['yavas', 'Yavaş (daha iyi)'], ['cok_yavas', 'Çok yavaş (en iyi)']], o.enc_hiz)}`}
+        ${!img && o.codec === 'h265' ? chk('bit10', '10-bit renk (renk geçişleri daha pürüzsüz)') : ''}
+        ${img ? '' : `<div class="kq-h">Ses kalitesi</div>${seg('ses_kbps', [['128', '128k'], ['192', '192k'], ['256', '256k'], ['320', '320k (en iyi)']], o.ses_kbps)}`}
+        <div class="kq-h">Yapay zekâ parça boyutu</div>${seg('tile', [['0', 'Otomatik'], ['400', 'Büyük'], ['200', 'Orta'], ['100', 'Küçük (az bellek)']], o.tile)}
+        <small class="kq-note">Ekran kartı belleği az ise ya da "bellek yetmedi" hatası alırsan küçült. Sonuç aynı, sadece biraz yavaşlar.</small>
+        <div class="kq-tools"><button class="btn ghost sm" id="kqSaveMine">⭐ Bu ayarları kaydet</button></div>`)}
+      ${grp('koruma', 'Donanım koruması', korumaHtml())}
       </div>
       <div class="kq-foot">${Q.src ? `<div class="kq-est">⏱ ${Q.estimate()}</div>` : ''}<button class="btn primary glow kq-go" id="kqGo">✨ ${img ? 'Fotoğrafı İyileştir' : 'Kaliteyi Artır'}</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
     $('.kq-scroll', el).scrollTop = keep;
@@ -97,6 +129,19 @@
     $$('[data-r]', el).forEach(r => { KS.paintRange(r); r.oninput = () => { Q.opts[r.dataset.r] = +r.value; $('#kqv_' + r.dataset.r).textContent = r.value; KS.paintRange(r); }; r.onchange = () => Q.previewSoon(); });
     $$('[data-c]', el).forEach(c => c.onchange = () => { const k = c.dataset.c; Q.opts[k] = c.checked; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (!NOPV.has(k)) Q.previewSoon(); });
     $$('[data-set]', el).forEach(b => b.onclick = () => { const k = b.dataset.set, t = +$('#kqT').value; if (k === 'tum') { Q.opts.bas = 0; Q.opts.bit = 0; } else Q.opts[k] = +t.toFixed(2); if (Q.opts.bit && Q.opts.bit <= Q.opts.bas) Q.opts.bit = 0; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; });
+    $$('[data-n]', el).forEach(i => { i.addEventListener('keydown', e => e.stopPropagation()); i.onchange = () => { const v = parseInt(i.value); Q.opts[i.dataset.n] = isNaN(v) ? 0 : Math.max(+i.min, Math.min(+i.max, v)); if (!NOPV.has(i.dataset.n)) Q.previewSoon(); Q.renderSide(); }; });
+    $$('[data-kor]', el).forEach(b => b.onclick = async () => { const m = b.dataset.kor; await korSave({ mod: m, gpu_limit: { sessiz: 72, dengeli: 80, tam: 86 }[m] }); Q.renderSide(); });
+    const kl = $('#kqKorLim', el); if (kl) { KS.paintRange(kl); kl.oninput = () => { $('#kqKorV').textContent = kl.value + '°C'; KS.paintRange(kl); }; kl.onchange = () => korSave({ gpu_limit: +kl.value }); }
+    $$('[data-mine]', el).forEach(b => b.onclick = async e => {
+      const i = +b.dataset.mine;
+      if (e.target.dataset.mdel != null) { if (!confirm('"' + mine()[i].ad + '" silinsin mi?')) return; const l = mine().slice(); l.splice(i, 1); await saveMine(l); return Q.renderSide(); }
+      Object.assign(Q.opts, mine()[i].o); Q.renderSide(); Q.previewSoon(); KS.toast('⭐ ' + KS.esc(mine()[i].ad) + ' uygulandı', 'ok');
+    });
+    const sm = $('#kqSaveMine', el); if (sm) sm.onclick = async () => {
+      const ad = (prompt('Bu ayara bir isim ver:', 'Benim ayarım ' + (mine().length + 1)) || '').trim().slice(0, 30); if (!ad) return;
+      const o = { ...Q.opts }; delete o.bas; delete o.bit;
+      const l = mine().filter(m => m.ad !== ad); l.push({ ad, o }); await saveMine(l.slice(-12)); Q.renderSide(); KS.toast('⭐ Kaydedildi: ' + KS.esc(ad), 'ok');
+    };
     $('#kqGo').onclick = Q.start; Q.status();
     if ($('#kqBg')) $('#kqBg').onclick = async () => { try { const r = await KS.api('/api/gorsel/arkaplan', { path: Q.src.path }); KS.trackJob(r.job); } catch (e) { KS.toast(KS.esc(e.message), 'err'); } };
     if ($('#kqBOn')) $('#kqBOn').onclick = () => Q.brushOn();
@@ -303,16 +348,16 @@
     }
     const ex = j.extra || {}, p = Math.round((j.progress || 0) * 1000) / 10, wait = j.status === 'bekliyor';
     box.classList.toggle('paused', !!j.paused);
-    $('#kqRunT').textContent = j.paused ? '⏸ Duraklatıldı' : wait ? 'Sırada bekliyor' : /^Fotoğraf: /.test(j.title) ? 'Fotoğraf iyileştiriliyor' : j.kind === 'gorsel' ? j.title.split(':')[0] : 'Kalite artırılıyor';
+    $('#kqRunT').textContent = j.guard ? '🛡️ Donanım koruması' : j.paused ? '⏸ Duraklatıldı' : wait ? 'Sırada bekliyor' : /^Fotoğraf: /.test(j.title) ? 'Fotoğraf iyileştiriliyor' : j.kind === 'gorsel' ? j.title.split(':')[0] : 'Kalite artırılıyor';
     $('#kqRunN').textContent = j.title.replace(/^[^:]+: /, '');
     $('#kqRunP').textContent = `%${p.toFixed(p < 10 ? 1 : 0)}`;
     $('#kqProg').style.width = p + '%';
     const eta = ex.eta;
-    $('#kqEta').textContent = j.paused ? 'duraklatıldı' : eta != null ? '~' + dur(eta) : 'hesaplanıyor…';
+    $('#kqEta').textContent = j.guard ? 'soğuyor' : j.paused ? 'duraklatıldı' : eta != null ? '~' + dur(eta) : 'hesaplanıyor…';
     $('#kqEnd').textContent = !j.paused && eta != null ? clock(eta) : '—';
     $('#kqEl').textContent = dur(ex.elapsed);
     $('#kqPart').textContent = ex.parca || '—';
-    $('#kqMsg').textContent = j.paused ? 'Ekran kartı serbest. Devam ettiğinde kaldığı yerden sürer.' : (ex.asama || j.message || '');
+    $('#kqMsg').textContent = j.guard ? j.message : j.paused ? 'Ekran kartı serbest. Devam ettiğinde kaldığı yerden sürer.' : (ex.asama || j.message || '');
     $('#kqPause').textContent = j.paused ? '▶ Devam et' : '⏸ Duraklat';
     $('#kqPause').classList.toggle('primary', !!j.paused); $('#kqPause').classList.toggle('ghost', !j.paused);
   };

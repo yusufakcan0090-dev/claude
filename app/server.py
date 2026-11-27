@@ -22,6 +22,9 @@ WINDOW = None  # main.py pywebview penceresini buraya koyar
 
 app = Flask(__name__, static_folder=None)
 
+import guard  # noqa: E402
+guard.start()
+
 
 # ================================================================ projeler
 _plock = __import__("threading").RLock()
@@ -1622,3 +1625,9 @@ def api_kapak_yazi():
         return jsonify(error=str(e)), 400
     arr = [str(x).strip() for x in (r.get("yazilar") if isinstance(r, dict) else r) or [] if str(x).strip()]
     return jsonify(yazilar=arr[:10])
+
+
+# ================================================================ donanım koruması
+@app.get("/api/koruma")
+def api_koruma():
+    return jsonify(guard.status())

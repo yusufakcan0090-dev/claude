@@ -253,12 +253,17 @@ class Job:
         self.pause_t = None
         self.extra = {}             # arayüz için: kalan süre, geçen süre, parça...
         self.eta_at = None
+        self.heavy = False
+        self.guard = None           # donanım koruması dinlendiriyorsa: {"msg": asıl mesaj}
 
     def set(self, progress=None, message=None):
         if progress is not None:
             self.progress = max(0.0, min(1.0, float(progress)))
         if message is not None:
-            self.message = message
+            if self.guard:   # koruma mesajı ekranda kalsın, asıl mesaj sonra geri gelsin
+                self.guard["msg"] = message
+            else:
+                self.message = message
 
     def active_time(self, since):
         """since'ten beri duraklatmalar hariç geçen süre."""
@@ -301,7 +306,7 @@ class Job:
         return {"id": self.id, "kind": self.kind, "title": self.title,
                 "progress": round(self.progress, 4), "status": self.status,
                 "message": self.message, "result": self.result, "created": self.created,
-                "paused": self.paused, "extra": ex}
+                "paused": self.paused, "guard": bool(self.guard), "extra": ex}
 
 
 class JobManager:
@@ -312,6 +317,7 @@ class JobManager:
 
     def start(self, kind, title, fn, *args, heavy=False, **kw):
         job = Job(kind, title)
+        job.heavy = heavy
         with self.lock:
             self.jobs[job.id] = job
             # eski bitmiş işleri temizle

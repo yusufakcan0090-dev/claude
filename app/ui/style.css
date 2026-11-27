@@ -1375,3 +1375,14 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 .kp-btns{display:flex;gap:5px;flex-wrap:wrap}
 .kp .tk-foot .seg{width:100%}.kp .tk-foot .seg button{flex:1}
 .tk-main{min-width:0}.tk-side{min-width:0}
+
+/* ===== Kalite: serbest ayar, koruma ===== */
+.kq-nums{display:flex;align-items:flex-end;gap:8px}.kq-nums>b{padding-bottom:9px;color:#888}
+.kq-num{display:flex;flex-direction:column;gap:4px;flex:1}.kq-num span{font-size:11px;color:#9aa0a8}.kq-num input{width:100%}
+.kq-mine{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:8px}.kq-mine>span{font-size:11px;color:#c9b36a;font-weight:600;margin-right:2px}
+.kq-mine button{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;background:#2e2a1c;border:1px solid #6b5a22;color:#f3e3a6;font-size:11.5px;font-weight:600}
+.kq-mine button:hover{border-color:#e0b93a}.kq-mine i{font-style:normal;opacity:.5;font-size:10px}.kq-mine i:hover{opacity:1;color:#ff8a8a}
+.kq-kor{width:100%}.kq-kor button{flex:1}
+.kq-kor-live{font-size:12px;color:#cfd2d6;background:#1e2a22;border:1px solid #2c4a35;border-radius:9px;padding:8px 10px}
+.kq-kor-live b{color:#7ee2a0}
+.st-kor{display:flex;align-items:center;gap:10px}.st-kor input{width:160px}.st-kor b{min-width:44px}

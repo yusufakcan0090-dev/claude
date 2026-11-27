@@ -90,6 +90,13 @@ def ai_cmd(o, inp, out, fmt=None):
         cmd = [str(exe), "-i", str(inp), "-o", str(out), "-n", model, "-s", str(sc)]
     if fmt:
         cmd += ["-f", fmt]
+    import guard
+    tile = int(o.get("tile") or 0) or guard.ai_tile()
+    if tile:
+        cmd += ["-t", str(tile)]
+    j = guard.ai_threads()
+    if j:
+        cmd += ["-j", j]
     return cmd, str(exe.parent)
 DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu": 25, "blok": True,
            "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True,
@@ -100,7 +107,9 @@ DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu
            # renk ve görüntü
            "sicaklik": 0, "golge": 0, "parlak_alan": 0, "gamma": 0, "vinyet": 0, "gren": 0, "oto_renk": False,
            # çıktı ve ses
-           "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True}
+           "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True,
+           # serbest ayar
+           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False}
 FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
              "codeformer": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
@@ -274,6 +283,8 @@ def ai_works(job=None):
 def out_size(w, h, o):
     """Çıkış boyutu: biçim (Reels 9:16 vb.) seçildiyse o şekilde, yoksa videonun kendi şekli."""
     b = o.get("bicim") or "kaynak"
+    if str(o.get("hedef")) == "ozel":
+        return target_size(w, h, "ozel", o)
     if b == "kaynak":
         return target_size(w, h, o.get("hedef", "1080"))
     hd = str(o.get("hedef"))
@@ -283,7 +294,21 @@ def out_size(w, h, o):
     return W - W % 2, H - H % 2
 
 
-def target_size(w, h, hedef):
+def target_size(w, h, hedef, o=None):
+    if str(hedef) == "ozel":  # serbest çözünürlük: genişlik ya da yükseklik boşsa oran korunur
+        o = o or {}
+        try:
+            ow, oh = int(o.get("ozel_w") or 0), int(o.get("ozel_h") or 0)
+        except (TypeError, ValueError):
+            ow = oh = 0
+        if ow <= 0 and oh <= 0:
+            return w - w % 2, h - h % 2
+        if ow <= 0:
+            ow = round(w * oh / h)
+        if oh <= 0:
+            oh = round(h * ow / w)
+        ow, oh = max(64, min(16384, ow)), max(64, min(16384, oh))
+        return ow - ow % 2, oh - oh % 2
     if hedef == "kaynak":
         return w - w % 2, h - h % 2
     if str(hedef) in ("x2", "x4"):
@@ -384,16 +409,27 @@ def audio_filters(o):
     return ",".join(a)
 
 
+SPEED = {"hizli": "fast", "orta": "medium", "yavas": "slow", "cok_yavas": "veryslow"}
+
+
 def encoder_args(o):
+    import guard
+    th = guard.ffmpeg_threads()
+    thr = ["-threads", str(th)] if th else []
     if o.get("kalite") == "ust":  # en üst düzey: çok düşük sıkıştırma, yavaş ve özenli kodlama
-        if o.get("codec") == "h265":
-            return ["-c:v", "libx265", "-preset", "slow", "-crf", "12", "-tag:v", "hvc1", "-pix_fmt", "yuv420p10le",
-                    "-x265-params", "aq-mode=3:no-sao=1:deblock=-1,-1:log-level=error"]
-        return ["-c:v", "libx264", "-preset", "slow", "-crf", "11", "-tune", "film", "-pix_fmt", "yuv420p"]
-    q = {"yuksek": 15, "normal": 19, "kucuk": 24}.get(o.get("kalite") or "yuksek", 15)
+        crf264, crf265, pre = 11, 12, "slow"
+    else:
+        q = {"yuksek": 15, "normal": 19, "kucuk": 24}.get(o.get("kalite") or "yuksek", 15)
+        crf264, crf265, pre = q, q + 2, "medium"
+    if o.get("crf_ozel"):  # serbest ayar: sıkıştırmayı kullanıcı seçer
+        c = max(0, min(40, int(o.get("crf") or 16)))
+        crf264, crf265 = c, c
+    pre = SPEED.get(o.get("enc_hiz") or "", pre)
     if o.get("codec") == "h265":
-        return ["-c:v", "libx265", "-preset", "medium", "-crf", str(q + 2), "-tag:v", "hvc1", "-pix_fmt", "yuv420p"]
-    return ["-c:v", "libx264", "-preset", "medium", "-crf", str(q), "-pix_fmt", "yuv420p"]
+        ten = o.get("kalite") == "ust" or o.get("bit10")
+        return ["-c:v", "libx265", "-preset", pre, "-crf", str(crf265), "-tag:v", "hvc1", "-pix_fmt", "yuv420p10le" if ten else "yuv420p",
+                "-x265-params", ("aq-mode=3:no-sao=1:deblock=-1,-1:" if o.get("kalite") == "ust" else "") + "log-level=error" + (f":pools={th}" if th else "")] + thr
+    return ["-c:v", "libx264", "-preset", pre, "-crf", str(crf264)] + (["-tune", "film"] if o.get("kalite") == "ust" else []) + ["-pix_fmt", "yuv420p"] + thr
 
 
 def _vf(parts):
@@ -416,7 +452,7 @@ def preview(path, t, opts, final=None):
     key = hashlib.md5(json.dumps([str(path), round(float(t), 2), o, W, H, Path(path).stat().st_mtime], sort_keys=True).encode()).hexdigest()[:16]
     d = CACHE / "kalite" / key
     before, after = d / "once.jpg", d / "sonra.jpg"
-    MW, MH = target_size(info["width"], info["height"], o["hedef"])
+    MW, MH = target_size(info["width"], info["height"], o["hedef"], o)
     if after.exists() and not final:
         return key, W, H, bool(o["model"] != "klasik" and _AI_OK)
     d.mkdir(parents=True, exist_ok=True)
@@ -631,7 +667,7 @@ def process(job, path, opts, resume=None):
     t1 = full if t1 <= t0 else min(t1, full)
     dur = t1 - t0
     W, H = out_size(info["width"], info["height"], o)
-    tfps = sfps if o["fps"] == "kaynak" else float(o["fps"])
+    tfps = sfps if o["fps"] == "kaynak" else max(1.0, min(240.0, float(o.get("ozel_fps") or sfps))) if o["fps"] == "ozel" else float(o["fps"])
     mult = max(1.0, tfps / sfps)
     use_ai = o["model"] != "klasik"
     if use_ai and not ai_works(job):
@@ -672,8 +708,8 @@ def process(job, path, opts, resume=None):
 
     enc = encoder_args(o)
     af = audio_filters(o)
-    aud = (["-c:a", "aac", "-b:a", "192k"] + (["-af", af] if af else [])) if o.get("ses", True) else ["-an"]
-    MW, MH = target_size(info["width"], info["height"], o["hedef"])  # ara adımlar videonun kendi şeklinde
+    aud = (["-c:a", "aac", "-b:a", f'{int(o.get("ses_kbps") or 192)}k'] + (["-af", af] if af else [])) if o.get("ses", True) else ["-an"]
+    MW, MH = target_size(info["width"], info["height"], o["hedef"], o)  # ara adımlar videonun kendi şeklinde
     # kalan süre: duraklatmalar hariç, bu oturumda işlenen kısma göre hesaplanır
     t_start = time.time()
     job.extra = {"t0": t_start, **({"resume": resume} if resume else {})}
