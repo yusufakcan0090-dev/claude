@@ -2,19 +2,20 @@
 (() => {
   const Q = KS.kalite = { src: null, opts: null, split: .5, zoom: 1, pan: { x: 0, y: 0 } };
   const view = $('#kqView'), stage = $('#kqStage'), aImg = $('#kqAfter'), bImg = $('#kqBefore'), bWrap = $('#kqBeforeWrap'), handle = $('#kqHandle');
-  const MODELS = [['hizli', 'Hızlı', 'Video için hızlı yapay zekâ'], ['gercek', 'Standart', 'Gerçek görüntü için klasik model (Real-ESRGAN)'],
-    ['ultra', 'Ultra Keskin', 'Gerçek görüntüde en keskin sonuç: çizgiler, yazılar, saç telleri çok net (4x-UltraSharp). İlk kullanımda ~33 MB iner.'],
-    ['dogal', 'Doğal', 'Keskin ama doğal doku; ten ve yüzler yapay durmaz (Remacri). İlk kullanımda ~33 MB iner.'],
-    ['hifi', 'Aslına sadık', 'Görüntüyü en az değiştiren, en sadık model (High Fidelity). İlk kullanımda ~33 MB iner.'], ['anime_pro', 'Anime Pro', 'Anime ve çizgi film için en iyisi: çizgiler temiz ve keskin, renkler düz ve pürüzsüz (Real-CUGAN). İlk kullanımda ~55 MB iner.'], ['anime', 'Anime (eski)', 'Çizgi film / anime, Real-ESRGAN'], ['klasik', 'Klasik', 'Yapay zekâsız, çok hızlı']];
-  const MMETA = { hizli: [3, 5, 'Video'], gercek: [3, 2, 'Gerçek'], ultra: [5, 2, 'En keskin'], dogal: [4, 2, 'Doğal ten'], hifi: [4, 2, 'Sadık'], anime_pro: [5, 3, 'Anime'], anime: [3, 2, 'Anime'], klasik: [1, 5, 'Yapay zekâsız'] };
-  const dots = (n, cls) => `<span class="kq-dots ${cls}">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
-  const modelCards = cur => `<div class="kq-seg kq-models" data-k="model">${MODELS.map(([v, n, d]) => { const mm = MMETA[v] || [3, 3, '']; return `<button data-v="${v}" class="${cur === v ? 'on' : ''}" title="${KS.esc(d)}"><span class="kq-mn">${n}</span><span class="kq-mt">${mm[2]}</span><span class="kq-mr"><em>Kalite</em>${dots(mm[0], 'q')}</span><span class="kq-mr"><em>Hız</em>${dots(mm[1], 's')}</span></button>`; }).join('')}</div>`;
+  /* sade model listesi: 4 seçenek yeter */
+  const MODELS = [
+    ['anime_pro', '🎌', 'Anime', 'Anime ve çizgi film. Çizgiler temiz, renkler pürüzsüz.', 'Önerilen', 'Orta hız'],
+    ['ultra', '🎥', 'Gerçek görüntü', 'Yayın, kamera, oyun. En keskin ve detaylı sonuç.', 'En kaliteli', 'Yavaş'],
+    ['hizli', '⚡', 'Hızlı', 'Çabuk biter, yine de iyi görünür. Uzun videolar için.', '', 'Hızlı'],
+    ['klasik', '🔧', 'Yapay zekâsız', 'Sadece büyütür, detay eklemez. Ekran kartı gerekmez.', '', 'Çok hızlı']];
+  const MODEL_ESKI = { gercek: 'ultra', dogal: 'ultra', hifi: 'ultra', anime: 'anime_pro' };  // eski kayıtlı ayarlar
+  const modelCards = cur => `<div class="kq-seg kq-models2" data-k="model">${MODELS.map(([v, ic, n, d, tag, sp]) => `<button data-v="${v}" class="${cur === v ? 'on' : ''}"><span class="km-ic">${ic}</span><span class="km-t"><b>${n}</b>${tag ? `<em>${tag}</em>` : ''}</span><small>${d}</small><i>${sp}</i></button>`).join('')}</div>`;
   const ICON = { boyut: '📐', gorsel: '🖼️', ai: '🧠', yuz: '🙂', net: '🔍', renk: '🎨', fps: '🎞️', cikti: '💾', uzman: '⚙️', koruma: '🛡️' };
   /* tek tıkla en iyi sonuç */
   const PRESETS = {
     anime: ['🎌 Anime', 'Anime / çizgi film için en iyi', { model: 'anime_pro', supersample: true, keskin: 35, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
-    gercek: ['🎥 Gerçek video', 'Yayın, vlog, film için en iyi', { supersample: false, model: 'gercek', keskin: 60, detay: 25, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: true, yuz_guc: 60, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 85, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek', yuz_model: 'codeformer' }],
-    eski: ['📼 Düşük kalite', 'Eski, bulanık, çok sıkıştırılmış videolar', { supersample: false, model: 'gercek', keskin: 55, detay: 15, gurultu: 55, yumusat: 15, blok: true, bant: true, yuz: true, yuz_guc: 75, doygun: 10, kontrast: 5, oto_renk: true, ai_guc: 100, gren: 0, titreme: 20, kayipsiz: false, kalite: 'yuksek', yuz_model: 'codeformer' }],
+    gercek: ['🎥 Gerçek video', 'Yayın, vlog, film için en iyi', { supersample: false, model: 'ultra', keskin: 60, detay: 25, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: true, yuz_guc: 60, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 85, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek', yuz_model: 'codeformer' }],
+    eski: ['📼 Düşük kalite', 'Eski, bulanık, çok sıkıştırılmış videolar', { supersample: false, model: 'ultra', keskin: 55, detay: 15, gurultu: 55, yumusat: 15, blok: true, bant: true, yuz: true, yuz_guc: 75, doygun: 10, kontrast: 5, oto_renk: true, ai_guc: 100, gren: 0, titreme: 20, kayipsiz: false, kalite: 'yuksek', yuz_model: 'codeformer' }],
     ust: ['💎 Üst Düzey', 'Gerçek video, en yüksek kalite (yavaş)', { model: 'ultra', supersample: true, keskin: 55, detay: 20, gurultu: 20, yumusat: 0, blok: true, bant: true, yuz: true, yuz_model: 'codeformer', yuz_guc: 70, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0, titreme: 40, kayipsiz: true, kalite: 'ust', codec: 'h265' }],
     anime_ust: ['💎 Anime Üst Düzey', 'Anime, en yüksek kalite (yavaş)', { model: 'anime_pro', supersample: true, keskin: 40, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 30, kayipsiz: true, kalite: 'ust', codec: 'h265' }],
     hizli: ['⚡ Hızlı', 'Çabuk bitsin, yine iyi görünsün', { supersample: false, model: 'hizli', keskin: 50, detay: 10, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: false, doygun: 0, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
@@ -101,6 +102,7 @@
     const o = Q.opts, el = $('#kqSide');
     if (!o) { el.innerHTML = ''; return; }
     Object.keys(DEF).forEach(k => { if (o[k] === undefined) o[k] = DEF[k]; });
+    if (MODEL_ESKI[o.model]) o.model = MODEL_ESKI[o.model];
     const m = MODELS.find(x => x[0] === o.model) || MODELS[0], dur = Q.src ? Q.src.duration : 0, keep = el.scrollTop, img = !!(Q.src && Q.src.image);
     const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K'], ['ozel', 'Özel']] : TARGETS;
     const curP = Object.keys(PRESETS).find(k => Object.entries(PRESETS[k][2]).every(([a, b]) => o[a] === b));
@@ -112,7 +114,7 @@
         : `<div class="kq-tools"><button class="btn ghost sm" id="kqBg">✂️ Arka planı sil</button><button class="btn ghost sm" id="kqBOn">🩹 Nesne sil (fırça)</button></div>
           <small class="kq-note">Bilgisayarında, ücretsiz yapay zekâ ile çalışır. İlk kullanımda model iner (~170-200 MB). Sonuç ayrı bir dosya olarak kaydedilir.</small>`) : ''}
       ${grp('boyut', 'Büyütme ve çözünürlük', boyutHtml(o, img))}
-      ${grp('ai', 'Yapay zekâ modeli ve biçim', `<div class="kq-h">Yapay zekâ modeli</div>${modelCards(o.model)}<small class="kq-note kq-mdesc">${m[2]}</small>
+      ${grp('ai', 'Yapay zekâ modeli ve biçim', `<div class="kq-h">Yapay zekâ modeli</div>${modelCards(o.model)}
         ${o.model !== 'klasik' ? sl('ai_guc', 'Yapay zekâ gücü (azaltınca daha doğal)', 0, 100, o.ai_guc) : ''}
         <div class="kq-h">Biçim (ekran şekli)</div>${seg('bicim', [['kaynak', what + ' kendisi'], ['9:16k', 'Reels 9:16 (doldur)'], ['9:16b', 'Reels 9:16 (bulanık arka)'], ['4:5k', '4:5 gönderi'], ['1:1k', 'Kare']], o.bicim)}
         <small class="kq-note">${Q.src ? `${img ? 'Fotoğrafın' : 'Videon'} ${Q.src.width}×${Q.src.height} (${Q.ratio()}). ` : ''}Reels/TikTok için 9:16 seç: "doldur" kenarlardan biraz kırpar, "bulanık arka" hiçbir şeyi kesmez.</small>`)}

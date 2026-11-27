@@ -1461,3 +1461,15 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 
 .logo-mark.bek{background:none;width:42px;height:42px;border-radius:0;box-shadow:0 6px 18px -6px rgba(110,140,255,.6)}
 .logo-mark.bek img{width:100%;height:100%;display:block}
+
+/* sade model kartları */
+.kq-models2{display:flex;flex-direction:column;gap:6px;background:none;border:0;padding:0}
+.kq-models2 button{display:grid;grid-template-columns:38px 1fr auto;grid-template-rows:auto auto;align-items:center;gap:2px 10px;text-align:left;padding:10px 12px;border-radius:12px;background:#26282c;border:1px solid #34373c;color:#ddd;transition:.15s}
+.kq-models2 button:hover{border-color:#4a8fe0;background:#2a2d32}
+.kq-models2 button.on{background:linear-gradient(120deg,rgba(45,140,235,.22),rgba(45,140,235,.06));border-color:#3f8ef0;box-shadow:0 0 0 1px #3f8ef0 inset}
+.km-ic{grid-row:1/3;width:38px;height:38px;border-radius:10px;background:#1d1f22;display:grid;place-items:center;font-size:19px}
+.kq-models2 button.on .km-ic{background:#1d3352}
+.km-t{display:flex;align-items:center;gap:7px}.km-t b{font-size:13.5px;color:#f2f3f5}
+.km-t em{font-style:normal;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:#1f3d2b;color:#7ee2a0}
+.kq-models2 small{grid-column:2/4;font-size:11.5px;color:#9aa0a8;line-height:1.35}
+.kq-models2 i{grid-column:3;grid-row:1;font-style:normal;font-size:10.5px;color:#8b9098;white-space:nowrap}

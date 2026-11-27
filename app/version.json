@@ -1,7 +1,8 @@
 {
- "version": "1.12.1",
+ "version": "1.12.2",
  "date": "2026-11-27",
  "notes": [
+  "Yapay zekâ modelleri 4'e indi (Anime, Gerçek görüntü, Hızlı, Yapay zekâsız) ve yeni sade tasarım",
   "Logo mavi oldu",
   "Hazır ayar seçmek zorunlu değil: seçili olana tekrar basınca kalkar, kendi ayarların geri gelir",
   "Yeni isim: B.E.K (Bul · Editle · Kaliteyi artır) ve yeni logo",
