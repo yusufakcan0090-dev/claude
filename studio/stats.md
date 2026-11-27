@@ -4,21 +4,21 @@ Otomatik görev her çalıştığında güncellenir.
 
 | Tarih | Konu | İzlenme | Erişim | Retention % | 3sn+ % | Paylaşım | Kaydetme | Yorum |
 |---|---|---|---|---|---|---|---|---|
-| 2026-11-03 | Gök Bayrak | 200 | 137 | 47.3 | – | 9 | 0 | 0 |
-| 2026-11-04 | Biz Türk'üz | 182 | 150 | 43.9 | – | 0 | 0 | 0 |
-| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2494 | 2052 | 60.4 | – | 32 | 24 | 1 |
-| 2026-11-09 | Pîrî Reis haritası | 1850 | 1527 | 52.3 | – | 8 | 7 | 0 |
-| 2026-11-10 | Atatürk (10 Kasım özel) | 1575 | 1407 | 52.1 | – | 1 | 3 | 1 |
-| 2026-11-11 | Son dakika: Henry Gunther | 3370 | 2431 | 62.2 | – | 1 | 4 | 1 |
-| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6553 | 5390 | 61.9 | – | 179 | 54 | 20 |
-| 2026-11-16 | Vidocq | 599 | 511 | 52.9 | – | 0 | 1 | 1 |
-| 2026-11-17 | Başkurdistan bayrağı | 3706 | 2937 | 61.8 | – | 58 | 72 | 12 |
-| 2026-11-18 | Köpenick Yüzbaşısı | 1181 | 1026 | 55.9 | – | 0 | 3 | 1 |
+| 2026-11-03 | Gök Bayrak | 202 | 138 | 47.4 | – | 9 | 0 | 0 |
+| 2026-11-04 | Biz Türk'üz | 185 | 151 | 44.2 | – | 0 | 1 | 0 |
+| 2026-11-06 | Kaşgar (Osmanlı'nın unutulan müttefiki) | 2495 | 2052 | 60.4 | – | 32 | 25 | 1 |
+| 2026-11-09 | Pîrî Reis haritası | 1851 | 1528 | 52.4 | – | 8 | 7 | 0 |
+| 2026-11-10 | Atatürk (10 Kasım özel) | 1576 | 1408 | 52.1 | – | 1 | 3 | 1 |
+| 2026-11-11 | Son dakika: Henry Gunther | 3422 | 2470 | 62.1 | – | 2 | 5 | 1 |
+| 2026-11-13 | Rusya'nın halkları ve 21 bayrak | 6557 | 5393 | 61.9 | – | 179 | 55 | 20 |
+| 2026-11-16 | Vidocq | 600 | 512 | 53.0 | – | 0 | 1 | 1 |
+| 2026-11-17 | Başkurdistan bayrağı | 3737 | 2959 | 61.8 | – | 58 | 73 | 12 |
+| 2026-11-18 | Köpenick Yüzbaşısı | 1184 | 1029 | 56.0 | – | 0 | 3 | 1 |
 | 2026-11-20 | Tolstoy'un kaçışı | 19 | 8 | 38.5 | – | 0 | 0 | 1 |
 | 2026-11-21 | Pilâtre de Rozier balonu | 1573 | 1396 | 51.4 | – | 0 | 1 | 1 |
-| 2026-11-23 | Tataristan / Kazan | 2017 | 1637 | 47.1 | – | 7 | 14 | 2 |
-| 2026-11-24 | Witold Pilecki | 1558 | 1355 | 52.8 | – | 19 | 10 | 2 |
-| 2026-11-25 | Saha / Yakutistan | 2005 | 1695 | 61.8 | – | 0 | 8 | 2 |
+| 2026-11-23 | Tataristan / Kazan | 2020 | 1637 | 47.1 | – | 7 | 14 | 2 |
+| 2026-11-24 | Witold Pilecki | 1561 | 1355 | 52.8 | – | 19 | 10 | 2 |
+| 2026-11-25 | Saha / Yakutistan | 2355 | 1979 | 61.3 | – | 3 | 13 | 2 |
 
 ## Notlar / çıkarımlar
 - 2026-11-05: İki yayın var, veri az. Retention %44–50 → video ~45 sn'de tutuldu (ses 1.1x hızlandırıldı, uzun duraklar kısaltıldı). Soru ile açılan Gök Bayrak daha iyi tuttu ve 9 paylaşım aldı: açılışta doğrudan çarpıcı iddia + ilk karede büyük yazı sürdürülüyor. IGRE28 (3 sn+) verisi henüz boş.
@@ -41,3 +41,4 @@ Otomatik görev her çalıştığında güncellenir.
 - 2026-11-23: Liderler değişmedi (Rusya 6.5K, Başkurdistan 3.6K, Gunther 3.4K; hepsi ~%62). Tolstoy hâlâ 17 izlenme (dağıtım sorunu olabilir). Pazartesi halk (Tataristan) olduğu için Salı genel dünya tarihi: Gunther tarzı dramatik/trajik tek kader + ihanet açısı seçildi → Witold Pilecki (Auschwitz'e gönüllü giren, komünist Polonya'da idam edilen subay). 35.6 sn (ses 1.1x, 543 kredi). İlk kare: "KENDİ İSTEĞİYLE / AUSCHWITZ'E"; kapak: "NAZİLERDEN KAÇTI, / KENDİ ÜLKESİ İDAM ETTİ". Nazi sembolü çizilmedi (tel örgü + kule). Sıradaki halk: Saha (Yakutistan), Çar/Cum slotlarından birinde.
 - 2026-11-24: Tataristan/Kazan 1 günde 1.953 izlenme, %47.2 retention (Başkurdistan'ın %62'sinin altında; açılış katedral silueti, bayrak geç geldi). Ders: halk videosunda bayrak İLK karede olsun. Bu yüzden Saha videosu bayrakla ve görsel bir soruyla açıldı ("BU GÜNEŞ NEDEN BEYAZ?"), Başkurdistan'daki isim tartışması kalıbı tekrarlandı (Yakut mu, Saha mı?). 33.6 sn (ses 1.0x, 457 kredi). Kapak: "EKSİ 67 DERECEDE YAŞAYAN / BİR TÜRK HALKI: SAHALAR". Çar 25 Kasım 18:00. Sıradaki halk: Çuvaşistan; Cuma slotu genel dünya tarihi olmalı. Tolstoy hâlâ 18 izlenme.
 - 2026-11-26: Saha 1 günde 2.005 izlenme, %61.8 retention — bayrakla açılış dersi işe yaradı (Kazan %47 idi), Başkurdistan seviyesine döndü. Pilecki 1.558 / %52.8 ama 19 paylaşım (genel konuların en çok paylaşılanı). Cuma slotu genel dünya tarihi (Pzt–Çar'da iki halk + Polonya olduğu için Fransa/WWII): yıl dönümüne denk gelen dramatik tek an → Toulon'da Fransız donanmasının kendini batırması (27 Kasım 1942). Gunther kalıbı: net saat (05.25) + tek emir ('Batırın!' x3). 34.8 sn (ses 1.05x, 565 kredi). İlk kare: "KENDİ DONANMASINI / BATIRDI"; kapak: "HİTLER FİLOYU İSTEDİ, / FRANSIZLAR BATIRDI". Gemi sayısı kaynaklarda 73/77 → '70'ten fazla'. Sıradaki halk: Çuvaşistan (Cmt ya da Pzt).
+- 2026-11-27: Saha 2 günde 2.355 izlenme / %61.3 retention — bayrakla açılan halk videoları yine en üstte (Rusya 6.6K, Başkurdistan 3.7K, Gunther 3.4K, Saha 2.4K; hepsi ~%61–62). Toulon henüz yayınlanmadı. Cmt slotu için halklar sırası #3 Çuvaşistan seçildi (bu hafta Pzt Kazan, Çar Saha → 3. halk videosu; Cuma genel olduğu için üst üste değil). Bayrak ilk karede + üstte büyük yazı ('BİR TÜRK HALKI… / AMA DİLİNİ TÜRKLER ANLAMIYOR'), kız→хӗр, kış→хӗл karşılaştırması, kapanış tartışması 'dili mi, dini mi?'. 30.4 sn (ses 1.0x, 411 kredi; metin 61 kelime). Kapak: 'BUGÜN YAŞAYAN TEK / OĞUR TÜRKÇESİ: ÇUVAŞÇA'. Tatarların da Bulgar mirası iddiası tek kaynakta kaldığı için kullanılmadı. Sıradaki halk: Tuva; Pzt slotu genel dünya tarihi olmalı (Cmt halk).
