@@ -1,11 +1,7 @@
 {
- "version": "1.8.0",
+ "version": "1.8.1",
  "date": "2026-11-27",
  "notes": [
-  "Asistan artık edit yapabiliyor: yüzü bul ve YÜZ kutusuna koy, düzen değiştir (yüz+oyun, kırp, bulanık, sığdır), kes, hız ve ses",
-  "Asistan kısa ve net cevap verir, sormadan işi yapar; başlattığı işlerin ilerlemesi sohbette canlı görünür (yüzde, kalan süre)",
-  "Editörde Kadraj kısmına 🎯 Yüzü bul düğmesi: videodaki yüzü bulup kutuyu oraya yerleştirir",
-  "Otomatik Edit videolarında yüz otomatik yerleştirilir",
-  "Fotoğraf önizlemesi büyük fotoğraflarda dakikalarca sürmüyor, birkaç saniyede gelir"
+  "Fotoğraf önizlemesi eski haline döndürüldü"
  ]
 }
