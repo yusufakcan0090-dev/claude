@@ -1631,3 +1631,37 @@ def api_kapak_yazi():
 @app.get("/api/koruma")
 def api_koruma():
     return jsonify(guard.status())
+
+
+# ================================================================ kanal analizi
+@app.post("/api/kanal/start")
+def api_kanal_start():
+    import kanal
+    d = request.get_json(force=True) or {}
+    try:
+        url = kanal.channel_url(d.get("kanal"))
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+    j = JOBS.start("kanal", "Kanal analizi: " + url.split("/")[-1][:40], kanal.fetch, d.get("kanal"), d.get("n") or 50)
+    return jsonify(job=j.id)
+
+
+@app.get("/api/kanal/sonuc")
+def api_kanal_sonuc():
+    import kanal
+    r = kanal.cached(request.args.get("key") or "")
+    if not r:
+        return jsonify(error="Analiz bulunamadı"), 404
+    return jsonify(r)
+
+
+@app.post("/api/kanal/ai")
+def api_kanal_ai():
+    import ai
+    import kanal
+    if not ai.enabled():
+        return jsonify(error="Yapay zekâ yorumu için Ayarlar → Yapay Zekâ'dan anahtar ekle"), 400
+    try:
+        return jsonify(kanal.ai_advice((request.get_json(force=True) or {}).get("key")))
+    except Exception as e:
+        return jsonify(error=str(e)), 400

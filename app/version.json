@@ -1,8 +1,12 @@
 {
- "version": "1.10.2",
+ "version": "1.11.0",
  "date": "2026-11-27",
  "notes": [
-  "Tek dosya kurulum: KesitStudyosu_Kurulum.exe — indir, çift tıkla, İleri'ye bas",
-  "Ayarlar → Programı paylaş: kurulum linkini tek tuşla kopyala"
+  "Yeni: Araçlar sayfası",
+  "Video Arka Plan Sil: yeşil perde olmadan kişiyi ayır; arkasına renk, bulanık, resim, video koy ya da şeffaf yap",
+  "Kapak Stüdyosu: kişiyi otomatik kes, şablonlar, büyük yazı, emoji, ok; YouTube / Shorts / kare kapak kaydet",
+  "Kanal Analizi: en iyi gün ve saat, Shorts mı uzun mu, tutan videolar ve başlıklar, öneriler",
+  "Kalite: serbest ayar (özel çözünürlük, FPS, sıkıştırma, kodlama hızı, ses) ve kendi ayarlarını kaydet",
+  "Donanım koruması: ekran kartı ısınınca iş durur, soğuyunca devam eder; Sessiz / Dengeli / Tam güç"
  ]
 }
