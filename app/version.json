@@ -1,8 +1,7 @@
 {
- "version": "1.7.3",
+ "version": "1.7.4",
  "date": "2026-11-27",
  "notes": [
-  "Asistan: takılıp kalma düzeltildi — her istek için süre sınırı, geç kalırsa başka modele geçer",
-  "Gemini daha kısa düşünür, cevaplar daha hızlı gelir"
+  "Asistan: çalışan Gemini modelini hatırlar, yoğun modelleri tekrar tekrar denemez; cevap çok daha hızlı gelir"
  ]
 }

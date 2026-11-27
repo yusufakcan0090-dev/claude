@@ -108,6 +108,8 @@ def pick_model(force=False):
         return manual
     if _MODELS["pick"] and not force and time.time() - _MODELS["t"] < 6 * 3600:
         return _MODELS["pick"]
+    st = load_settings()
+    remembered = st.get("ai_son_model") if not force and time.time() - float(st.get("ai_son_model_t") or 0) < 24 * 3600 else None
     names = []
     try:
         tok = ""
@@ -137,6 +139,8 @@ def pick_model(force=False):
     _MODELS["lite"] = best(lite) or "gemini-flash-lite-latest"
     # yoğunlukta sırayla denenecek yedekler: diğer flash'lar, sonra lite'lar
     _MODELS["all"] = order(full) + order(lite) + ["gemini-flash-latest", "gemini-flash-lite-latest"]
+    if remembered and remembered in names:
+        _MODELS["pick"] = remembered
     _MODELS["t"] = time.time()
     return _MODELS["pick"]
 
@@ -168,7 +172,9 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
             r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
             _log(f"cevap ← {model} ({time.time() - t0:.1f} sn)")
             if model != _MODELS.get("pick") and (load_settings().get("ai_model") or "auto") == "auto":
-                _MODELS["pick"] = model  # çalışanla devam et
+                _MODELS["pick"] = model  # çalışanla devam et (program kapanınca da hatırla)
+                from core import save_settings
+                save_settings({"ai_son_model": model, "ai_son_model_t": time.time()})
             break
         except AIError as e:
             s = str(e)
@@ -180,7 +186,7 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
                     break
                 except AIError as e2:
                     s, last = str(e2), e2
-            if s.startswith("MESGUL:") and tried.count(model) == 1 and len(tried) == 1:
+            if False and s.startswith("MESGUL:"):
                 time.sleep(1.5)  # anlık yoğunluk: aynı modeli bir kez daha dene
                 tried.append("")
                 try:
