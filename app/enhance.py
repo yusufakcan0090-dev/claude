@@ -26,6 +26,11 @@ TOOLS = {
                 else "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip"),
         "exe": "realesrgan-ncnn-vulkan" + EXE,
     },
+    "realcugan": {
+        "url": ("https://github.com/nihui/realcugan-ncnn-vulkan/releases/download/20220728/realcugan-ncnn-vulkan-20220728-windows.zip" if IS_WIN
+                else "https://github.com/nihui/realcugan-ncnn-vulkan/releases/download/20220728/realcugan-ncnn-vulkan-20220728-ubuntu.zip"),
+        "exe": "realcugan-ncnn-vulkan" + EXE,
+    },
     "rife": {
         "url": ("https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-windows.zip" if IS_WIN
                 else "https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-ubuntu.zip"),
@@ -37,7 +42,34 @@ MODELS = {
     "gercek": ("realesrgan-x4plus", 4),          # gerçek görüntü, en iyi
     "hizli": ("realesr-animevideov3", 2),        # hızlı, videoya uygun
     "anime": ("realesrgan-x4plus-anime", 4),     # çizgi film / anime
+    "anime_pro": ("realcugan", 2),               # Real-CUGAN: anime için en iyi (çizgiler temiz ve keskin)
 }
+
+
+def ai_tool(o):
+    """Seçilen modele göre (araç adı, model, ölçek)."""
+    if o.get("model") == "anime_pro":
+        return "realcugan", "models-pro", 2
+    name, sc = MODELS.get(o.get("model"), MODELS["hizli"])
+    if o.get("model") == "hizli":
+        sc = int(o.get("olcek") or 2)
+    return "realesrgan", name, sc
+
+
+def ai_cmd(o, inp, out, fmt=None):
+    """Yapay zekâ büyütme komutu (Real-ESRGAN ya da Real-CUGAN). Dönen: (komut, çalışma klasörü)."""
+    tool, model, sc = ai_tool(o)
+    exe = tool_path(tool)
+    if tool == "realcugan":
+        g = int(o.get("gurultu") or 0)
+        # models-pro: 0 = gürültü giderme yok (en keskin), -1 = korumacı, 3 = güçlü gürültü giderme
+        noise = 0 if g < 15 else -1 if g < 55 else 3
+        cmd = [str(exe), "-i", str(inp), "-o", str(out), "-n", str(noise), "-s", str(sc), "-m", model]
+    else:
+        cmd = [str(exe), "-i", str(inp), "-o", str(out), "-n", model, "-s", str(sc)]
+    if fmt:
+        cmd += ["-f", fmt]
+    return cmd, str(exe.parent)
 DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu": 25, "blok": True,
            "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True,
            # yüz
@@ -248,6 +280,8 @@ def pre_filters(o):
     if o.get("blok"):
         f.append("deblock=filter=strong:block=8")
     g = int(o.get("gurultu") or 0)
+    if o.get("model") == "anime_pro":
+        g = g // 3  # Real-CUGAN gürültüyü kendisi temizliyor; çift temizlik çizgileri bulanıklaştırmasın
     if g > 0:
         ls = 1 + g / 100 * 7
         f.append(f"hqdn3d={ls:.1f}:{ls * .75:.1f}:{ls * 1.5:.1f}:{ls * 1.1:.1f}")
@@ -359,12 +393,11 @@ def preview(path, t, opts, final=None):
     src = pre
     used_ai = False
     if o["model"] != "klasik" and ai_works():
-        name, sc = MODELS.get(o["model"], MODELS["hizli"])
-        if o["model"] == "hizli":
-            sc = int(o.get("olcek") or 2)
         up = d / "ai.png"
-        exe = tool_path("realesrgan")
-        run([str(exe), "-i", str(pre), "-o", str(up), "-n", name, "-s", str(sc)], cwd=str(exe.parent), timeout=300)
+        if ai_tool(o)[0] != "realesrgan":
+            ensure_tool(ai_tool(o)[0])
+        cmd, cwd = ai_cmd(o, pre, up)
+        run(cmd, cwd=cwd, timeout=300)
         if up.exists():
             src, used_ai = up, True
     if o.get("yuz"):
@@ -405,7 +438,9 @@ def process_image(job, path, opts):
     path = Path(path)
     job.set(0.05, "Hazırlanıyor...")
     if o["model"] != "klasik":
-        ensure_tool("realesrgan", job, 0.05, 0.3)
+        ensure_tool("realesrgan", job, 0.05, 0.2)
+        if ai_tool(o)[0] != "realesrgan":
+            ensure_tool(ai_tool(o)[0], job, 0.2, 0.3)
         if not ai_works(job):
             job.set(0.3, "Ekran kartında yapay zekâ çalışmadı, klasik mod kullanılıyor...")
     if o.get("yuz"):
@@ -646,10 +681,9 @@ def process(job, path, opts, resume=None):
         chunks = list(range(0, total_frames, CHUNK))
         total_chunks = len(chunks)
         segs = []
-        model, sc = MODELS.get(o["model"], MODELS["hizli"])
-        if o["model"] == "hizli":
-            sc = int(o.get("olcek") or 2)
-        rexe, fexe = tool_path("realesrgan"), tool_path("rife")
+        if use_ai and ai_tool(o)[0] != "realesrgan":
+            ensure_tool(ai_tool(o)[0], job, 0.08, 0.09)
+        fexe = tool_path("rife")
         g = int(o.get("ai_guc", 100))
         save_state(0.09)
         for ci, a in enumerate(chunks):
@@ -673,8 +707,8 @@ def process(job, path, opts, resume=None):
             n = _count(d_in) or n
             cur = d_in
             if use_ai:
-                code, err = _run_watch([str(rexe), "-i", str(d_in), "-o", str(d_up), "-n", model, "-s", str(sc), "-f", "jpg"],
-                                       job, d_up, n, *span(.05, .5), "Yapay zekâ netleştiriyor...", cwd=str(rexe.parent))
+                acmd, acwd = ai_cmd(o, d_in, d_up, "jpg")
+                code, err = _run_watch(acmd, job, d_up, n, *span(.05, .5), "Yapay zekâ netleştiriyor...", cwd=acwd)
                 if code != 0 or _count(d_up) < n:
                     raise RuntimeError("Yapay zekâ netleştirme başarısız: " + err[-250:])
                 cur = d_up

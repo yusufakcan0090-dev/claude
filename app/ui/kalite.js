@@ -2,7 +2,14 @@
 (() => {
   const Q = KS.kalite = { src: null, opts: null, split: .5, zoom: 1, pan: { x: 0, y: 0 } };
   const view = $('#kqView'), stage = $('#kqStage'), aImg = $('#kqAfter'), bImg = $('#kqBefore'), bWrap = $('#kqBeforeWrap'), handle = $('#kqHandle');
-  const MODELS = [['hizli', 'Hızlı', 'Video için hızlı yapay zekâ'], ['gercek', 'En iyi', 'Gerçek görüntü, en net (yavaş)'], ['anime', 'Anime', 'Çizgi film / anime'], ['klasik', 'Klasik', 'Yapay zekâsız, çok hızlı']];
+  const MODELS = [['hizli', 'Hızlı', 'Video için hızlı yapay zekâ'], ['gercek', 'En iyi', 'Gerçek görüntü, en net (yavaş)'], ['anime_pro', 'Anime Pro', 'Anime ve çizgi film için en iyisi: çizgiler temiz ve keskin, renkler düz ve pürüzsüz (Real-CUGAN). İlk kullanımda ~55 MB iner.'], ['anime', 'Anime (eski)', 'Çizgi film / anime, Real-ESRGAN'], ['klasik', 'Klasik', 'Yapay zekâsız, çok hızlı']];
+  /* tek tıkla en iyi sonuç */
+  const PRESETS = {
+    anime: ['🎌 Anime', 'Anime / çizgi film için en iyi', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0 }],
+    gercek: ['🎥 Gerçek video', 'Yayın, vlog, film için en iyi', { model: 'gercek', keskin: 60, detay: 25, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: true, yuz_guc: 60, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 85, gren: 0 }],
+    eski: ['📼 Düşük kalite', 'Eski, bulanık, çok sıkıştırılmış videolar', { model: 'gercek', keskin: 55, detay: 15, gurultu: 55, yumusat: 15, blok: true, bant: true, yuz: true, yuz_guc: 75, doygun: 10, kontrast: 5, oto_renk: true, ai_guc: 100, gren: 0 }],
+    hizli: ['⚡ Hızlı', 'Çabuk bitsin, yine iyi görünsün', { model: 'hizli', olcek: 2, keskin: 50, detay: 10, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: false, doygun: 0, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0 }],
+  };
   const TARGETS = [['kaynak', 'Aynı'], ['720', '720p'], ['1080', '1080p'], ['1440', '2K'], ['2160', '4K']];
   const FPS = [['kaynak', 'Aynı'], ['30', '30'], ['60', '60'], ['90', '90'], ['120', '120']];
   const fmt = s => { s = Math.max(0, s || 0); return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
@@ -39,7 +46,9 @@
     Object.keys(DEF).forEach(k => { if (o[k] === undefined) o[k] = DEF[k]; });
     const m = MODELS.find(x => x[0] === o.model) || MODELS[0], dur = Q.src ? Q.src.duration : 0, keep = el.scrollTop, img = !!(Q.src && Q.src.image);
     const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K']] : TARGETS;
+    const curP = Object.keys(PRESETS).find(k => Object.entries(PRESETS[k][2]).every(([a, b]) => o[a] === b));
     el.innerHTML = `<div class="kq-scroll">
+      <div class="kq-presets"><div class="kq-h">Hazır ayar · tek tıkla en iyi sonuç</div><div class="kq-pre">${Object.entries(PRESETS).map(([k, v]) => `<button class="${k === curP ? 'on' : ''}" data-pre="${k}" title="${v[1]}"><b>${v[0]}</b><small>${v[1]}</small></button>`).join('')}</div></div>
       ${img ? grp('gorsel', 'Görsel araçları', Q.brush ? `<small class="kq-note">Silmek istediğin yeri <b>fareyle boya</b> (kırmızı). Sonra "Boyanan yeri sil"e bas.</small>
           ${sl('fircaBoy', 'Fırça boyutu', 5, 200, Q.brush.size)}
           <div class="kq-tools"><button class="btn primary sm" id="kqInp">🩹 Boyanan yeri sil</button><button class="btn ghost sm" id="kqBClr">Temizle</button><button class="btn ghost sm" id="kqBOff">Vazgeç</button></div>`
@@ -73,6 +82,7 @@
       <div class="kq-foot"><button class="btn primary glow kq-go" id="kqGo">✨ ${img ? 'Fotoğrafı İyileştir' : 'Kaliteyi Artır'}</button><button class="btn ghost sm" id="kqReset">Varsayılana döndür</button></div>`;
     $('.kq-scroll', el).scrollTop = keep;
     $$('.kq-g', el).forEach(d => d.addEventListener('toggle', () => { Q.open[d.dataset.g] = d.open; }));
+    $$('[data-pre]', el).forEach(b => b.onclick = () => { Object.assign(Q.opts, PRESETS[b.dataset.pre][2]); const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; Q.previewSoon(); });
     $$('.kq-seg', el).forEach(g => $$('button', g).forEach(b => b.onclick = () => { const k = g.dataset.k; Q.opts[k] = b.dataset.v; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (!NOPV.has(k)) Q.previewSoon(); }));
     $$('[data-r]', el).forEach(r => { KS.paintRange(r); r.oninput = () => { Q.opts[r.dataset.r] = +r.value; $('#kqv_' + r.dataset.r).textContent = r.value; KS.paintRange(r); }; r.onchange = () => Q.previewSoon(); });
     $$('[data-c]', el).forEach(c => c.onchange = () => { const k = c.dataset.c; Q.opts[k] = c.checked; const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (!NOPV.has(k)) Q.previewSoon(); });

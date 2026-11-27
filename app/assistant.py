@@ -129,7 +129,7 @@ def run_tool(name, a, ctx, actions):
         if not Path(f).exists():
             raise ValueError("Dosya bulunamadı: " + f)
         img = enhance.is_image(f)
-        o = {"model": {"hizli": "hizli", "en_iyi": "gercek", "anime": "anime", "klasik": "klasik"}.get(a.get("mod") or ("en_iyi" if img else "hizli"), "hizli"),
+        o = {"model": {"hizli": "hizli", "en_iyi": "gercek", "anime": "anime_pro", "klasik": "klasik"}.get(a.get("mod") or ("en_iyi" if img else "hizli"), "hizli"),
              "hedef": a.get("cozunurluk") or ("x2" if img else "1080"), "yuz": bool(a.get("yuz")), "fps": a.get("fps") or "kaynak"}
         fn = enhance.process_image if img else enhance.process
         j = JOBS.start("kalite", ("Fotoğraf: " if img else "Kalite: ") + Path(f).stem[:40], fn, f, o, heavy=True)

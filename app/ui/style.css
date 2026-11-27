@@ -1167,3 +1167,9 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 .ai-job-t{display:flex;justify-content:space-between;gap:8px}.ai-job-t b{color:#eee;font-size:12.5px}.ai-job-t span{color:#8fb8ff;white-space:nowrap;font-variant-numeric:tabular-nums}
 .ai-job small{color:#9a9a9a}.ai-job.ok{border-color:#2f6b45}.ai-job.ok .ai-job-t span{color:#5fd38a}.ai-job.bad{border-color:#6b2f2f}.ai-job.bad .ai-job-t span{color:#ff8a8a}
 .ai-job-b{display:flex;gap:6px}
+
+.kq-presets{padding:12px 14px 4px}
+.kq-pre{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kq-pre button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;background:#262626;border:1px solid #333;border-radius:8px;text-align:left;color:#ddd}
+.kq-pre button b{font-size:12.5px}.kq-pre button small{font-size:10.5px;color:#8a8a8a;line-height:1.3}
+.kq-pre button:hover{border-color:#2d8ceb}.kq-pre button.on{border-color:#2d8ceb;background:rgba(45,140,235,.15)}.kq-pre button.on b{color:#fff}
