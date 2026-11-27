@@ -1,7 +1,9 @@
 {
- "version": "1.12.0",
+ "version": "1.12.1",
  "date": "2026-11-27",
  "notes": [
+  "Logo mavi oldu",
+  "Hazır ayar seçmek zorunlu değil: seçili olana tekrar basınca kalkar, kendi ayarların geri gelir",
   "Yeni isim: B.E.K (Bul · Editle · Kaliteyi artır) ve yeni logo",
   "Kalite: Büyütme (1x/2x/3x/4x) ve çözünürlük (HD, Full HD, 2K, 4K, 8K, Özel) artık senin seçimin; hazır ayarlar değiştirmez",
   "Kalite: Süper örnekleme ile çizgiler pürüzsüz, basamaklı/kırık olmaz (Anime ve Üst Düzey ayarlarında açık)",
