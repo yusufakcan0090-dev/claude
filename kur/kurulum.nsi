@@ -7,16 +7,16 @@ Unicode true
 !ifndef SRC
   !define SRC ".."
 !endif
-Name "Kesit Stüdyosu"
+Name "B.E.K"
 OutFile "KesitStudyosu_Kurulum.exe"
 InstallDir "$LOCALAPPDATA\KesitStudyosu"
 InstallDirRegKey HKCU "Software\KesitStudyosu" "Klasor"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-BrandingText "Kesit Stüdyosu ${VERSION}"
+BrandingText "B.E.K ${VERSION}"
 VIProductVersion "${VERSION}.0"
-VIAddVersionKey "ProductName" "Kesit Stüdyosu"
-VIAddVersionKey "FileDescription" "Kesit Stüdyosu Kurulum"
+VIAddVersionKey "ProductName" "B.E.K"
+VIAddVersionKey "FileDescription" "B.E.K Kurulum"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "CompanyName" "Animeci"
@@ -25,10 +25,10 @@ VIAddVersionKey "LegalCopyright" "Animeci"
 !define MUI_ICON "${SRC}\app\ui\icon.ico"
 !define MUI_UNICON "${SRC}\app\ui\icon.ico"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEPAGE_TITLE "Kesit Stüdyosu'na hoş geldin"
+!define MUI_WELCOMEPAGE_TITLE "B.E.K'e hoş geldin"
 !define MUI_WELCOMEPAGE_TEXT "Kick ve YouTube yayınlarından en iyi anları bulan, Türkçe altyazı ekleyen, video kalitesini yapay zekâ ile artıran program.$\r$\n$\r$\nİleri'ye bas, gerisini program halleder. Kurulum, ekran kartını bulup gerekli her şeyi (Python, FFmpeg, altyazı modeli) kendisi indirir; internet hızına göre 10-30 dakika sürer."
 !define MUI_FINISHPAGE_TITLE "Dosyalar hazır"
-!define MUI_FINISHPAGE_TEXT "Şimdi kurulum penceresi açılacak ve kalan her şeyi kendisi indirip kuracak.$\r$\n$\r$\nBitince masaüstündeki 'Kesit Stüdyosu' simgesiyle programı açarsın."
+!define MUI_FINISHPAGE_TEXT "Şimdi kurulum penceresi açılacak ve kalan her şeyi kendisi indirip kuracak.$\r$\n$\r$\nBitince masaüstündeki 'B.E.K' simgesiyle programı açarsın."
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Kurulumu şimdi başlat"
 !define MUI_FINISHPAGE_RUN_FUNCTION BaslatKurulum
@@ -45,7 +45,7 @@ Function BaslatKurulum
   Exec '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$INSTDIR\kur\arayuz.ps1"'
 FunctionEnd
 
-Section "Kesit Stüdyosu" SecMain
+Section "B.E.K" SecMain
   SetOutPath "$INSTDIR"
   File /r /x "__pycache__" /x "*.pyc" "${SRC}\app"
   File /r "${SRC}\kur"
@@ -58,7 +58,7 @@ Section "Kesit Stüdyosu" SecMain
   WriteUninstaller "$INSTDIR\Kaldir.exe"
   ; Program Ekle/Kaldır listesine ekle
   !define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\KesitStudyosu"
-  WriteRegStr HKCU "${UNKEY}" "DisplayName" "Kesit Stüdyosu"
+  WriteRegStr HKCU "${UNKEY}" "DisplayName" "B.E.K"
   WriteRegStr HKCU "${UNKEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNKEY}" "Publisher" "Animeci"
   WriteRegStr HKCU "${UNKEY}" "DisplayIcon" "$INSTDIR\app\ui\icon.ico"
@@ -70,6 +70,9 @@ SectionEnd
 
 Section "Uninstall"
   Delete "$DESKTOP\Kesit Stüdyosu.lnk"
+  Delete "$DESKTOP\Kesit Studyosu.lnk"
+  Delete "$DESKTOP\B.E.K.lnk"
+  Delete "$SMPROGRAMS\B.E.K.lnk"
   Delete "$SMPROGRAMS\Kesit Stüdyosu.lnk"
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\kur"

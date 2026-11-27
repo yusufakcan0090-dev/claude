@@ -295,6 +295,9 @@ KS.loadSystem = async () => {
     chip.className = 'gpu-chip ' + (s.gpu ? 'ok' : 'warn');
     $('span', chip).textContent = s.gpu ? 'NVIDIA hazır' : s.vendor === 'amd' ? 'AMD hazır' : s.vendor === 'intel' ? 'Intel' : 'GPU yok';
     chip.title = s.gpu ? 'Altyazı ekran kartında hızlı çalışacak' : 'Ekran kartı bulunamadı, altyazı işlemciyle (yavaş) çalışır';
+    const base = $('span', chip).textContent;
+    clearInterval(KS._chipT);
+    KS._chipT = setInterval(async () => { if (document.hidden) return; try { const k = await KS.api('/api/koruma'); $('span', chip).textContent = k.gpu_temp != null ? `${base.replace(' hazır', '').replace('GPU yok', 'GPU')} ${Math.round(k.gpu_temp)}°C` : base; chip.classList.toggle('hot', k.gpu_temp != null && k.gpu_temp >= (k.gpu_limit || 80) - 5); } catch (e) { } }, 3000);
   } catch (e) { }
 };
 
@@ -433,6 +436,7 @@ KS.renderSettings = () => {
     </div>
     <div class="st-sec"><h3>Donanım koruması</h3>
       ${row('Yük seviyesi', 'Ağır işlerde (kalite artırma, arka plan silme) ekran kartı ve işlemci ne kadar zorlansın', `<div class="seg" id="setKor">${[['sessiz', '🌙 Sessiz'], ['dengeli', '⚖️ Dengeli'], ['tam', '🚀 Tam güç']].map(([v, n]) => `<button data-v="${v}" class="${((s.koruma || {}).mod || 'dengeli') === v ? 'on' : ''}">${n}</button>`).join('')}</div>`)}
+      ${row('Şu an', 'Canlı takip (2 saniyede bir)', '<span class="st-live" id="setKorLive">okunuyor...</span>')}
       ${row('Sıcaklık sınırı', 'Ekran kartı bu sıcaklığa gelince iş durur, soğuyunca devam eder', `<span class="st-kor"><input type="range" min="60" max="90" id="setKorLim" value="${(s.koruma || {}).gpu_limit || 80}"><b id="setKorV">${(s.koruma || {}).gpu_limit || 80}°C</b></span>`)}
     </div>
     <div class="st-sec"><h3>Yardım</h3>
@@ -452,6 +456,8 @@ KS.renderSettings = () => {
   $$('#setTheme button').forEach(b => b.onclick = () => save({ tema: b.dataset.v }).then(() => { KS.applyTheme(); KS.renderSettings(); }));
   $$('#setKor button').forEach(b => b.onclick = () => save({ koruma: { ...(s.koruma || {}), mod: b.dataset.v, gpu_limit: { sessiz: 72, dengeli: 80, tam: 86 }[b.dataset.v] } }).then(KS.renderSettings));
   { const r = $('#setKorLim'); KS.paintRange(r); r.oninput = () => { $('#setKorV').textContent = r.value + '°C'; KS.paintRange(r); }; r.onchange = () => save({ koruma: { ...(s.koruma || {}), gpu_limit: +r.value } }); }
+  clearInterval(KS._korT); const korLive = async () => { const el = $('#setKorLive'); if (!el || KS.page !== 'settings') return clearInterval(KS._korT); try { const k = await KS.api('/api/koruma'); el.innerHTML = [k.gpu_temp != null ? `<span class="kq-live"></span>Ekran kartı <b>${Math.round(k.gpu_temp)}°C</b>${k.gpu_util != null ? ' · %' + Math.round(k.gpu_util) : ''}` : 'Ekran kartı sıcaklığı okunamıyor', k.cpu_temp != null ? `İşlemci <b>${k.cpu_temp}°C</b>` : ''].filter(Boolean).join(' · '); } catch (e) { } };
+  korLive(); KS._korT = setInterval(korLive, 2000);
   $('#setTour').onclick = () => KS.tour();
   $('#setKey').addEventListener('keydown', e => e.stopPropagation());
   $('#setKeySave').onclick = () => KS.ai.saveKey($('#setKey').value, $('#setKeySave'));

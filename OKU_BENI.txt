@@ -14,7 +14,7 @@ ZIP İLE (eski yol):
    ekran kartını bulur (NVIDIA / AMD / Intel), Python'u, paketleri,
    FFmpeg'i ve Türkçe altyazı modelini kurar, masaüstüne kısayol koyar.
    İnternet hızına göre 10-30 dakika sürer.
-4) Bitince "Programı Aç"a bas. Sonra masaüstündeki "Kesit Stüdyosu" simgesiyle açarsın.
+4) Bitince "Programı Aç"a bas. Sonra masaüstündeki "B.E.K" simgesiyle açarsın.
 
 Ekran kartı:
 - NVIDIA: altyazı ve dışa aktarma ekran kartıyla, en hızlı.

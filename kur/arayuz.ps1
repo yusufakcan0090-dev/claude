@@ -8,11 +8,11 @@ Set-Content -LiteralPath $Status -Value '' -Encoding UTF8
 $bg = [Drawing.Color]::FromArgb(28, 28, 28); $panel = [Drawing.Color]::FromArgb(38, 38, 38)
 $blue = [Drawing.Color]::FromArgb(45, 140, 235); $fg = [Drawing.Color]::FromArgb(230, 230, 230); $mut = [Drawing.Color]::FromArgb(140, 140, 140)
 $f = New-Object Windows.Forms.Form
-$f.Text = 'Kesit Stüdyosu - Kurulum'; $f.Size = New-Object Drawing.Size(620, 520); $f.StartPosition = 'CenterScreen'
+$f.Text = 'B.E.K - Kurulum'; $f.Size = New-Object Drawing.Size(620, 520); $f.StartPosition = 'CenterScreen'
 $f.FormBorderStyle = 'FixedSingle'; $f.MaximizeBox = $false; $f.BackColor = $bg; $f.ForeColor = $fg
 $ico = Join-Path $Root 'app\ui\icon.ico'; if (Test-Path $ico) { $f.Icon = New-Object Drawing.Icon($ico) }
 function L($t, $x, $y, $w, $h, $size, $bold, $col) { $l = New-Object Windows.Forms.Label; $l.Text = $t; $l.Location = New-Object Drawing.Point($x, $y); $l.Size = New-Object Drawing.Size($w, $h); $l.Font = New-Object Drawing.Font('Segoe UI', $size, $(if ($bold) { [Drawing.FontStyle]::Bold } else { [Drawing.FontStyle]::Regular })); $l.ForeColor = $col; $l.BackColor = [Drawing.Color]::Transparent; $f.Controls.Add($l); $l }
-L 'Kesit Stüdyosu' 28 20 540 40 20 $true $fg | Out-Null
+L 'B.E.K' 28 20 540 40 20 $true $fg | Out-Null
 L 'Her şey otomatik kuruluyor. Bilgisayarına göre ayarlanıyor, sen bir şey yapma.' 30 62 560 22 10 $false $mut | Out-Null
 $gpuL = L 'Ekran kartı aranıyor...' 30 88 560 22 10 $false $blue
 $names = 'Ekran kartı tespiti', 'Python', 'Program paketleri', 'Ekran kartına özel dosyalar', 'FFmpeg (video motoru)', 'Türkçe altyazı modeli', 'Masaüstü kısayolu'
@@ -41,7 +41,7 @@ $timer.Add_Tick({
       'PCT' { $bar.Value = [Math]::Min(100, [int]$p[1]) }
       'LOG' { $t = $p[1]; if ($t.Length -gt 140) { $t = $t.Substring(0, 140) + '…' }; $logL.Text = $t }
       'GPU' { $g = $p[1] -split '\|'; $v = $g[-1]; $nm = ($g[0..($g.Count - 2)] -join ', '); $gpuL.Text = 'Ekran kartı: ' + $(if ($nm) { $nm } else { 'bulunamadı' }) + $(switch ($v) { 'nvidia' { '  →  hızlı altyazı (NVIDIA)' } 'amd' { '  →  AMD ile dışa aktarma' } 'intel' { '  →  Intel ile dışa aktarma' } default { '' } }) }
-      'DONE' { $state.done = $true; SetStep 99; $bar.Value = 100; $logL.Text = 'Kurulum tamam! Masaüstünde "Kesit Stüdyosu" simgesi var.'; $btn.Text = 'Programı Aç'; $btn.Enabled = $true; $timer.Stop() }
+      'DONE' { $state.done = $true; SetStep 99; $bar.Value = 100; $logL.Text = 'Kurulum tamam! Masaüstünde "B.E.K" simgesi var.'; $btn.Text = 'Programı Aç'; $btn.Enabled = $true; $timer.Stop() }
       'FAIL' { $state.failed = $true; $logL.ForeColor = [Drawing.Color]::FromArgb(255, 120, 90); $logL.Text = 'HATA: ' + $p[1]; $btn.Text = 'Tekrar Dene'; $btn.Enabled = $true; $btn.BackColor = [Drawing.Color]::FromArgb(90, 90, 90); $timer.Stop() }
     }
   }

@@ -6,8 +6,6 @@
     { id: 'vbg', icon: '🟩', t: 'Video Arka Plan Sil', d: 'Yeşil perde olmadan kişiyi videodan ayır; arkasına renk, bulanık, resim ya da video koy.', c: '#22c55e' },
     { id: 'kapak', icon: '🖼️', t: 'Kapak Stüdyosu', d: 'Kişiyi kes, renkli arka plan, büyük yazı, ok ve emoji: tıklanan YouTube / Reels kapakları.', c: '#f59e0b' },
     { id: 'kanal', icon: '📊', t: 'Kanal Analizi', d: 'YouTube kanalında hangi videolar tuttu, hangi gün ve saat daha çok izleniyor, ne yapmalı?', c: '#38bdf8' },
-    { id: 'donustur', icon: '⇄', t: 'Dönüştür', d: 'Video, ses ve fotoğrafları istediğin biçime çevir.', c: '#94a3b8' },
-    { id: 'kalite', icon: '💎', t: 'Kalite Artır', d: 'Video ve fotoğrafı yapay zekâ ile netleştir, büyüt, FPS artır.', c: '#2d8ceb' },
   ];
   const grid = $('#arGrid');
   grid.innerHTML = TOOLS.map(x => `<button class="ar-card" data-goto="${x.id}" style="--c:${x.c}"><span class="ar-ic">${x.icon}</span><b>${x.t}</b><small>${x.d}</small><span class="ar-go">Aç →</span></button>`).join('');

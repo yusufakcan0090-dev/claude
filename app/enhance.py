@@ -66,11 +66,12 @@ def ensure_model(name, job=None, lo=0.0, hi=0.05):
 
 def ai_tool(o):
     """Seçilen modele göre (araç adı, model, ölçek)."""
+    k = float(o.get("_k") or 2)  # gereken büyütme (çıkış / kaynak)
     if o.get("model") == "anime_pro":
-        return "realcugan", "models-pro", 2
+        return "realcugan", "models-pro", 2 if k <= 2.05 else 3
     name, sc = MODELS.get(o.get("model"), MODELS["hizli"])
     if o.get("model") == "hizli":
-        sc = int(o.get("olcek") or 2)
+        sc = 2 if k <= 2.05 else 3 if k <= 3.05 else 4
     return "realesrgan", name, sc
 
 
@@ -109,7 +110,7 @@ DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu
            # çıktı ve ses
            "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True,
            # serbest ayar
-           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False}
+           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False, "supersample": False}
 FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
              "codeformer": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
@@ -288,7 +289,7 @@ def out_size(w, h, o):
     if b == "kaynak":
         return target_size(w, h, o.get("hedef", "1080"))
     hd = str(o.get("hedef"))
-    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160}.get(hd) or (min(w, h) * (int(hd[1]) if hd in ("x2", "x4") else 1) if hd in ("kaynak", "x2", "x4") else 1080)
+    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160, "4320": 4320}.get(hd) or (min(w, h) * (int(hd[1]) if hd in ("x2", "x3", "x4") else 1) if hd in ("kaynak", "x2", "x3", "x4") else 1080)
     rw, rh = {"9:16k": (9, 16), "9:16b": (9, 16), "4:5k": (4, 5), "4:5b": (4, 5), "1:1k": (1, 1), "1:1b": (1, 1)}.get(b, (9, 16))
     W, H = short, round(short * rh / rw)
     return W - W % 2, H - H % 2
@@ -311,10 +312,10 @@ def target_size(w, h, hedef, o=None):
         return ow - ow % 2, oh - oh % 2
     if hedef == "kaynak":
         return w - w % 2, h - h % 2
-    if str(hedef) in ("x2", "x4"):
+    if str(hedef) in ("x2", "x3", "x4"):
         k = int(str(hedef)[1])
         return min(16384, w * k) // 2 * 2, min(16384, h * k) // 2 * 2
-    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160}.get(str(hedef), 1080)
+    short = {"720": 720, "1080": 1080, "1440": 1440, "2160": 2160, "4320": 4320}.get(str(hedef), 1080)
     if w >= h:
         nh = short
         nw = round(w * nh / h)
@@ -361,25 +362,35 @@ def deflicker(o):
 
 def post_filters(o, W, H):
     b = o.get("bicim") or "kaynak"
+    # süper örnekleme: netleştirme hedefin 2 katı boyutta yapılır, sonra kaliteli küçültülür.
+    # çizgiler pürüzsüz kalır (testere dişi / basamak olmaz), ince çizgiler kopmaz.
+    ss = 1.0
+    if o.get("supersample"):
+        ss = min(2.0, 8192 / max(W, H), (3840 * 2160 * 2 / max(1, W * H)) ** 0.5)
+        if ss < 1.25:
+            ss = 1.0
+    SW, SH = (int(W * ss) // 2 * 2, int(H * ss) // 2 * 2) if ss > 1 else (W, H)
     if b.endswith("k"):  # ekranı doldur (kenarlardan kırp)
-        f = [f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H},setsar=1"]
+        f = [f"scale={SW}:{SH}:force_original_aspect_ratio=increase:flags=lanczos,crop={SW}:{SH},setsar=1"]
     elif b.endswith("b"):  # bulanık arka plan + video ortada
-        f = [f"split[kqa][kqb];[kqa]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},boxblur=24:3,eq=brightness=-0.06[kqbg];"
-             f"[kqb]scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos[kqfg];[kqbg][kqfg]overlay=(W-w)/2:(H-h)/2,setsar=1"]
+        f = [f"split[kqa][kqb];[kqa]scale={SW}:{SH}:force_original_aspect_ratio=increase,crop={SW}:{SH},boxblur=24:3,eq=brightness=-0.06[kqbg];"
+             f"[kqb]scale={SW}:{SH}:force_original_aspect_ratio=decrease:flags=lanczos[kqfg];[kqbg][kqfg]overlay=(W-w)/2:(H-h)/2,setsar=1"]
     else:
-        f = [f"scale={W}:{H}:flags=lanczos"]
-    f += deflicker(o)
+        f = [f"scale={SW}:{SH}:flags=lanczos"]
     y = int(o.get("yumusat") or 0)
     if y > 0:  # kenar yumuşatma (tırtıkları azaltır, kenarları korur)
-        f.append(f"smartblur=lr={0.6 + y / 100 * 2.4:.2f}:ls={0.15 + y / 100 * 0.6:.2f}:lt=-2")
-    if o.get("bant"):
-        f.append("deband=1thr=0.02:2thr=0.02:3thr=0.02:range=16:blur=1")
+        f.append(f"smartblur=lr={(0.6 + y / 100 * 2.4) * min(ss, 1.6):.2f}:ls={0.15 + y / 100 * 0.6:.2f}:lt=-2")
     dt = int(o.get("detay") or 0)
     if dt > 0:  # detay / doku güçlendirme (yerel kontrast)
         f.append(f"unsharp=13:13:{dt / 100 * 0.9:.2f}:13:13:0")
     k = int(o.get("keskin") or 0)
     if k > 0:
         f += sharpen(k)
+    if ss > 1:
+        f.append(f"scale={W}:{H}:flags=lanczos+accurate_rnd+full_chroma_int,setsar=1")
+    f += deflicker(o)
+    if o.get("bant"):
+        f.append("deband=1thr=0.02:2thr=0.02:3thr=0.02:range=16:blur=1")
     if o.get("oto_renk"):
         f.append("normalize=blackpt=black:whitept=white:smoothing=40:independence=0.5")
     sc = int(o.get("sicaklik") or 0)
@@ -453,6 +464,7 @@ def preview(path, t, opts, final=None):
     d = CACHE / "kalite" / key
     before, after = d / "once.jpg", d / "sonra.jpg"
     MW, MH = target_size(info["width"], info["height"], o["hedef"], o)
+    o["_k"] = max(MW / max(1, info["width"]), MH / max(1, info["height"]))
     if after.exists() and not final:
         return key, W, H, bool(o["model"] != "klasik" and _AI_OK)
     d.mkdir(parents=True, exist_ok=True)
@@ -709,7 +721,8 @@ def process(job, path, opts, resume=None):
     enc = encoder_args(o)
     af = audio_filters(o)
     aud = (["-c:a", "aac", "-b:a", f'{int(o.get("ses_kbps") or 192)}k'] + (["-af", af] if af else [])) if o.get("ses", True) else ["-an"]
-    MW, MH = target_size(info["width"], info["height"], o["hedef"], o)  # ara adımlar videonun kendi şeklinde
+    MW, MH = target_size(info["width"], info["height"], o["hedef"], o)
+    o["_k"] = max(MW / max(1, info["width"]), MH / max(1, info["height"]))  # ara adımlar videonun kendi şeklinde
     # kalan süre: duraklatmalar hariç, bu oturumda işlenen kısma göre hesaplanır
     t_start = time.time()
     job.extra = {"t0": t_start, **({"resume": resume} if resume else {})}

@@ -73,7 +73,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 # 7) Kısayol
 Step 7 97
 try {
-  $s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop') + '\Kesit Stüdyosu.lnk')
+  $s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop') + '\B.E.K.lnk')
   $s.TargetPath = Join-Path $Root '.venv\Scripts\pythonw.exe'
   $s.Arguments = '"' + (Join-Path $Root 'app\main.py') + '"'
   $s.WorkingDirectory = $Root

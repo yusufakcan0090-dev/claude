@@ -20,6 +20,7 @@ MODES = {
     "dengeli": {"gpu": 80, "cpu": 90, "run": 0, "rest": 0, "ad": "Dengeli"},
     "tam": {"gpu": 86, "cpu": 95, "run": 0, "rest": 0, "ad": "Tam güç"},
 }
+_seen = [0.0]   # arayüz en son ne zaman sıcaklığa baktı (canlı takip)
 STATE = {"gpu_ad": None, "gpu_temp": None, "gpu_util": None, "cpu_temp": None, "soguma": False, "dinlenme": False, "son": 0}
 _lock = threading.Lock()
 _started = False
@@ -157,10 +158,11 @@ def _loop():
             jobs = _heavy_jobs()
             c = cfg()
             busy = bool(jobs)
-            g = read_gpu() if (busy or time.time() - STATE["son"] > 20) else None
+            watching = time.time() - _seen[0] < 10
+            g = read_gpu() if (busy or watching or time.time() - STATE["son"] > 20) else None
             if g:
                 STATE["gpu_temp"], STATE["gpu_util"], STATE["gpu_ad"] = g
-            if busy and time.time() - last_cpu > (10 if IS_WIN else 3):
+            if (busy or watching) and time.time() - last_cpu > (10 if IS_WIN else 3):
                 last_cpu = time.time()
                 STATE["cpu_temp"] = read_cpu()
             STATE["son"] = time.time()
@@ -214,7 +216,7 @@ def _loop():
                         _lower(p)
         except Exception:
             pass
-        time.sleep(3 if _heavy_jobs() else 6)
+        time.sleep(2 if time.time() - _seen[0] < 10 else 3 if _heavy_jobs() else 6)
 
 
 def _temps(gt, ct):
@@ -256,7 +258,8 @@ def start():
 
 
 def status():
+    _seen[0] = time.time()
     c = cfg()
     return {"mod": c["mod"], "gpu_limit": c["gpu"], "cpu_limit": c["cpu"], "gpu_ad": STATE["gpu_ad"], "gpu_temp": STATE["gpu_temp"],
-            "gpu_util": STATE["gpu_util"], "cpu_temp": STATE["cpu_temp"], "soguma": STATE["soguma"], "dinlenme": STATE["dinlenme"],
+            "gpu_util": STATE["gpu_util"], "cpu_temp": STATE["cpu_temp"], "soguma": STATE["soguma"], "dinlenme": STATE["dinlenme"], "okuma": STATE["son"],
             "sensor": bool(_smi()) or bool(_cpu_ok)}

@@ -11,7 +11,7 @@ HIST_FILE = VERI / "asistan.json"
 _lock = threading.Lock()
 MAX_STEPS = 8
 
-SYS = """Sen Kesit Stüdyosu'nun içindeki asistansın. Kesit Stüdyosu; Kick/YouTube yayınlarından klip bulan, en iyi anları kesen,
+SYS = """Sen B.E.K'in (Bul, Editle, Kaliteyi artır; eski adı Kesit Stüdyosu) içindeki asistansın. B.E.K; Kick/YouTube yayınlarından klip bulan, en iyi anları kesen,
 Türkçe altyazı ekleyen, After Effects benzeri editörü olan, video/fotoğraf kalitesini artıran bir Windows programı.
 NASIL CEVAP VERİRSİN:
 - Türkçe, samimi ve ÇOK KISA yaz: en fazla 1-2 cümle. Liste, seçenek sıralama, uzun açıklama yok.

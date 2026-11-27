@@ -1,4 +1,4 @@
-"""Kesit Stüdyosu - başlatıcı."""
+"""B.E.K (Bul · Editle · Kalite) - başlatıcı."""
 import socket
 import sys
 import threading
@@ -34,7 +34,7 @@ def windows_fixes():
     except Exception:
         pass
     root = Path(__file__).resolve().parent.parent
-    marker = root / "veri" / ".kisayol_v2"
+    marker = root / "veri" / ".kisayol_v3"
     if marker.exists():
         return
     try:
@@ -45,12 +45,13 @@ def windows_fixes():
         main_py = root / "app" / "main.py"
         ps = f"""
 $desk = [Environment]::GetFolderPath('Desktop')
-$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desk 'Kesit Studyosu.lnk'))
+foreach ($o in @('Kesit Studyosu.lnk', 'Kesit Stüdyosu.lnk')) {{ $p = Join-Path $desk $o; if (Test-Path $p) {{ Remove-Item $p -Force }} }}
+$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desk 'B.E.K.lnk'))
 $s.TargetPath = '{pyw}'
 $s.Arguments = '"{main_py}"'
 $s.WorkingDirectory = '{root}'
 $s.IconLocation = '{ico},0'
-$s.Description = 'Kesit Studyosu'
+$s.Description = 'B.E.K - Bul, Editle, Kaliteyi artir'
 $s.Save()
 """
         f = Path(tempfile.gettempdir()) / "ks_kisayol.ps1"
@@ -126,7 +127,7 @@ def main():
         return
     try:
         import webview
-        win = webview.create_window("Kesit Stüdyosu", url, width=1480, height=900,
+        win = webview.create_window("B.E.K", url, width=1480, height=900,
                                     min_size=(1180, 720), background_color="#0A0A12")
         server.WINDOW = win
         webview.start(_bind_drop, win, gui="edgechromium" if sys.platform.startswith("win") else None)
