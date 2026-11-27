@@ -254,6 +254,19 @@ def pre_filters(o):
     return f
 
 
+def sharpen(k):
+    """Keskinlik (0-100): kenar maskeli, iki ölçekli keskinleştirme.
+    Sadece çizgi ve kenarlar keskinleşir; düz yerlerde gürültü ve kumlanma büyümez, renklerde hale oluşmaz."""
+    s = max(0, min(100, int(k))) / 100
+    f = [f"cas=strength={0.25 + 0.65 * s:.2f}"]  # genel, uyarlanabilir netlik
+    big, small = 0.4 + 2.6 * s, 0.2 + 1.3 * s   # orta kalınlıkta çizgiler + ince detay (sadece parlaklık kanalı)
+    f.append("format=yuv420p,split[ks0][ks1];[ks1]split[ks2][ks3];"
+             f"[ks2]unsharp=7:7:{big:.2f}:3:3:0,unsharp=3:3:{small:.2f}:3:3:0[ksh];"
+             f"[ks3]sobel=planes=1:scale={1.5 + 3.5 * s:.2f},gblur=sigma=1.2:planes=1[ksm];"
+             "[ks0][ksh][ksm]maskedmerge=planes=1")
+    return f
+
+
 def post_filters(o, W, H):
     b = o.get("bicim") or "kaynak"
     if b.endswith("k"):  # ekranı doldur (kenarlardan kırp)
@@ -273,9 +286,7 @@ def post_filters(o, W, H):
         f.append(f"unsharp=13:13:{dt / 100 * 0.9:.2f}:13:13:0")
     k = int(o.get("keskin") or 0)
     if k > 0:
-        f.append(f"cas=strength={min(1.0, k / 100 * 0.9):.2f}")
-        if k > 60:  # çizgileri daha da belirginleştir
-            f.append(f"unsharp=5:5:{(k - 60) / 40 * 0.8:.2f}:5:5:0")
+        f += sharpen(k)
     if o.get("oto_renk"):
         f.append("normalize=blackpt=black:whitept=white:smoothing=40:independence=0.5")
     sc = int(o.get("sicaklik") or 0)

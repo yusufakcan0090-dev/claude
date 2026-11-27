@@ -1,7 +1,7 @@
 {
- "version": "1.8.1",
+ "version": "1.8.2",
  "date": "2026-11-27",
  "notes": [
-  "Fotoğraf önizlemesi eski haline döndürüldü"
+  "Keskinlik çok daha güçlü ve temiz: çizgi ve kenarlar keskinleşir, düz yerlerde kumlanma ve renk halesi oluşmaz (100'de en net)"
  ]
 }
