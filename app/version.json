@@ -1,7 +1,7 @@
 {
- "version": "1.7.4",
+ "version": "1.7.5",
  "date": "2026-11-27",
  "notes": [
-  "Asistan: çalışan Gemini modelini hatırlar, yoğun modelleri tekrar tekrar denemez; cevap çok daha hızlı gelir"
+  "Asistan çok daha hızlı: aynı anda 3 Gemini modeline sorar, ilk gelen cevabı alır; sonra hızlı olanla devam eder"
  ]
 }

@@ -154,53 +154,64 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
         body["tools"] = [{"functionDeclarations": tools}]
     if json_mode:
         body["generationConfig"]["responseMimeType"] = "application/json"
-    model = pick_model()
-    backups = [m for m in _MODELS.get("all") or [] if m != model]
-    tried, last = [], None
-    r = None
-    while model and len(tried) < 6:
-        tried.append(model)
-        if _ver(model) >= 3:  # Gemini 3+: sıcaklık varsayılan kalsın, kısa düşünsün (hızlı cevap)
-            body["generationConfig"].pop("temperature", None)
-            body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "low"}
+    from concurrent.futures import ThreadPoolExecutor, FIRST_COMPLETED, wait as fwait
+    first = pick_model()
+    order = [first] + [m for m in (_MODELS.get("all") or []) if m != first]
+    order = list(dict.fromkeys(order))
+
+    def one(model):
+        b = json.loads(json.dumps(body))
+        cfg = b["generationConfig"]
+        if _ver(model) >= 3:  # Gemini 3+: sıcaklık varsayılan, kısa düşünsün (hızlı cevap)
+            cfg.pop("temperature", None)
+            cfg["thinkingConfig"] = {"thinkingLevel": "low"}
         else:
-            body["generationConfig"]["temperature"] = temperature
-            body["generationConfig"].pop("thinkingConfig", None)
+            cfg["temperature"] = temperature
         t0 = time.time()
         _log(f"istek → {model}")
         try:
-            r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
-            _log(f"cevap ← {model} ({time.time() - t0:.1f} sn)")
-            if model != _MODELS.get("pick") and (load_settings().get("ai_model") or "auto") == "auto":
-                _MODELS["pick"] = model  # çalışanla devam et (program kapanınca da hatırla)
-                from core import save_settings
-                save_settings({"ai_son_model": model, "ai_son_model_t": time.time()})
-            break
+            r = _http("POST", f"models/{model}:generateContent", b, timeout=timeout)
         except AIError as e:
-            s = str(e)
-            last = e
-            if "thinking" in s.lower() and "thinkingConfig" in body["generationConfig"]:
-                body["generationConfig"].pop("thinkingConfig", None)  # bu model düşünme ayarını desteklemiyor
+            if "thinking" in str(e).lower() and "thinkingConfig" in cfg:
+                cfg.pop("thinkingConfig", None)  # bu model düşünme ayarını desteklemiyor
+                r = _http("POST", f"models/{model}:generateContent", b, timeout=timeout)
+            else:
+                raise
+        _log(f"cevap ← {model} ({time.time() - t0:.1f} sn)")
+        return model, r
+
+    # son 10 dakikada çalışan model varsa önce tek başına onu dene; yoksa 3 modele aynı anda sor, ilk gelen cevabı al
+    fresh = _MODELS.get("ok") == first and time.time() - _MODELS.get("ok_t", 0) < 600
+    waves = ([order[:1], order[1:4], order[4:7]] if fresh else [order[:3], order[3:6]])
+    r, last = None, None
+    for wave in waves:
+        if not wave:
+            continue
+        ex = ThreadPoolExecutor(max_workers=len(wave))
+        futs = {ex.submit(one, m): m for m in wave}
+        pending = set(futs)
+        while pending and r is None:
+            done, pending = fwait(pending, return_when=FIRST_COMPLETED)
+            for f in done:
                 try:
-                    r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
+                    model, rr = f.result()
+                    r = rr
+                    _MODELS["ok"], _MODELS["ok_t"] = model, time.time()
+                    if (load_settings().get("ai_model") or "auto") == "auto" and model != _MODELS.get("pick"):
+                        _MODELS["pick"] = model
+                        from core import save_settings
+                        save_settings({"ai_son_model": model, "ai_son_model_t": time.time()})
                     break
-                except AIError as e2:
-                    s, last = str(e2), e2
-            if False and s.startswith("MESGUL:"):
-                time.sleep(1.5)  # anlık yoğunluk: aynı modeli bir kez daha dene
-                tried.append("")
-                try:
-                    r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
-                    break
-                except AIError as e2:
-                    last = e2
-            if s.startswith(("MODEL:", "MESGUL:", "KOTA:")):
-                if s.startswith("MODEL:") and not backups:
-                    pick_model(force=True)
-                    backups = [m for m in _MODELS.get("all") or [] if m not in tried]
-                model = next((m for m in backups if m not in tried), None)
-                continue
-            raise
+                except AIError as e:
+                    last = e
+                    if not str(e).startswith(("MODEL:", "MESGUL:", "KOTA:")):
+                        ex.shutdown(wait=False, cancel_futures=True)
+                        raise
+                except Exception as e:  # beklenmeyen
+                    last = AIError(str(e)[:200])
+        ex.shutdown(wait=False, cancel_futures=True)  # kalanları bekleme
+        if r is not None:
+            break
     if r is None:
         s = str(last or "Gemini yanıt vermedi.")
         raise AIError(s.split(":", 1)[1] if s.startswith(("MODEL:", "MESGUL:", "KOTA:")) else s)
