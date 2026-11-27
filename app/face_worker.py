@@ -42,6 +42,16 @@ def detect(det, img):
     return out
 
 
+def feed_of(net, x, fidelity=0.7):
+    """GFPGAN: tek girdi. CodeFormer: ek 'weight' girdisi (1'e yakın = yüze sadık, 0'a yakın = daha çok iyileştir)."""
+    ins = net.get_inputs()
+    f = {ins[0].name: x}
+    for extra in ins[1:]:
+        dt = np.float64 if "double" in extra.type else np.float32
+        f[extra.name] = np.array([fidelity], dtype=dt).reshape([d if isinstance(d, int) else 1 for d in extra.shape] or [])
+    return f
+
+
 def restore(net, inp_name, img, lm, strength):
     M, _ = cv2.estimateAffinePartial2D(lm.astype(np.float32), TEMPLATE, method=cv2.LMEDS)
     if M is None:
@@ -49,7 +59,7 @@ def restore(net, inp_name, img, lm, strength):
     face = cv2.warpAffine(img, M, (512, 512), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT101)
     x = cv2.cvtColor(face, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
     x = ((x - 0.5) / 0.5).transpose(2, 0, 1)[None]
-    y = net.run(None, {inp_name: x})[0][0]
+    y = net.run(None, feed_of(net, x))[0][0]
     y = ((np.clip(y, -1, 1) + 1) / 2 * 255).transpose(1, 2, 0).round().astype(np.uint8)
     y = cv2.cvtColor(y, cv2.COLOR_RGB2BGR)
     if strength < 1:

@@ -2,13 +2,18 @@
 (() => {
   const Q = KS.kalite = { src: null, opts: null, split: .5, zoom: 1, pan: { x: 0, y: 0 } };
   const view = $('#kqView'), stage = $('#kqStage'), aImg = $('#kqAfter'), bImg = $('#kqBefore'), bWrap = $('#kqBeforeWrap'), handle = $('#kqHandle');
-  const MODELS = [['hizli', 'Hızlı', 'Video için hızlı yapay zekâ'], ['gercek', 'En iyi', 'Gerçek görüntü, en net (yavaş)'], ['anime_pro', 'Anime Pro', 'Anime ve çizgi film için en iyisi: çizgiler temiz ve keskin, renkler düz ve pürüzsüz (Real-CUGAN). İlk kullanımda ~55 MB iner.'], ['anime', 'Anime (eski)', 'Çizgi film / anime, Real-ESRGAN'], ['klasik', 'Klasik', 'Yapay zekâsız, çok hızlı']];
+  const MODELS = [['hizli', 'Hızlı', 'Video için hızlı yapay zekâ'], ['gercek', 'Standart', 'Gerçek görüntü için klasik model (Real-ESRGAN)'],
+    ['ultra', 'Ultra Keskin', 'Gerçek görüntüde en keskin sonuç: çizgiler, yazılar, saç telleri çok net (4x-UltraSharp). İlk kullanımda ~33 MB iner.'],
+    ['dogal', 'Doğal', 'Keskin ama doğal doku; ten ve yüzler yapay durmaz (Remacri). İlk kullanımda ~33 MB iner.'],
+    ['hifi', 'Aslına sadık', 'Görüntüyü en az değiştiren, en sadık model (High Fidelity). İlk kullanımda ~33 MB iner.'], ['anime_pro', 'Anime Pro', 'Anime ve çizgi film için en iyisi: çizgiler temiz ve keskin, renkler düz ve pürüzsüz (Real-CUGAN). İlk kullanımda ~55 MB iner.'], ['anime', 'Anime (eski)', 'Çizgi film / anime, Real-ESRGAN'], ['klasik', 'Klasik', 'Yapay zekâsız, çok hızlı']];
   /* tek tıkla en iyi sonuç */
   const PRESETS = {
-    anime: ['🎌 Anime', 'Anime / çizgi film için en iyi', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0 }],
-    gercek: ['🎥 Gerçek video', 'Yayın, vlog, film için en iyi', { model: 'gercek', keskin: 60, detay: 25, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: true, yuz_guc: 60, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 85, gren: 0 }],
-    eski: ['📼 Düşük kalite', 'Eski, bulanık, çok sıkıştırılmış videolar', { model: 'gercek', keskin: 55, detay: 15, gurultu: 55, yumusat: 15, blok: true, bant: true, yuz: true, yuz_guc: 75, doygun: 10, kontrast: 5, oto_renk: true, ai_guc: 100, gren: 0 }],
-    hizli: ['⚡ Hızlı', 'Çabuk bitsin, yine iyi görünsün', { model: 'hizli', olcek: 2, keskin: 50, detay: 10, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: false, doygun: 0, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0 }],
+    anime: ['🎌 Anime', 'Anime / çizgi film için en iyi', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
+    gercek: ['🎥 Gerçek video', 'Yayın, vlog, film için en iyi', { model: 'gercek', keskin: 60, detay: 25, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: true, yuz_guc: 60, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 85, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek', yuz_model: 'codeformer' }],
+    eski: ['📼 Düşük kalite', 'Eski, bulanık, çok sıkıştırılmış videolar', { model: 'gercek', keskin: 55, detay: 15, gurultu: 55, yumusat: 15, blok: true, bant: true, yuz: true, yuz_guc: 75, doygun: 10, kontrast: 5, oto_renk: true, ai_guc: 100, gren: 0, titreme: 20, kayipsiz: false, kalite: 'yuksek', yuz_model: 'codeformer' }],
+    ust: ['💎 Üst Düzey', 'Gerçek video, en yüksek kalite (yavaş)', { model: 'ultra', keskin: 55, detay: 20, gurultu: 20, yumusat: 0, blok: true, bant: true, yuz: true, yuz_model: 'codeformer', yuz_guc: 70, doygun: 5, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0, titreme: 40, kayipsiz: true, kalite: 'ust', codec: 'h265' }],
+    anime_ust: ['💎 Anime Üst Düzey', 'Anime, en yüksek kalite (yavaş)', { model: 'anime_pro', keskin: 70, detay: 0, gurultu: 35, yumusat: 25, blok: true, bant: true, yuz: false, doygun: 8, kontrast: 4, oto_renk: false, ai_guc: 100, gren: 0, titreme: 30, kayipsiz: true, kalite: 'ust', codec: 'h265' }],
+    hizli: ['⚡ Hızlı', 'Çabuk bitsin, yine iyi görünsün', { model: 'hizli', olcek: 2, keskin: 50, detay: 10, gurultu: 25, yumusat: 0, blok: true, bant: false, yuz: false, doygun: 0, kontrast: 0, oto_renk: false, ai_guc: 100, gren: 0, titreme: 0, kayipsiz: false, kalite: 'yuksek' }],
   };
   const TARGETS = [['kaynak', 'Aynı'], ['720', '720p'], ['1080', '1080p'], ['1440', '2K'], ['2160', '4K']];
   const FPS = [['kaynak', 'Aynı'], ['30', '30'], ['60', '60'], ['90', '90'], ['120', '120']];
@@ -33,10 +38,10 @@
   const seg = (key, list, cur) => `<div class="seg kq-seg" data-k="${key}">${list.map(([v, n, tip]) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${tip ? `title="${tip}"` : ''}>${n}</button>`).join('')}</div>`;
   const sl = (key, label, min, max, cur, hint) => `<div class="kq-sl"><div><span>${label}</span><b id="kqv_${key}">${cur}</b></div><input type="range" min="${min}" max="${max}" value="${cur}" data-r="${key}">${hint ? `<small>${hint}</small>` : ''}</div>`;
   const DEF = { model: 'hizli', olcek: 2, hedef: '1080', keskin: 45, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
-    yuz: false, yuz_guc: 70, ai_guc: 100, detay: 0, yumusat: 0, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
+    yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 0, kayipsiz: false, ai_guc: 100, detay: 0, yumusat: 0, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
     kalite: 'yuksek', codec: 'h264', bicim: 'kaynak', bas: 0, bit: 0, ses: true, ses_temizle: false, ses_dengele: false };
   Q.DEF = DEF;
-  const NOPV = new Set(['fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
+  const NOPV = new Set(['titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;
   Q.open = Q.open || { ai: true, net: true, gorsel: true };
   const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary>${title}</summary><div class="kq-gb">${body}</div></details>`;
@@ -60,10 +65,10 @@
         <div class="kq-h">Çıkış çözünürlüğü</div>${seg('hedef', TG, o.hedef)}
         <div class="kq-h">Biçim (ekran şekli)</div>${seg('bicim', [['kaynak', what + ' kendisi'], ['9:16k', 'Reels 9:16 (doldur)'], ['9:16b', 'Reels 9:16 (bulanık arka)'], ['4:5k', '4:5 gönderi'], ['1:1k', 'Kare']], o.bicim)}
         <small class="kq-note">${Q.src ? `${img ? 'Fotoğrafın' : 'Videon'} ${Q.src.width}×${Q.src.height} (${Q.ratio()}). ` : ''}Reels/TikTok için 9:16 seç: "doldur" kenarlardan biraz kırpar, "bulanık arka" hiçbir şeyi kesmez.</small>`)}
-      ${grp('yuz', 'Yüz netleştirme', `${chk('yuz', 'Yüzleri yapay zekâ ile netleştir')}${o.yuz ? sl('yuz_guc', 'Yüz netleştirme gücü', 0, 100, o.yuz_guc) : ''}<small class="kq-note">Bulanık yüzleri (yayıncı, kamera) netleştirir. İlk kullanımda model indirilir (~350 MB).</small>`)}
+      ${grp('yuz', 'Yüz netleştirme', `${chk('yuz', 'Yüzleri yapay zekâ ile netleştir')}${o.yuz ? `<div class="kq-h">Yüz modeli</div>${seg('yuz_model', [['codeformer', 'CodeFormer (daha gerçekçi)'], ['gfpgan', 'GFPGAN']], o.yuz_model)}` + sl('yuz_guc', 'Yüz netleştirme gücü', 0, 100, o.yuz_guc) : ''}<small class="kq-note">Bulanık yüzleri (yayıncı, kamera) netleştirir. İlk kullanımda model indirilir (~350 MB).</small>`)}
       ${grp('net', 'Netlik', `${sl('keskin', 'Keskinlik / çizgi netliği', 0, 100, o.keskin)}${sl('detay', 'Detay / doku güçlendirme', 0, 100, o.detay)}
         ${sl('gurultu', 'Gürültü / karıncalanma azaltma', 0, 100, o.gurultu)}${sl('yumusat', 'Kenar yumuşatma (tırtıkları azaltır)', 0, 100, o.yumusat)}
-        ${chk('blok', 'Pikselleşme ve kare kare bozulmayı gider')}${chk('bant', 'Renk bantlarını gider (gökyüzü, karanlık sahneler)')}`)}
+        ${img ? '' : sl('titreme', 'Titreme azaltma (kareler arası kıpırtı)', 0, 100, o.titreme)}${chk('blok', 'Pikselleşme ve kare kare bozulmayı gider')}${chk('bant', 'Renk bantlarını gider (gökyüzü, karanlık sahneler)')}`)}
       ${grp('renk', 'Renk ve görüntü', `${chk('oto_renk', 'Otomatik renk ve ışık düzelt')}
         ${sl('parlak', 'Parlaklık', -50, 50, o.parlak)}${sl('kontrast', 'Kontrast', -50, 50, o.kontrast)}${sl('doygun', 'Renk canlılığı', -100, 100, o.doygun)}
         ${sl('sicaklik', 'Sıcaklık (soğuk ↔ sıcak)', -100, 100, o.sicaklik)}${sl('gamma', 'Gamma (orta tonlar)', -50, 50, o.gamma)}
@@ -71,7 +76,8 @@
         ${sl('vinyet', 'Vinyet (kenar karartma)', 0, 100, o.vinyet)}${sl('gren', 'Film greni', 0, 100, o.gren)}`)}
       ${img ? grp('cikti', 'Kayıt', `<div class="kq-h">Dosya biçimi</div>${seg('foto_bicim', [['png', 'PNG (kayıpsız)'], ['jpg', 'JPG (küçük)'], ['webp', 'WebP']], o.foto_bicim || 'png')}`) : ''}
       ${img ? '' : grp('fps', 'Akıcılık (FPS)', `${seg('fps', FPS, o.fps)}${chk('fps_ai', 'Ara kareleri yapay zekâ ile üret (daha doğal)')}`)}
-      ${img ? '' : grp('cikti', 'Çıktı ve ses', `<div class="kq-h">Dosya kalitesi</div>${seg('kalite', [['yuksek', 'Yüksek'], ['normal', 'Normal'], ['kucuk', 'Küçük dosya']], o.kalite)}
+      ${img ? '' : grp('cikti', 'Çıktı ve ses', `<div class="kq-h">Dosya kalitesi</div>${seg('kalite', [['ust', 'Üst düzey'], ['yuksek', 'Yüksek'], ['normal', 'Normal'], ['kucuk', 'Küçük dosya']], o.kalite)}${o.kalite === 'ust' ? '<small class="kq-note">Çok düşük sıkıştırma, özenli kodlama. H.265 seçersen 10-bit kaydeder (renk geçişlerinde bant olmaz).</small>' : ''}
+        ${chk('kayipsiz', 'Kayıpsız işle (ara kareler PNG: hiç kalite kaybı olmaz, diskte çok yer ister)')}
         <div class="kq-h">Video formatı</div>${seg('codec', [['h264', 'H.264 (her yerde açılır)'], ['h265', 'H.265 (yarı boyut)']], o.codec)}
         <div class="kq-h">Sadece bir aralığı işle</div>
         <div class="kq-range"><div><span>Başlangıç</span><b>${fmt(o.bas)}</b><button class="btn ghost sm" data-set="bas">Şu anki kare</button></div>
@@ -101,9 +107,9 @@
     if (Q.src.image) { const o = Q.opts; return o.model === 'klasik' && !o.yuz ? 'Birkaç saniyede biter.' : 'Ekran kartına göre birkaç saniye ile 1 dakika arası sürer.'; }
     const s = Q.src, o = Q.opts, d = (o.bit > o.bas ? o.bit : s.duration) - (o.bas || 0), fr = d * s.fps;
     if (o.model === 'klasik' && !o.yuz && (o.fps === 'kaynak' || !o.fps_ai)) return `İşlenecek: ${fmt(d)} · Tahmini süre: ${Math.max(1, Math.round(d / 40))} dk civarı.`;
-    const per = o.model === 'klasik' ? 0 : (o.model === 'hizli' ? (o.olcek == 4 ? .12 : .05) : .35) * Math.max(1, s.width * s.height / 2073600);
-    const rife = (o.fps !== 'kaynak' && o.fps_ai ? .03 : 0) + (o.yuz ? .08 : 0);
-    const min = Math.max(1, Math.round(fr * (per + rife) / 60));
+    const per = o.model === 'klasik' ? 0 : (o.model === 'hizli' ? (o.olcek == 4 ? .12 : .05) : o.model === 'anime_pro' ? .15 : ['ultra', 'dogal', 'hifi'].includes(o.model) ? .4 : .35) * Math.max(1, s.width * s.height / 2073600);
+    const rife = (o.fps !== 'kaynak' && o.fps_ai ? .03 : 0) + (o.yuz ? (o.yuz_model === 'codeformer' ? .12 : .08) : 0) + (o.kalite === 'ust' ? .04 : 0);
+    const min = Math.max(1, Math.round(fr * (per + rife) * (o.kayipsiz ? 1.3 : 1) / 60));
     return `İşlenecek: ${fmt(d)} · Tahmini süre: ~${min} dk (ekran kartına göre değişir). Uzun videolarda önce kısa bir aralık dene.`;
   };
 

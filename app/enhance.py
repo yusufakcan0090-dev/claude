@@ -43,7 +43,25 @@ MODELS = {
     "hizli": ("realesr-animevideov3", 2),        # hızlı, videoya uygun
     "anime": ("realesrgan-x4plus-anime", 4),     # çizgi film / anime
     "anime_pro": ("realcugan", 2),               # Real-CUGAN: anime için en iyi (çizgiler temiz ve keskin)
+    "ultra": ("ultrasharp-4x", 4),               # 4x-UltraSharp: gerçek görüntüde en keskin
+    "dogal": ("remacri-4x", 4),                  # Remacri: keskin ama doğal doku
+    "hifi": ("high-fidelity-4x", 4),             # aslına en sadık
 }
+EXTRA_MODELS = {"ultrasharp-4x", "remacri-4x", "high-fidelity-4x"}
+EXTRA_URL = "https://raw.githubusercontent.com/upscayl/upscayl/main/resources/models/{}"
+
+
+def ensure_model(name, job=None, lo=0.0, hi=0.05):
+    """Ek yapay zekâ modellerini (UltraSharp, Remacri...) Real-ESRGAN'ın model klasörüne indirir."""
+    if name not in EXTRA_MODELS:
+        return
+    exe = ensure_tool("realesrgan", job, lo, lo)
+    md = exe.parent / "models"
+    md.mkdir(exist_ok=True)
+    for ext in ("param", "bin"):
+        f = md / f"{name}.{ext}"
+        if not f.exists() or f.stat().st_size < 1000:
+            _download(EXTRA_URL.format(f"{name}.{ext}"), f, job, lo, hi, f"Yapay zekâ modeli indiriliyor ({name})")
 
 
 def ai_tool(o):
@@ -59,6 +77,9 @@ def ai_tool(o):
 def ai_cmd(o, inp, out, fmt=None):
     """Yapay zekâ büyütme komutu (Real-ESRGAN ya da Real-CUGAN). Dönen: (komut, çalışma klasörü)."""
     tool, model, sc = ai_tool(o)
+    if tool != "realesrgan":
+        ensure_tool(tool)
+    ensure_model(model)
     exe = tool_path(tool)
     if tool == "realcugan":
         g = int(o.get("gurultu") or 0)
@@ -73,14 +94,15 @@ def ai_cmd(o, inp, out, fmt=None):
 DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "1080", "keskin": 45, "gurultu": 25, "blok": True,
            "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True,
            # yüz
-           "yuz": False, "yuz_guc": 70,
+           "yuz": False, "yuz_guc": 70, "yuz_model": "gfpgan",
            # gelişmiş netlik
-           "ai_guc": 100, "detay": 0, "yumusat": 0, "bant": False,
+           "ai_guc": 100, "detay": 0, "yumusat": 0, "bant": False, "titreme": 0, "kayipsiz": False,
            # renk ve görüntü
            "sicaklik": 0, "golge": 0, "parlak_alan": 0, "gamma": 0, "vinyet": 0, "gren": 0, "oto_renk": False,
            # çıktı ve ses
            "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True}
 FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
+             "codeformer": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
 CHUNK = 240  # bir seferde işlenen kare (disk dolmasın)
 
@@ -191,10 +213,11 @@ def ensure_ort(job=None, lo=0.0):
     return py, (ortdir if (ortdir / "onnxruntime").exists() else None)
 
 
-def ensure_face(job=None, lo=0.0, hi=0.06):
+def ensure_face(job=None, lo=0.0, hi=0.06, model="gfpgan"):
     """Yüz netleştirme için model ve paketler (ilk seferde ~350 MB)."""
     d = AI / "yuz"
-    gfp, yun, ortdir = d / "GFPGANv1.4.onnx", d / "yunet.onnx", d / "ort"
+    gfp = d / ("codeformer.onnx" if model == "codeformer" else "GFPGANv1.4.onnx")
+    yun, ortdir = d / "yunet.onnx", d / "ort"
     py = _venv_python()
     try:
         import cv2  # noqa: F401
@@ -213,12 +236,13 @@ def ensure_face(job=None, lo=0.0, hi=0.06):
     if not yun.exists():
         _download(FACE_URLS["yunet"], yun, job, lo, lo + (hi - lo) * .1, "Yüz bulucu indiriliyor")
     if not gfp.exists():
-        _download(FACE_URLS["gfpgan"], gfp, job, lo + (hi - lo) * .1, hi, "Yüz netleştirme modeli indiriliyor (~340 MB)")
+        _download(FACE_URLS["codeformer" if model == "codeformer" else "gfpgan"], gfp, job, lo + (hi - lo) * .1, hi,
+                  "Yüz netleştirme modeli indiriliyor (~" + ("380" if model == "codeformer" else "340") + " MB)")
     return py, gfp, yun, (ortdir if (ortdir / "onnxruntime").exists() else None)
 
 
-def face_cmd(target, strength):
-    py, gfp, yun, ortdir = ensure_face()
+def face_cmd(target, strength, model="gfpgan"):
+    py, gfp, yun, ortdir = ensure_face(model=model)
     return [py, str(Path(__file__).with_name("face_worker.py")), str(target), str(int(strength)), str(gfp), str(yun), str(ortdir or "")]
 
 
@@ -301,6 +325,15 @@ def sharpen(k):
     return f
 
 
+def deflicker(o):
+    """Yapay zekânın kareden kareye kıpırdayan detaylarını yumuşatır (sadece zamanda, hareketi bulanıklaştırmaz)."""
+    t = int(o.get("titreme") or 0)
+    if t <= 0:
+        return []
+    v = 1 + t / 100 * 6
+    return [f"hqdn3d=0:0:{v:.1f}:{v:.1f}"]
+
+
 def post_filters(o, W, H):
     b = o.get("bicim") or "kaynak"
     if b.endswith("k"):  # ekranı doldur (kenarlardan kırp)
@@ -310,6 +343,7 @@ def post_filters(o, W, H):
              f"[kqb]scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos[kqfg];[kqbg][kqfg]overlay=(W-w)/2:(H-h)/2,setsar=1"]
     else:
         f = [f"scale={W}:{H}:flags=lanczos"]
+    f += deflicker(o)
     y = int(o.get("yumusat") or 0)
     if y > 0:  # kenar yumuşatma (tırtıkları azaltır, kenarları korur)
         f.append(f"smartblur=lr={0.6 + y / 100 * 2.4:.2f}:ls={0.15 + y / 100 * 0.6:.2f}:lt=-2")
@@ -351,6 +385,11 @@ def audio_filters(o):
 
 
 def encoder_args(o):
+    if o.get("kalite") == "ust":  # en üst düzey: çok düşük sıkıştırma, yavaş ve özenli kodlama
+        if o.get("codec") == "h265":
+            return ["-c:v", "libx265", "-preset", "slow", "-crf", "12", "-tag:v", "hvc1", "-pix_fmt", "yuv420p10le",
+                    "-x265-params", "aq-mode=3:no-sao=1:deblock=-1,-1:log-level=error"]
+        return ["-c:v", "libx264", "-preset", "slow", "-crf", "11", "-tune", "film", "-pix_fmt", "yuv420p"]
     q = {"yuksek": 15, "normal": 19, "kucuk": 24}.get(o.get("kalite") or "yuksek", 15)
     if o.get("codec") == "h265":
         return ["-c:v", "libx265", "-preset", "medium", "-crf", str(q + 2), "-tag:v", "hvc1", "-pix_fmt", "yuv420p"]
@@ -403,7 +442,7 @@ def preview(path, t, opts, final=None):
     if o.get("yuz"):
         fc = d / "yuz.png"
         shutil.copy(src, fc)
-        r = run(face_cmd(fc, o.get("yuz_guc", 70)), timeout=600)
+        r = run(face_cmd(fc, o.get("yuz_guc", 70), o.get("yuz_model") or "gfpgan"), timeout=600)
         if r.returncode != 0:
             raise RuntimeError("Yüz netleştirme çalışmadı: " + (r.stderr or "")[-250:])
         src = fc
@@ -444,7 +483,7 @@ def process_image(job, path, opts):
         if not ai_works(job):
             job.set(0.3, "Ekran kartında yapay zekâ çalışmadı, klasik mod kullanılıyor...")
     if o.get("yuz"):
-        ensure_face(job, 0.3, 0.45)
+        ensure_face(job, 0.3, 0.45, o.get("yuz_model") or "gfpgan")
     ext = {"png": ".png", "jpg": ".jpg", "webp": ".webp"}.get(o.get("foto_bicim") or "png", ".png")
     folder = Path(load_settings().get("cikti_klasoru") or (Path.home() / "Pictures"))
     folder.mkdir(parents=True, exist_ok=True)
@@ -606,7 +645,7 @@ def process(job, path, opts, resume=None):
             use_rife = False
     use_face = bool(o.get("yuz"))
     if use_face:
-        ensure_face(job, 0.06, 0.09)
+        ensure_face(job, 0.06, 0.09, o.get("yuz_model") or "gfpgan")
     folder = Path(load_settings().get("cikti_klasoru") or (Path.home() / "Videos"))
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{safe_name(path.stem, 60)}_HD.mp4"
@@ -621,9 +660,11 @@ def process(job, path, opts, resume=None):
     if use_ai != state.get("use_ai", use_ai) or use_face != state.get("use_face", use_face) or use_rife != state.get("use_rife", use_rife):
         done = set()  # araçlar değiştiyse parçalar uyumsuz olur
 
+    chunk_size = {"v": state.get("chunk")}
+
     def save_state(progress):
         try:
-            (work / "durum.json").write_text(json.dumps({"path": str(path), "opts": opts, "done": sorted(done), "total": total_chunks,
+            (work / "durum.json").write_text(json.dumps({"path": str(path), "opts": opts, "done": sorted(done), "total": total_chunks, "chunk": chunk_size["v"],
                                                          "progress": round(progress, 4), "use_ai": use_ai, "use_face": use_face,
                                                          "use_rife": use_rife}), "utf-8")
         except Exception:
@@ -678,7 +719,12 @@ def process(job, path, opts, resume=None):
             return {"path": str(out), "name": out.name}
         f0 = int(round(t0 * sfps))
         total_frames = max(1, int(dur * sfps))
-        chunks = list(range(0, total_frames, CHUNK))
+        # kayıpsız modda ara kareler PNG (hiç kalite kaybı yok); disk dolmasın diye parçalar daha küçük
+        X = "png" if o.get("kayipsiz") else "jpg"
+        QV = [] if X == "png" else ["-q:v", "2"]
+        CH = int(state.get("chunk") or (60 if X == "png" else CHUNK))
+        chunk_size["v"] = CH
+        chunks = list(range(0, total_frames, CH))
         total_chunks = len(chunks)
         segs = []
         if use_ai and ai_tool(o)[0] != "realesrgan":
@@ -687,7 +733,7 @@ def process(job, path, opts, resume=None):
         g = int(o.get("ai_guc", 100))
         save_state(0.09)
         for ci, a in enumerate(chunks):
-            n = min(CHUNK, total_frames - a)
+            n = min(CH, total_frames - a)
             lo, hi = 0.09 + 0.87 * ci / len(chunks), 0.09 + 0.87 * (ci + 1) / len(chunks)
             seg = work / f"seg{ci:04d}.mp4"
             if ci in done and seg.exists() and seg.stat().st_size > 0:
@@ -703,37 +749,37 @@ def process(job, path, opts, resume=None):
                 d.mkdir()
             job.set(lo, "Kareler çıkarılıyor...")
             _ff([FFMPEG, "-y", "-ss", f"{(f0 + a) / sfps:.4f}", "-i", str(path), "-frames:v", str(n), "-vf", _vf(pre_filters(o)),
-                 "-q:v", "2", "-start_number", "1", str(d_in / "%08d.jpg")], job)
+                 *QV, "-start_number", "1", str(d_in / f"%08d.{X}")], job)
             n = _count(d_in) or n
             cur = d_in
             if use_ai:
-                acmd, acwd = ai_cmd(o, d_in, d_up, "jpg")
+                acmd, acwd = ai_cmd(o, d_in, d_up, X)
                 code, err = _run_watch(acmd, job, d_up, n, *span(.05, .5), "Yapay zekâ netleştiriyor...", cwd=acwd)
                 if code != 0 or _count(d_up) < n:
                     raise RuntimeError("Yapay zekâ netleştirme başarısız: " + err[-250:])
                 cur = d_up
             if use_face:
-                code, err = _run_lines(face_cmd(cur, o.get("yuz_guc", 70)), job, *span(.5, .7), "Yüzler netleştiriliyor...")
+                code, err = _run_lines(face_cmd(cur, o.get("yuz_guc", 70), o.get("yuz_model") or "gfpgan"), job, *span(.5, .7), "Yüzler netleştiriliyor...")
                 if code != 0:
                     raise RuntimeError("Yüz netleştirme başarısız: " + err[-250:])
             if use_ai and (g < 100 or use_rife):
                 if g < 100:
-                    _ff([FFMPEG, "-y", "-i", str(cur / "%08d.jpg"), "-i", str(d_in / "%08d.jpg"), "-filter_complex",
+                    _ff([FFMPEG, "-y", "-i", str(cur / f"%08d.{X}"), "-i", str(d_in / f"%08d.{X}"), "-filter_complex",
                          f"[0]scale={MW}:{MH}:flags=lanczos,setsar=1[a];[1]scale={MW}:{MH}:flags=lanczos,setsar=1[b];[b][a]blend=all_mode=normal:all_opacity={g / 100:.2f}",
-                         "-q:v", "2", str(d_mid / "%08d.jpg")], job)
+                         *QV, str(d_mid / f"%08d.{X}")], job)
                 else:
-                    _ff([FFMPEG, "-y", "-i", str(cur / "%08d.jpg"), "-vf", f"scale={MW}:{MH}:flags=lanczos", "-q:v", "2", str(d_mid / "%08d.jpg")], job)
+                    _ff([FFMPEG, "-y", "-i", str(cur / f"%08d.{X}"), "-vf", f"scale={MW}:{MH}:flags=lanczos", *QV, str(d_mid / f"%08d.{X}")], job)
                 cur = d_mid
             rate = sfps
             if use_rife:
                 want = max(2, int(round(n * mult)))
-                code, err = _run_watch([str(fexe), "-i", str(cur), "-o", str(d_fps), "-m", "rife-v4.6", "-n", str(want), "-f", "%08d.jpg"],
+                code, err = _run_watch([str(fexe), "-i", str(cur), "-o", str(d_fps), "-m", "rife-v4.6", "-n", str(want), "-f", f"%08d.{X}"],
                                        job, d_fps, want, *span(.7, .9), f"Ara kareler üretiliyor ({tfps:g} FPS)...", cwd=str(fexe.parent))
                 if code != 0 or _count(d_fps) < 2:
                     raise RuntimeError("Akıcılaştırma (RIFE) başarısız: " + err[-250:])
                 cur, rate = d_fps, sfps * (_count(d_fps) / n)
             job.set(lo + (hi - lo) * .92, "Video yazılıyor...")
-            _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / "%08d.jpg"), "-vf", _vf(post_filters(o, W, H)),
+            _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / f"%08d.{X}"), "-vf", _vf(post_filters(o, W, H)),
                  "-r", f"{tfps:g}", *enc, str(seg)], job)
             segs.append(seg)
             done.add(ci)

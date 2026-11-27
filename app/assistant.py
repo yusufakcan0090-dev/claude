@@ -39,7 +39,7 @@ TOOLS = [
                                                      "altyazi": {"type": "boolean"}}, "required": ["kaynak"]}},
     {"name": "altyazi_olustur", "description": "Projedeki videoların Türkçe altyazısını çıkarır.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
     {"name": "disa_aktar", "description": "Projeyi MP4 olarak dışa aktarır.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "cozunurluk": {"type": "integer", "description": "720, 1080 ya da 1440"}, "fps": {"type": S, "description": "'kaynak' ya da 30/60"}}, "required": ["proje_id"]}},
-    {"name": "kalite_artir", "description": "Bir video ya da fotoğrafın kalitesini yapay zekâ ile artırır.", "parameters": {"type": "object", "properties": {"dosya": {"type": S, "description": "dosya yolu"}, "mod": {"type": S, "enum": ["hizli", "en_iyi", "anime", "klasik"]}, "cozunurluk": {"type": S, "enum": ["kaynak", "720", "1080", "1440", "2160", "x2", "x4"]}, "yuz": {"type": "boolean"}, "fps": {"type": S, "enum": ["kaynak", "30", "60"]}}, "required": ["dosya"]}},
+    {"name": "kalite_artir", "description": "Bir video ya da fotoğrafın kalitesini yapay zekâ ile artırır.", "parameters": {"type": "object", "properties": {"dosya": {"type": S, "description": "dosya yolu"}, "mod": {"type": S, "enum": ["hizli", "en_iyi", "ust_duzey", "anime", "anime_ust_duzey", "klasik"], "description": "ust_duzey = en yüksek kalite (yavaş)"}, "cozunurluk": {"type": S, "enum": ["kaynak", "720", "1080", "1440", "2160", "x2", "x4"]}, "yuz": {"type": "boolean"}, "fps": {"type": S, "enum": ["kaynak", "30", "60"]}}, "required": ["dosya"]}},
     {"name": "paylasim_metni", "description": "Proje için YouTube Shorts, TikTok ve Instagram Reels başlık/açıklama/etiket yazar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "not": {"type": S, "description": "isteğe bağlı ek istek (ton, vurgu)"}}, "required": ["proje_id"]}},
     {"name": "paylas", "description": "Paylaşım penceresini açar: dışa aktarılmış videoyu ve metni hazırlar, platformun yükleme sayfasını açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "platform": {"type": S, "enum": ["youtube", "tiktok", "instagram"]}}, "required": ["proje_id"]}},
     {"name": "arka_plan_sil", "description": "Fotoğrafın arka planını siler (şeffaf PNG).", "parameters": {"type": "object", "properties": {"dosya": {"type": S}}, "required": ["dosya"]}},
@@ -129,8 +129,13 @@ def run_tool(name, a, ctx, actions):
         if not Path(f).exists():
             raise ValueError("Dosya bulunamadı: " + f)
         img = enhance.is_image(f)
-        o = {"model": {"hizli": "hizli", "en_iyi": "gercek", "anime": "anime_pro", "klasik": "klasik"}.get(a.get("mod") or ("en_iyi" if img else "hizli"), "hizli"),
+        mod = a.get("mod") or ("en_iyi" if img else "hizli")
+        o = {"model": {"hizli": "hizli", "en_iyi": "ultra", "ust_duzey": "ultra", "anime": "anime_pro", "anime_ust_duzey": "anime_pro", "klasik": "klasik"}.get(mod, "hizli"),
              "hedef": a.get("cozunurluk") or ("x2" if img else "1080"), "yuz": bool(a.get("yuz")), "fps": a.get("fps") or "kaynak"}
+        if mod == "ust_duzey":
+            o.update(keskin=55, detay=20, gurultu=20, blok=True, bant=True, yuz=True, yuz_model="codeformer", titreme=40, kayipsiz=True, kalite="ust", codec="h265")
+        if mod == "anime_ust_duzey":
+            o.update(keskin=70, gurultu=35, yumusat=25, blok=True, bant=True, titreme=30, kayipsiz=True, kalite="ust", codec="h265")
         fn = enhance.process_image if img else enhance.process
         j = JOBS.start("kalite", ("Fotoğraf: " if img else "Kalite: ") + Path(f).stem[:40], fn, f, o, heavy=True)
         actions.append({"type": "job", "id": j.id})

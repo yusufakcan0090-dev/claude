@@ -1,8 +1,12 @@
 {
- "version": "1.8.3",
+ "version": "1.9.0",
  "date": "2026-11-27",
  "notes": [
-  "Kalite Artır: yeni Anime Pro modeli (Real-CUGAN) — anime ve çizgi filmde çizgiler temiz ve keskin",
-  "Hazır ayarlar: 🎌 Anime, 🎥 Gerçek video, 📼 Düşük kalite, ⚡ Hızlı — tek tıkla en iyi sonuç"
+  "💎 Üst Düzey ve 💎 Anime Üst Düzey hazır ayarları: en yüksek kalite",
+  "Yeni yapay zekâ modelleri: Ultra Keskin (4x-UltraSharp), Doğal (Remacri), Aslına sadık (High Fidelity)",
+  "Yüz netleştirmede CodeFormer: yüzler daha gerçekçi, plastik görünmez",
+  "Kayıpsız işleme: ara kareler PNG, hiç kalite kaybı yok",
+  "Titreme azaltma: yapay zekânın kareden kareye kıpırdayan detayları yumuşar",
+  "Üst düzey kodlama: çok düşük sıkıştırma, H.265 ile 10-bit (renk geçişlerinde bant olmaz)"
  ]
 }
