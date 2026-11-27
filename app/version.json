@@ -1,7 +1,8 @@
 {
- "version": "1.12.3",
+ "version": "1.12.4",
  "date": "2026-11-27",
  "notes": [
+  "Kalite: hazır ayarlar kaldırıldı, her şeyi kendin seçiyorsun (kaydettiğin kendi ayarların duruyor)",
   "Kurulum dosyası artık BEK_Kurulum.exe (eski link de çalışıyor); Programı paylaş yeni linki kopyalar",
   "Yapay zekâ modelleri 4'e indi (Anime, Gerçek görüntü, Hızlı, Yapay zekâsız) ve yeni sade tasarım",
   "Logo mavi oldu",

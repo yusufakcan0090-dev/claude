@@ -96,7 +96,7 @@
       ${d ? `<div class="kq-outd"><span>${Q.src.width}×${Q.src.height}</span><i>→</i><b>${d[0]}×${d[1]}</b><em>${kName(d)}${k > 1.01 ? ' · ' + k.toFixed(1).replace('.', ',') + ' kat büyütme' : k < 0.99 ? ' · küçültme' : ' · aynı boyut'}</em></div>` : ''}
       ${o.bicim && o.bicim !== 'kaynak' ? `<small class="kq-note">Biçim ${o.bicim.slice(0, -1)} seçili: çözünürlük o şekle göre ayarlanır.</small>` : ''}
       ${String(o.hedef) === '4320' || k > 4.01 ? '<small class="kq-note">⚠️ 8K ya da 4 kattan büyük: çok uzun sürer ve dosya çok büyük olur. Önce kısa bir aralıkla dene.</small>' : ''}
-      <small class="kq-note">Hazır ayarlar bunu değiştirmez; seçtiğin boyut kalır. Yapay zekâ ihtiyaca göre 2x, 3x ya da 4x çalışır.</small>`;
+      <small class="kq-note">Yapay zekâ seçtiğin boyuta göre kendisi 2x, 3x ya da 4x çalışır.</small>`;
   };
   Q.renderSide = () => {
     const o = Q.opts, el = $('#kqSide');
@@ -107,7 +107,7 @@
     const what = img ? 'Fotoğrafın' : 'Videonun', TG = img ? [['kaynak', 'Aynı'], ['x2', '2 kat'], ['x4', '4 kat'], ['1080', '1080p'], ['2160', '4K'], ['ozel', 'Özel']] : TARGETS;
     const curP = Object.keys(PRESETS).find(k => Object.entries(PRESETS[k][2]).every(([a, b]) => o[a] === b));
     el.innerHTML = `<div class="kq-scroll">
-      <div class="kq-presets"><div class="kq-ph"><b>Hazır ayarlar</b><span>${curP ? 'seçiliye tekrar basarsan kalkar' : 'isteğe bağlı · seçmezsen kendi ayarların geçerli'}</span></div><div class="kq-pre">${Object.entries(PRESETS).map(([k, v]) => { const [e, ...t] = v[0].split(' '); return `<button class="${k === curP ? 'on' : ''} ${k.includes('ust') ? 'pro' : ''}" data-pre="${k}" title="${v[1]}"><span class="kq-pe">${e}</span><b>${t.join(' ')}</b><small>${v[1]}</small></button>`; }).join('')}</div>${mineHtml()}</div>
+      ${mine().length ? `<div class="kq-presets">${mineHtml()}</div>` : ''}
       ${img ? grp('gorsel', 'Görsel araçları', Q.brush ? `<small class="kq-note">Silmek istediğin yeri <b>fareyle boya</b> (kırmızı). Sonra "Boyanan yeri sil"e bas.</small>
           ${sl('fircaBoy', 'Fırça boyutu', 5, 200, Q.brush.size)}
           <div class="kq-tools"><button class="btn primary sm" id="kqInp">🩹 Boyanan yeri sil</button><button class="btn ghost sm" id="kqBClr">Temizle</button><button class="btn ghost sm" id="kqBOff">Vazgeç</button></div>`
