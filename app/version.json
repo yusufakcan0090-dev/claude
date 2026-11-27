@@ -1,9 +1,7 @@
 {
- "version": "1.7.1",
+ "version": "1.7.2",
  "date": "2026-11-27",
  "notes": [
-  "Asistan: Gemini'nin reddettiği araç tanımları düzeltildi (anahtar kabul edildiği halde cevap gelmiyordu)",
-  "Yapay zekâ hatalarında daha açık mesaj; yeni 'AQ.' anahtarlar destekleniyor",
-  "SSL sorunu olan bilgisayarlarda bağlantı için yedek yol"
+  "Asistan: Gemini'nin en yeni modeli yoğun olduğunda (503) otomatik olarak başka bir modele geçer, cevapsız kalmaz"
  ]
 }

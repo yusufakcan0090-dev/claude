@@ -12,7 +12,7 @@ import urllib.request
 from core import load_settings
 
 BASE = "https://generativelanguage.googleapis.com/v1beta"
-_MODELS = {"pick": None, "lite": None, "t": 0}
+_MODELS = {"pick": None, "lite": None, "all": [], "t": 0}
 
 
 class AIError(RuntimeError):
@@ -58,7 +58,7 @@ def _http(method, path, body=None, timeout=180, k=None):
         if e.code == 404:
             raise AIError("MODEL:" + msg)
         if e.code >= 500:
-            raise AIError("Gemini şu an yanıt vermiyor, biraz sonra tekrar dene.")
+            raise AIError("MESGUL:Gemini şu an çok yoğun, biraz sonra tekrar dene.")
         raise AIError(f"Gemini hatası ({e.code}): {msg[:300]}")
     except urllib.error.URLError as e:
         import sys
@@ -116,8 +116,11 @@ def pick_model(force=False):
     def best(lst):
         # en yeni sürüm, kararlı olan (preview değil) öne
         return sorted(lst, key=lambda n: (_ver(n), "preview" not in n, -len(n)), reverse=True)[0] if lst else None
+    order = lambda lst: sorted(lst, key=lambda n: (_ver(n), "preview" not in n, -len(n)), reverse=True)  # noqa: E731
     _MODELS["pick"] = best(full) or "gemini-flash-latest"
     _MODELS["lite"] = best(lite) or "gemini-flash-lite-latest"
+    # yoğunlukta sırayla denenecek yedekler: diğer flash'lar, sonra lite'lar
+    _MODELS["all"] = order(full) + order(lite) + ["gemini-flash-latest", "gemini-flash-lite-latest"]
     _MODELS["t"] = time.time()
     return _MODELS["pick"]
 
@@ -132,34 +135,41 @@ def generate(contents, system=None, tools=None, json_mode=False, temperature=0.7
     if json_mode:
         body["generationConfig"]["responseMimeType"] = "application/json"
     model = pick_model()
-    tried = set()
-    for _ in range(3):
-        tried.add(model)
+    backups = [m for m in _MODELS.get("all") or [] if m != model]
+    tried, last = [], None
+    r = None
+    while model and len(tried) < 6:
+        tried.append(model)
         if _ver(model) >= 3:  # Gemini 3+: Google sıcaklığı varsayılan (1.0) bırakmayı öneriyor
             body["generationConfig"].pop("temperature", None)
         else:
             body["generationConfig"]["temperature"] = temperature
         try:
             r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
+            if model != _MODELS.get("pick") and (load_settings().get("ai_model") or "auto") == "auto":
+                _MODELS["pick"] = model  # çalışanla devam et
             break
         except AIError as e:
             s = str(e)
-            if s.startswith("MODEL:"):  # model kalkmış: listeyi yenile
-                model = pick_model(force=True)
-                if model in tried:
-                    model = "gemini-flash-latest" if "gemini-flash-latest" not in tried else None
-                if not model:
-                    raise AIError("Uygun Gemini modeli bulunamadı.")
+            last = e
+            if s.startswith("MESGUL:") and tried.count(model) == 1 and len(tried) == 1:
+                time.sleep(1.5)  # anlık yoğunluk: aynı modeli bir kez daha dene
+                tried.append("")
+                try:
+                    r = _http("POST", f"models/{model}:generateContent", body, timeout=timeout)
+                    break
+                except AIError as e2:
+                    last = e2
+            if s.startswith(("MODEL:", "MESGUL:", "KOTA:")):
+                if s.startswith("MODEL:") and not backups:
+                    pick_model(force=True)
+                    backups = [m for m in _MODELS.get("all") or [] if m not in tried]
+                model = next((m for m in backups if m not in tried), None)
                 continue
-            if s.startswith("KOTA:"):  # kota dolduysa daha hafif modeli dene
-                lite = _MODELS.get("lite")
-                if lite and lite not in tried:
-                    model = lite
-                    continue
-                raise AIError(s[5:])
             raise
-    else:
-        raise AIError("Gemini yanıt vermedi.")
+    if r is None:
+        s = str(last or "Gemini yanıt vermedi.")
+        raise AIError(s.split(":", 1)[1] if s.startswith(("MODEL:", "MESGUL:", "KOTA:")) else s)
     cands = r.get("candidates") or []
     if not cands:
         fb = (r.get("promptFeedback") or {}).get("blockReason")
