@@ -447,7 +447,7 @@ KS.renderSettings = () => {
   const save = patch => KS.api('/api/settings', patch).then(r => { KS.state.settings = r; });
   $('#setOutBtn').onclick = async () => { const r = await KS.api('/api/pick_folder', {}); if (r.path) { await save({ cikti_klasoru: r.path }); KS.renderSettings(); } };
   $('#setOutOpen').onclick = () => KS.api('/api/reveal', { path: s.cikti_klasoru }).catch(() => KS.toast('Klasör henüz yok, ilk videoda oluşacak.'));
-  $('#setShareLink').onclick = async () => { if (await KS.copy('https://github.com/yusufakcan0090-dev/claude/raw/kesit-studyosu/KesitStudyosu_Kurulum.exe')) KS.toast('Link kopyalandı. Arkadaşın indirip çift tıklasın.', 'ok'); };
+  $('#setShareLink').onclick = async () => { if (await KS.copy('https://github.com/yusufakcan0090-dev/claude/raw/kesit-studyosu/BEK_Kurulum.exe')) KS.toast('Link kopyalandı. Arkadaşın indirip çift tıklasın.', 'ok'); };
   $('#setAutoUpd').onchange = e => save({ oto_guncelle: e.target.checked }).then(KS.renderSettings);
   $('#setUpd').onclick = () => up.available ? KS.updateDialog() : KS.checkUpdate(true, true).then(KS.renderSettings);
   $$('#setModel button').forEach(b => b.onclick = () => save({ whisper_model: b.dataset.v }).then(KS.renderSettings));

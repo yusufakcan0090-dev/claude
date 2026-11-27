@@ -1,7 +1,7 @@
 KESİT STÜDYOSU — KURULUM
 
 EN KOLAY YOL (tek dosya):
-   https://github.com/yusufakcan0090-dev/claude/raw/kesit-studyosu/KesitStudyosu_Kurulum.exe
+   https://github.com/yusufakcan0090-dev/claude/raw/kesit-studyosu/BEK_Kurulum.exe
    İndir, çift tıkla, "İleri"ye bas. Windows "bilgisayarınızı korudu" derse:
    "Ek bilgi" > "Yine de çalıştır".
 

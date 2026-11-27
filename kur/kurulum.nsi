@@ -8,7 +8,7 @@ Unicode true
   !define SRC ".."
 !endif
 Name "B.E.K"
-OutFile "KesitStudyosu_Kurulum.exe"
+OutFile "BEK_Kurulum.exe"
 InstallDir "$LOCALAPPDATA\KesitStudyosu"
 InstallDirRegKey HKCU "Software\KesitStudyosu" "Klasor"
 RequestExecutionLevel user
