@@ -11,17 +11,21 @@ HIST_FILE = VERI / "asistan.json"
 _lock = threading.Lock()
 MAX_STEPS = 8
 
-SYS = """Sen Kesit Stüdyosu'nun içindeki yapay zekâ asistanısın. Kesit Stüdyosu; Kick ve YouTube yayınlarından klip bulan,
-en iyi anları kesen, Türkçe altyazı ekleyen, After Effects benzeri editörü olan, video/fotoğraf kalitesini artıran bir Windows programı.
-Kullanıcı Türkçe konuşur; sen de kısa, samimi ve net Türkçe cevap verirsin (genelde 1-4 cümle).
-Kurallar:
-- İşi yapmak için araçları kullan; araçla yapabileceğin bir şeyi kullanıcıya "şunu yap" diye anlatma.
-- Uzun işler (otomatik edit, altyazı, dışa aktarma, kalite artırma) arka planda başlar; başlattığını ve bitince haber geleceğini söyle.
-- Hangi projeden bahsedildiği belli değilse önce açık projeyi kullan; o da yoksa projeleri listeleyip sor.
-- Dosya yolu ya da proje kimliği uydurma; araçlardan gelen bilgileri kullan.
-- Sıfırdan resim üretemezsin (ücretli). Arka plan silme, nesne silme (Kalite sayfasında fırçayla) ve videodan kapak resmi yapılabilir.
-- Paylaşım: program videoyu ve açıklamayı hazırlar, yükleme sayfasını açar; son "Paylaş" tuşuna kullanıcı basar (platformlar otomatik paylaşıma izin vermiyor).
-- Ham proje kimliği gibi teknik şeyleri kullanıcıya gösterme, başlıkla anlat."""
+SYS = """Sen Kesit Stüdyosu'nun içindeki asistansın. Kesit Stüdyosu; Kick/YouTube yayınlarından klip bulan, en iyi anları kesen,
+Türkçe altyazı ekleyen, After Effects benzeri editörü olan, video/fotoğraf kalitesini artıran bir Windows programı.
+NASIL CEVAP VERİRSİN:
+- Türkçe, samimi ve ÇOK KISA yaz: en fazla 1-2 cümle. Liste, seçenek sıralama, uzun açıklama yok.
+- Kullanıcı bir şey istediyse SORMADAN araçla yap. "İster misin?", "nasıl ilerleyelim?" gibi sorular sorma; en mantıklı yolu seç ve yap.
+- Bir şeyi yapacak aracın yoksa bunu tek cümleyle söyle, alternatif sıralama.
+- Teknik terim (FFmpeg, API, model, proje_id) kullanma.
+- Uzun işler arka planda çalışır; ilerleme sohbette kendiliğinden görünür ve bitince program haber verir. "Sık sık kontrol edeceğim" gibi yapamayacağın sözler verme.
+- Kullanıcı "sorun var" derse "her şey yolunda" deme; neyin yanlış olduğunu kısaca sor ya da düzeltmeyi yap.
+- Bir iş hata verirse sebebini sade dille söyle ve aynı işi bir kez daha dene (tekrar dene dendiğinde de).
+EDİT:
+- "Yüz", "yüz kısmı", "kamera", "adamın yüzü" denince Yüz + Oyun düzenindeki üstteki YÜZ kutusu kastedilir; yuzu_bul ile yüzü bulup oraya yerleştir.
+- Düzen, kesme, hız, ses gibi değişiklikleri araçlarla açık projeye uygula (proje belirtilmediyse açık proje).
+- Hangi projeden bahsedildiği belli değilse açık projeyi kullan; o da yoksa en son projeyi kullan.
+- Sıfırdan resim üretemezsin. Paylaşımda son "Paylaş" tuşuna kullanıcı basar (platformlar otomatik paylaşıma izin vermiyor)."""
 
 S = "string"
 TOOLS = [
@@ -40,6 +44,10 @@ TOOLS = [
     {"name": "paylas", "description": "Paylaşım penceresini açar: dışa aktarılmış videoyu ve metni hazırlar, platformun yükleme sayfasını açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "platform": {"type": S, "enum": ["youtube", "tiktok", "instagram"]}}, "required": ["proje_id"]}},
     {"name": "arka_plan_sil", "description": "Fotoğrafın arka planını siler (şeffaf PNG).", "parameters": {"type": "object", "properties": {"dosya": {"type": S}}, "required": ["dosya"]}},
     {"name": "kapak_yap", "description": "Proje için kapak resmi (thumbnail) penceresini açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
+    {"name": "yuzu_bul", "description": "Videodaki kişinin/kişilerin yüzünü otomatik bulur ve Yüz + Oyun düzenindeki üstteki YÜZ kutusunu yüzün olduğu yere yerleştirir.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
+    {"name": "duzen", "description": "Videonun dikey ekrana yerleşimini değiştirir. yuz_oyun=üstte yüz altta oyun, tam_kirp=ekranı dolduracak şekilde kırp, bulanik=video ortada arka bulanık, sigdir=videonun tamamı.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "mod": {"type": S, "enum": ["yuz_oyun", "tam_kirp", "bulanik", "sigdir"]}, "yuz_orani": {"type": "integer", "description": "yuz_oyun'da üstteki yüz alanının yüksekliği (yüzde, 25-60)"}}, "required": ["proje_id", "mod"]}},
+    {"name": "kes", "description": "Videoyu kısaltır: sadece bas_sn ile bit_sn arasını bırakır (projenin şu anki zamanına göre, saniye).", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "bas_sn": {"type": "number"}, "bit_sn": {"type": "number"}}, "required": ["proje_id", "bas_sn", "bit_sn"]}},
+    {"name": "hiz_ses", "description": "Videonun hızını ve/veya ses düzeyini değiştirir.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "hiz_yuzde": {"type": "integer", "description": "100 normal, 150 = 1.5x"}, "ses_yuzde": {"type": "integer", "description": "100 normal, 0 sessiz, 200 iki kat"}}, "required": ["proje_id"]}},
     {"name": "isler", "description": "Çalışan ve son biten işleri (indirme, altyazı, dışa aktarma...) gösterir.", },
     {"name": "son_dosyalar", "description": "Son dışa aktarılan videoların ve kalite artırılmış dosyaların yollarını listeler.", },
 ]
@@ -52,8 +60,8 @@ def _srv():
 
 def _pid(srv, a, ctx):
     pid = (a.get("proje_id") or "").strip()
-    if pid in ("", "acik_proje", "acik", "current") and ctx.get("project"):
-        pid = ctx["project"]
+    if pid in ("", "acik_proje", "acik", "current", "son") or not srv.load_project(pid):
+        pid = ctx.get("project") or ((srv.all_projects() or [{}])[0].get("id") if pid in ("", "son", "acik_proje", "acik", "current") else pid)
     p = srv.load_project(pid) if pid else None
     if not p:
         raise ValueError("Proje bulunamadı. Önce projeleri_listele ile doğru projeyi seç.")
@@ -101,16 +109,19 @@ def run_tool(name, a, ctx, actions):
         title = title or (Path(src).stem if local else "Yayın")
         n = int(a.get("adet") or 3)
         fmt = a.get("bicim") or "dikey"
-        j = JOBS.start("otoedit", "Otomatik edit: " + title[:36], srv.job_autoedit, src, local, title, n, fmt, a.get("altyazi", True))
+        j = JOBS.start("otoedit", "Otomatik edit: " + title[:36], srv.job_autoedit, src, local, title, n, fmt, a.get("altyazi", True), heavy=True)
+        actions.append({"type": "job", "id": j.id})
         return {"is": j.id, "durum": f"Otomatik edit başladı ({n} video). Bitince projeler açılır."}
     if name == "altyazi_olustur":
         p = _pid(srv, a, ctx)
         j = srv.start_transcribe(p["id"], p.get("title") or "")
+        actions.append({"type": "job", "id": j.id})
         return {"is": j.id, "durum": "Altyazı çıkarılıyor."}
     if name == "disa_aktar":
         p = _pid(srv, a, ctx)
         opts = {"cozunurluk": int(a.get("cozunurluk") or 1080), "fps": str(a.get("fps") or "kaynak")}
         j = JOBS.start("aktar", "Dışa aktar: " + p["title"][:40], srv.job_export, p["id"], opts, heavy=True)
+        actions.append({"type": "job", "id": j.id})
         return {"is": j.id, "durum": "Dışa aktarma başladı."}
     if name == "kalite_artir":
         import enhance
@@ -122,6 +133,7 @@ def run_tool(name, a, ctx, actions):
              "hedef": a.get("cozunurluk") or ("x2" if img else "1080"), "yuz": bool(a.get("yuz")), "fps": a.get("fps") or "kaynak"}
         fn = enhance.process_image if img else enhance.process
         j = JOBS.start("kalite", ("Fotoğraf: " if img else "Kalite: ") + Path(f).stem[:40], fn, f, o, heavy=True)
+        actions.append({"type": "job", "id": j.id})
         return {"is": j.id, "durum": "Kalite artırma başladı."}
     if name == "paylasim_metni":
         p = _pid(srv, a, ctx)
@@ -146,7 +158,63 @@ def run_tool(name, a, ctx, actions):
         if not Path(f).exists():
             raise ValueError("Dosya bulunamadı: " + f)
         j = JOBS.start("gorsel", "Arka plan siliniyor: " + Path(f).stem[:30], imgtools.job_remove_bg, f, heavy=True)
+        actions.append({"type": "job", "id": j.id})
         return {"is": j.id, "durum": "Arka plan siliniyor."}
+    if name == "yuzu_bul":
+        p = _pid(srv, a, ctx)
+        if not p.get("clips"):
+            raise ValueError("Projede video yok.")
+        j = JOBS.start("yuz", "Yüz bulunuyor: " + (p.get("title") or "")[:30], srv.job_face, p["id"], None)
+        actions.append({"type": "job", "id": j.id})
+        return {"durum": "Yüz aranıyor, bulununca YÜZ kutusu oraya yerleşecek."}
+    if name in ("duzen", "kes", "hiz_ses"):
+        p = _pid(srv, a, ctx)
+        if not p.get("clips"):
+            raise ValueError("Projede video yok.")
+        import model
+        with srv._plock:
+            p = srv.load_project(p["id"])
+            fmt = p.get("format") or "dikey"
+            if name == "duzen":
+                m = {"yuz_oyun": "split", "tam_kirp": "crop", "bulanik": "blur", "sigdir": "fit"}.get(a.get("mod"), "fit")
+                if m == "split" and fmt != "dikey":
+                    raise ValueError("Yüz + Oyun düzeni sadece dikey videoda olur.")
+                for c in p["clips"]:
+                    lay = c.setdefault("layout", {})
+                    lay["mode"] = m
+                    if a.get("yuz_orani"):
+                        lay["split"] = max(.2, min(.65, int(a["yuz_orani"]) / 100))
+                    cw, ch = model.content_size(c)
+                    model.fix_layout(lay, fmt, cw, ch)
+                msg = "Düzen değişti."
+            elif name == "kes":
+                bas, bit = float(a.get("bas_sn") or 0), float(a.get("bit_sn") or 0)
+                if bit <= bas:
+                    raise ValueError("Bitiş, başlangıçtan sonra olmalı.")
+                tl, _ = model.timeline(p)
+                keep = []
+                for c, t0, L in tl:
+                    a0, a1 = max(bas, t0), min(bit, t0 + L)
+                    if a1 - a0 < .05:
+                        continue
+                    sp = float(c.get("speed") or 1)
+                    nin = c["in"] + (a0 - t0) * sp
+                    c["out"], c["in"] = round(c["in"] + (a1 - t0) * sp, 3), round(nin, 3)
+                    keep.append(c)
+                if not keep:
+                    raise ValueError("Bu aralıkta video yok.")
+                p["clips"] = keep
+                msg = f"Video {bit - bas:.1f} saniyeye kısaltıldı."
+            else:
+                for c in p["clips"]:
+                    if a.get("hiz_yuzde"):
+                        c["speed"] = max(.25, min(4, int(a["hiz_yuzde"]) / 100))
+                    if a.get("ses_yuzde") is not None:
+                        c["volume"] = max(0, min(3, int(a["ses_yuzde"]) / 100))
+                msg = "Ayarlandı."
+            srv.save_project(p)
+        actions.append({"type": "reload", "id": p["id"]})
+        return msg
     if name == "isler":
         return [{"baslik": j["title"], "durum": j["status"], "yuzde": round(j["progress"] * 100), "mesaj": j["message"]} for j in list(reversed(JOBS.list()))[:10]]
     if name == "son_dosyalar":
@@ -187,6 +255,9 @@ def _ctx_text(ctx):
     if ctx.get("project"):
         p = srv.load_project(ctx["project"])
         if p:
+            import model
+            lay = ((p.get("clips") or [{}])[0].get("layout") or {}).get("mode", "-")
+            lines.append(f"Açık projenin süresi {model.total_duration(p):.1f} sn, düzeni {dict(split='yuz_oyun', crop='tam_kirp', blur='bulanik', fit='sigdir').get(lay, lay)}")
             lines.append(f"Açık proje: '{p.get('title')}' (proje_id={p['id']}, {len(p.get('clips') or [])} video, biçim {p.get('format')}, "
                          f"altyazı {'var' if any(c.get('captions') for c in p.get('clips') or []) else 'yok'}, "
                          f"dışa aktarım {'var' if p.get('exports') else 'yok'})")
@@ -242,7 +313,7 @@ def chat(message, ctx):
         return {"reply": reply, "actions": actions, "tools": used}
 
 
-TOOL_LABEL = {"projeleri_listele": "Projeler alınıyor", "proje_ac": "Proje açılıyor", "sayfa_ac": "Sayfa açılıyor", "klip_ara": "Aranıyor",
+TOOL_LABEL = {"yuzu_bul": "Yüz aranıyor", "duzen": "Düzen değiştiriliyor", "kes": "Kesiliyor", "hiz_ses": "Ayarlanıyor", "projeleri_listele": "Projeler alınıyor", "proje_ac": "Proje açılıyor", "sayfa_ac": "Sayfa açılıyor", "klip_ara": "Aranıyor",
               "otomatik_edit": "Otomatik edit başlatılıyor", "altyazi_olustur": "Altyazı başlatılıyor", "disa_aktar": "Dışa aktarma başlatılıyor",
               "kalite_artir": "Kalite artırma başlatılıyor", "paylasim_metni": "Paylaşım metni yazılıyor", "paylas": "Paylaşım hazırlanıyor",
               "arka_plan_sil": "Arka plan siliniyor", "kapak_yap": "Kapak açılıyor", "isler": "İşlere bakılıyor", "son_dosyalar": "Dosyalara bakılıyor"}

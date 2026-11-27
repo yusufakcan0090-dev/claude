@@ -187,6 +187,12 @@
   E.after = () => { E.setFormat(); E.renderAll(); E.applyView(); E.seek(Math.min(E.T, total())); E.dirty(); E.flush().then(E.loadMusic); };
   E.updateUndo = () => { $('#undoBtn').disabled = !E.history.length; $('#redoBtn').disabled = !E.future.length; };
   let saveT = null;
+  /* sunucuda (asistan / otomatik işler) değişen projeyi yeniden yükle; bekleyen eski kaydı yazma */
+  E.reload = async pid => {
+    if (!E.project || E.project.id !== pid) return;
+    clearTimeout(saveT); $('#saveState').classList.remove('dirty');
+    const T = E.T; E.project = null; await E.load(pid); E.seek(Math.min(T, E.dur ? E.dur() : T));
+  };
   E.dirty = () => { const s = $('#saveState'); s.classList.add('dirty'); s.lastChild.textContent = 'Kaydediliyor...'; clearTimeout(saveT); saveT = setTimeout(E.flush, 600); E.updateUndo(); };
   E.flush = async () => {
     clearTimeout(saveT); if (!P() || !$('#saveState').classList.contains('dirty')) return;
@@ -715,7 +721,7 @@
       `<div class="src-wrap" id="srcWrap"><canvas id="srcCanvas"></canvas>${L.mode === 'split' ? '<div class="rect face" data-r="face"><b>YÜZ</b><i class="h"></i></div><div class="rect game" data-r="game"><b>OYUN</b><i class="h"></i></div>' : ''}${L.mode === 'crop' ? '<div class="rect crop" data-r="crop"><b>KADRAJ</b><i class="h"></i></div>' : ''}</div>` +
       (L.mode === 'split' ? erow('Yüz alanı', scrub('csplit', (L.split ?? .4) * 100, Math.round((L.split ?? .4) * 100) + '%')) : '') +
       (c.content ? erow('Siyah kenarlar', '<span style="color:#ccc">otomatik kesildi</span>') : '') +
-      `<div class="erow full"><span></span><span style="display:flex;gap:4px"><button class="ae-btn" data-cl-all>Tüm kliplere uygula</button><button class="ae-btn" data-cl-def>Varsayılan yap</button></span></div>`, '', false) +
+      `<div class="erow full"><span></span><span style="display:flex;gap:4px">${['split', 'crop'].includes(L.mode) ? '<button class="ae-btn" data-cl-face title="Videodaki yüzü bulup kutuyu oraya yerleştirir">🎯 Yüzü bul</button>' : ''}<button class="ae-btn" data-cl-all>Tüm kliplere uygula</button><button class="ae-btn" data-cl-def>Varsayılan yap</button></span></div>`, '', false) +
       efx('Zaman ve Ses', erow('Hız', scrub('cspeed', (c.speed || 1) * 100, Math.round((c.speed || 1) * 100) + '%')) + erow('Ses düzeyi', scrub('cvol', (c.volume ?? 1) * 100, Math.round((c.volume ?? 1) * 100) + '%')) +
         erow('Kaynak giriş / çıkış', `<span style="color:#ccc">${E.tc(c.in)} – ${E.tc(c.out)}</span>`) + `<div class="erow full"><span></span><span><button class="ae-btn" data-csubs>Bu klibin altyazısını çıkar</button></span></div>`, '', false);
   }
@@ -754,6 +760,7 @@
         else setKey(k, v);
       });
     }; });
+    $$('[data-cl-face]', el).forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = '🎯 Aranıyor...'; try { await E.flush(); const r = await KS.api(`/api/project/${P().id}/yuzbul`, { clip: o.id }); KS.trackJob(r.job); } catch (e) { KS.toast(KS.esc(e.message), 'err'); b.disabled = false; b.textContent = '🎯 Yüzü bul'; } });
     $$('[data-cl-all]', el).forEach(b => b.onclick = () => E.change(() => clips().forEach(c => { if (c !== o) { c.layout = JSON.parse(JSON.stringify(o.layout)); fixLayout(c); } })));
     $$('[data-cl-def]', el).forEach(b => b.onclick = () => KS.api('/api/defaults', { layout: o.layout }).then(() => KS.toast('Yeni kliplerde bu kadraj kullanılacak', 'ok')));
     $$('[data-csubs]', el).forEach(b => b.onclick = () => E.transcribe([o.id]));

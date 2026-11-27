@@ -1,7 +1,11 @@
 {
- "version": "1.7.8",
+ "version": "1.8.0",
  "date": "2026-11-27",
  "notes": [
-  "Kick/YouTube'dan an indirme düzeltildi: indirme aracı FFmpeg'i göremediğinde program kendi FFmpeg'iyle indirir (otomatik edit ve Anları Bul artık takılmaz)"
+  "Asistan artık edit yapabiliyor: yüzü bul ve YÜZ kutusuna koy, düzen değiştir (yüz+oyun, kırp, bulanık, sığdır), kes, hız ve ses",
+  "Asistan kısa ve net cevap verir, sormadan işi yapar; başlattığı işlerin ilerlemesi sohbette canlı görünür (yüzde, kalan süre)",
+  "Editörde Kadraj kısmına 🎯 Yüzü bul düğmesi: videodaki yüzü bulup kutuyu oraya yerleştirir",
+  "Otomatik Edit videolarında yüz otomatik yerleştirilir",
+  "Fotoğraf önizlemesi büyük fotoğraflarda dakikalarca sürmüyor, birkaç saniyede gelir"
  ]
 }

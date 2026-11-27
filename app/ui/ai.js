@@ -32,9 +32,10 @@
       $('#aiKeySave', msgs).onclick = () => A.saveKey($('#aiKey', msgs).value, $('#aiKeySave', msgs));
       $('#aiSugg', dr).innerHTML = ''; return;
     }
-    msgs.innerHTML = A.chat.length ? A.chat.map(m => `<div class="ai-m ${m.rol === 'sen' ? 'me' : 'bot'}${m.err ? ' err' : ''}">${md(m.metin)}</div>`).join('')
+    msgs.innerHTML = A.chat.length ? A.chat.map(m => m.rol === 'is' ? A.jobCard(m.id) : `<div class="ai-m ${m.rol === 'sen' ? 'me' : 'bot'}${m.err ? ' err' : ''}">${md(m.metin)}</div>`).join('')
       : `<div class="ai-hello"><b>Merhaba! 👋</b><span>Klip bulma, otomatik edit, altyazı, dışa aktarma, kalite artırma, başlık-açıklama yazma ve paylaşıma hazırlama işlerini benden isteyebilirsin.</span></div>`;
     if (A.busy) msgs.insertAdjacentHTML('beforeend', '<div class="ai-m bot typing"><i></i><i></i><i></i></div>');
+    A.paintJobs();
     $('#aiSugg', dr).innerHTML = A.chat.length ? '' : SUGG.map(s => `<button class="chip">${s}</button>`).join('');
     $$('#aiSugg .chip', dr).forEach(b => b.onclick = () => { txt.value = b.textContent; A.send(); });
     msgs.scrollTop = msgs.scrollHeight;
@@ -87,17 +88,37 @@
           const ev = JSON.parse(line.slice(5));
           if (ev.type === 'text') { bot.metin += ev.text; status = ''; paint(); }
           else if (ev.type === 'tool') { status = ev.label; paint(); }
-          else if (ev.type === 'actions') { for (const a of ev.actions || []) { acts.push(a); await A.act(a); } }
+          else if (ev.type === 'actions') { for (const a of ev.actions || []) { acts.push(a); if (a.type === 'job') { if (bot.metin.trim()) { A.chat.push({ ...bot }); bot.metin = ''; } bubble = null; } await A.act(a); } }
           else if (ev.type === 'error') { bot.metin = ev.message; bot.err = true; }
           else if (ev.type === 'done') { if (ev.reply && !bot.metin.trim()) bot.metin = ev.reply; for (const a of ev.actions || []) await A.act(a); }
         }
       }
       KS.kickJobs && KS.kickJobs();
     } catch (e) { bot.metin = e.message; bot.err = true; }
-    finally { A.chat.push(bot); A.busy = false; A.render(); }
+    finally { if (bot.metin.trim() || bot.err) A.chat.push(bot); A.busy = false; A.render(); }
   };
+  /* sohbet içi iş kartı: yüzde, kalan süre, bitince düğme */
+  const dur = s => { s = Math.max(0, Math.round(s || 0)); return s < 60 ? `${s} sn` : s < 3600 ? `${Math.floor(s / 60)} dk ${s % 60} sn` : `${Math.floor(s / 3600)} sa ${Math.floor(s % 3600 / 60)} dk`; };
+  A.jobCard = id => {
+    const j = (KS.state.jobs || []).find(x => x.id === id);
+    if (!j) return `<div class="ai-job" data-job="${id}"><b>İş</b><span>bekleniyor…</span></div>`;
+    const p = Math.round((j.progress || 0) * 100), ex = j.extra || {}, ok = j.status === 'bitti', bad = j.status === 'hata';
+    const eta = ex.eta != null ? ` · kalan ~${dur(ex.eta)}` : (j.status === 'calisiyor' && p > 3 && ex.elapsed ? ` · kalan ~${dur(ex.elapsed * (100 - p) / p)}` : '');
+    const r = j.result || {};
+    const btn = ok && r.projects ? `<button class="btn primary sm" data-open="${r.projects[0]}">Editörde aç</button>` : ok && r.project && !r.reload ? `<button class="btn primary sm" data-open="${r.project}">Aç</button>` : ok && r.path ? `<button class="btn ghost sm" data-reveal="${KS.esc(r.path)}">Klasörde göster</button>` : '';
+    return `<div class="ai-job ${ok ? 'ok' : bad ? 'bad' : ''}" data-job="${id}"><div class="ai-job-t"><b>${ok ? '✓ ' : bad ? '✕ ' : ''}${KS.esc(j.title)}</b><span>${ok ? 'Bitti' : bad ? 'Hata' : '%' + p + eta}</span></div>
+      ${ok || bad ? '' : `<div class="kq-pbar"><i style="width:${p}%"></i></div>`}<small>${KS.esc(bad ? j.message : ok ? j.message : (ex.asama || j.message || ''))}</small>${btn ? `<div class="ai-job-b">${btn}</div>` : ''}</div>`;
+  };
+  A.paintJobs = () => {
+    $$('.ai-job[data-job]', msgs).forEach(el => { const h = A.jobCard(el.dataset.job); if (el.outerHTML !== h) { const t = document.createElement('div'); t.innerHTML = h; el.replaceWith(t.firstElementChild); } });
+    $$('[data-open]', msgs).forEach(b => b.onclick = () => KS.openProject(b.dataset.open));
+    $$('[data-reveal]', msgs).forEach(b => b.onclick = () => KS.api('/api/reveal', { path: b.dataset.reveal }));
+  };
+  KS.hooks.jobTick.push(() => { if (dr.classList.contains('show')) A.paintJobs(); });
   A.act = async a => {
     try {
+      if (a.type === 'job') { A.chat.push({ rol: 'is', id: a.id }); KS.trackJob(a.id); A.render(); return; }
+      if (a.type === 'reload') { if (KS.editor && KS.editor.project && KS.editor.project.id === a.id) await KS.editor.reload(a.id); else await KS.openProject(a.id); return; }
       if (a.type === 'open_project') await KS.openProject(a.id);
       else if (a.type === 'go') KS.go(a.page);
       else if (a.type === 'search') { KS.go('finder'); $('#channelInput').value = a.q; KS.finder.search(); }
@@ -276,6 +297,10 @@
       KS.refresh && KS.refresh();
       KS.toast(`🤖 <b>${r.projects.length} video hazır!</b> Hepsi Projeler'de. İlki editörde açılıyor.`, 'ok', [{ label: 'Paylaş', primary: true, fn: () => KS.share(r.projects[0]) }], 9000);
       KS.openProject(r.projects[0]);
+    }
+    if (j.kind === 'yuz' && r.project) {
+      if (KS.editor && KS.editor.project && KS.editor.project.id === r.project) KS.editor.reload(r.project);
+      KS.toast(r.found ? '🎯 Yüz bulundu, YÜZ kutusu yerleştirildi' : 'Videoda yüz bulunamadı', r.found ? 'ok' : '');
     }
     if (j.kind === 'aktar' && KS._shareAfter && KS._shareAfter.job === j.id) {
       const s = KS._shareAfter; KS._shareAfter = null; setTimeout(() => KS.share(s.pid, s.tab), 400);

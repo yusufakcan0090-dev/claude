@@ -333,6 +333,12 @@ def preview(path, t, opts, final=None):
     d = CACHE / "kalite" / key
     before, after = d / "once.jpg", d / "sonra.jpg"
     MW, MH = target_size(info["width"], info["height"], o["hedef"])
+    if not final:
+        # önizleme ekranda gösterilecek: en fazla ~2400 px yeter (büyük fotoğraflarda dakikalarca sürmesin)
+        k = min(1.0, 2400 / max(W, H))
+        if k < 1:
+            W, H = int(W * k) // 2 * 2, int(H * k) // 2 * 2
+            MW, MH = int(MW * k) // 2 * 2, int(MH * k) // 2 * 2
     if after.exists() and not final:
         return key, W, H, bool(o["model"] != "klasik" and _AI_OK)
     d.mkdir(parents=True, exist_ok=True)
@@ -344,7 +350,15 @@ def preview(path, t, opts, final=None):
     if not final:
         run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(post_filters({"bicim": o.get("bicim")}, W, H)).replace("lanczos", "bicubic"), "-q:v", "2", str(before)])
     pre = d / "on.png"
-    run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(pre_filters(o)), str(pre)])
+    # yapay zekâya giden resim çok büyükse küçült: önizlemede ~1.2 MP, son çıktıda ~4 MP yeter
+    # (çıktı zaten 2-4 kat büyütülüyor; 12 MP'lik telefon fotoğrafını 4 kat büyütmek dakikalar sürer)
+    sw, sh = info["width"], info["height"]
+    lim = 4_000_000 if final else 1_200_000
+    pf = pre_filters(o)
+    if o["model"] != "klasik" and sw * sh > lim:
+        k = (lim / (sw * sh)) ** .5
+        pf = pf + [f"scale={int(sw * k) // 2 * 2}:{int(sh * k) // 2 * 2}:flags=lanczos"]
+    run([FFMPEG, "-y", "-i", str(raw), "-vf", _vf(pf), str(pre)])
     src = pre
     used_ai = False
     if o["model"] != "klasik" and ai_works():
@@ -353,7 +367,7 @@ def preview(path, t, opts, final=None):
             sc = int(o.get("olcek") or 2)
         up = d / "ai.png"
         exe = tool_path("realesrgan")
-        run([str(exe), "-i", str(pre), "-o", str(up), "-n", name, "-s", str(sc)], cwd=str(exe.parent), timeout=300)
+        run([str(exe), "-i", str(pre), "-o", str(up), "-n", name, "-s", str(sc)], cwd=str(exe.parent), timeout=900 if final else 180)
         if up.exists():
             src, used_ai = up, True
     if o.get("yuz"):

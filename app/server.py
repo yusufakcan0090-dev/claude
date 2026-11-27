@@ -343,6 +343,17 @@ def job_autoedit(job, src, local, title, count=3, fmt="dikey", subs=True):
                 c["captions"] = transcribe.chunk_words([w for w in ws if c["in"] - .2 <= w["s"] <= c["out"]], max_words=mw)
                 c["subs_status"] = "hazir"
             save_project(p)
+        try:  # yüzü otomatik yerleştir (Yüz + Oyun düzeni)
+            q = load_project(pid)
+            if q["clips"] and (q["clips"][0].get("layout") or {}).get("mode") == "split":
+                box = find_face_box(q["clips"][0], n=8)
+                if box:
+                    with _plock:
+                        q = load_project(pid)
+                        apply_face(q, q["clips"][0], box)
+                        save_project(q)
+        except Exception as e:
+            print("[oto] yüz bulunamadı:", e, flush=True)
         if subs and not (local and words_of.get(m.get("_i"))):
             start_transcribe(pid, p["title"])
         if use_ai:
@@ -358,6 +369,95 @@ def job_autoedit(job, src, local, title, count=3, fmt="dikey", subs=True):
         made.append(pid)
     job.set(1, f"{len(made)} video hazır" + (" · altyazılar çıkarılıyor" if subs and not local else ""))
     return {"projects": made, "project": made[0] if made else None, "open": True}
+
+
+def find_face_box(clip, n=10):
+    """Klipteki yüz(ler)i bulur. Dönüş: kaynakta normalize yüz kutusu {x,y,w,h} (kişi(ler)in etrafı) ya da None."""
+    import json as _json
+    import shutil as _sh
+    import statistics as st
+    py, _ = enhance.ensure_ort()
+    yun = enhance.AI / "yuz" / "yunet.onnx"
+    if not yun.exists():
+        enhance._download(enhance.FACE_URLS["yunet"], yun, None, 0, 1, "Yüz bulucu indiriliyor")
+    d = CACHE / "yuzbul" / clip["id"]
+    _sh.rmtree(d, ignore_errors=True)
+    d.mkdir(parents=True, exist_ok=True)
+    a, b = float(clip["in"]), float(clip["out"])
+    for i in range(n):
+        t = a + (b - a) * (i + .5) / n
+        run([FFMPEG, "-y", "-ss", f"{t:.2f}", "-i", clip["source"], "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2", "-q:v", "3", str(d / f"k{i:02d}.jpg")])
+    r = run([py, str(Path(__file__).with_name("face_find.py")), str(d), str(yun)], timeout=300)
+    _sh.rmtree(d, ignore_errors=True)
+    try:
+        frames = _json.loads((r.stdout or "").strip().splitlines()[-1])
+    except Exception:
+        raise RuntimeError("Yüz bulunamadı: " + (r.stderr or "")[-200:])
+    faces = [f for fr in frames for f in fr if f["s"] > 0.7]
+    if not faces:
+        return None
+    # en sık görünen yüz bölgesi: yüz merkezleri birbirine yakın olanları grupla
+    groups = []
+    for f in faces:
+        cx, cy = f["x"] + f["w"] / 2, f["y"] + f["h"] / 2
+        for g in groups:
+            if abs(g["cx"] - cx) < max(.08, f["w"] * 1.2) and abs(g["cy"] - cy) < max(.08, f["h"] * 1.2):
+                g["items"].append(f)
+                g["cx"] = st.median([x["x"] + x["w"] / 2 for x in g["items"]])
+                g["cy"] = st.median([x["y"] + x["h"] / 2 for x in g["items"]])
+                break
+        else:
+            groups.append({"cx": cx, "cy": cy, "items": [f]})
+    groups.sort(key=lambda g: -len(g["items"]))
+    best = groups[0]
+    # aynı anda sürekli görünen ikinci kişi (podcast / sohbet) varsa ikisini birlikte al
+    keep = [g for g in groups if len(g["items"]) >= max(2, len(best["items"]) * .6)]
+    fw = st.median([x["w"] for g in keep for x in g["items"]])
+    fh = st.median([x["h"] for g in keep for x in g["items"]])
+    xs = [g["cx"] for g in keep]
+    ys = [g["cy"] for g in keep]
+    span = max(xs) - min(xs)
+    cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2 + fh * .25
+    w = max(span + fw * 2.8, fw * 3.6)
+    return {"cx": cx, "cy": cy, "w": min(1.0, w), "fh": fh, "people": len(keep)}
+
+
+def apply_face(p, clip, box):
+    """Bulunan yüze göre klibin 'YÜZ' kutusunu yerleştirir (Yüz + Oyun düzeni)."""
+    lay = clip.setdefault("layout", {})
+    fmt = p.get("format") or "dikey"
+    if fmt == "dikey" and lay.get("mode") not in ("split", "crop"):
+        lay["mode"] = "split"
+    key = "face" if lay.get("mode") == "split" else "crop"
+    cw, ch = model.content_size(clip)
+    rc = {"x": 0, "y": 0, "w": box["w"] if key == "face" else max(box["w"], .32), "h": .5}
+    lay[key] = rc
+    model.fix_layout(lay, fmt, cw, ch)
+    rc = lay[key]
+    rc["x"] = min(max(0.0, box["cx"] - rc["w"] / 2), 1 - rc["w"])
+    rc["y"] = min(max(0.0, box["cy"] - rc["h"] / 2), 1 - rc["h"])
+    return key
+
+
+def job_face(job, pid, clip_ids=None):
+    with _plock:
+        p = load_project(pid)
+    targets = [c for c in p.get("clips") or [] if not clip_ids or c["id"] in clip_ids]
+    found = 0
+    for i, c in enumerate(targets):
+        job.set(i / max(1, len(targets)), f"Yüz aranıyor ({i + 1}/{len(targets)})...")
+        box = find_face_box(c)
+        if not box:
+            continue
+        with _plock:
+            p = load_project(pid)
+            for cc in p["clips"]:
+                if cc["id"] == c["id"]:
+                    apply_face(p, cc, box)
+            save_project(p)
+        found += 1
+    job.set(1, f"Yüz {found} klipte yerleştirildi" if found else "Videoda yüz bulunamadı")
+    return {"project": pid, "found": found, "reload": True}
 
 
 def job_export(job, pid, opts):
@@ -1074,6 +1174,16 @@ def api_ai_meta(pid):
         p["paylasim"] = meta
         save_project(p)
     return jsonify(meta)
+
+
+@app.post("/api/project/<pid>/yuzbul")
+def api_yuzbul(pid):
+    d = request.get_json(force=True) or {}
+    if not load_project(pid):
+        return jsonify(error="Proje bulunamadı"), 404
+    ids = [d["clip"]] if d.get("clip") else None
+    j = JOBS.start("yuz", "Yüz bulunuyor", job_face, pid, ids)
+    return jsonify(job=j.id)
 
 
 @app.post("/api/project/<pid>/paylasim")
