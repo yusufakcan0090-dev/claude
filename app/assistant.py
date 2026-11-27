@@ -25,7 +25,7 @@ Kurallar:
 
 S = "string"
 TOOLS = [
-    {"name": "projeleri_listele", "description": "Kullanıcının projelerini (video düzenleme projeleri) en yeniden eskiye listeler.", "parameters": {"type": "object", "properties": {}}},
+    {"name": "projeleri_listele", "description": "Kullanıcının projelerini (video düzenleme projeleri) en yeniden eskiye listeler.", },
     {"name": "proje_ac", "description": "Bir projeyi editörde açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
     {"name": "sayfa_ac", "description": "Programda bir sayfaya geçer.", "parameters": {"type": "object", "properties": {"sayfa": {"type": S, "enum": ["bul", "editor", "kalite", "ayarlar"], "description": "bul=Klip Bulucu"}}, "required": ["sayfa"]}},
     {"name": "klip_ara", "description": "Kick/YouTube'da kanal, klip ya da konu arar (örn. 'rraenee', 'komik anlar'). Sonuçları Klip Bulucu'da da gösterir.", "parameters": {"type": "object", "properties": {"sorgu": {"type": S}}, "required": ["sorgu"]}},
@@ -34,14 +34,14 @@ TOOLS = [
                                                      "bicim": {"type": S, "enum": ["dikey", "kaynak", "yatay", "kare"], "description": "dikey=Reels/Shorts 9:16, kaynak=videonun kendi boyutu"},
                                                      "altyazi": {"type": "boolean"}}, "required": ["kaynak"]}},
     {"name": "altyazi_olustur", "description": "Projedeki videoların Türkçe altyazısını çıkarır.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
-    {"name": "disa_aktar", "description": "Projeyi MP4 olarak dışa aktarır.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "cozunurluk": {"type": "integer", "enum": [720, 1080, 1440]}, "fps": {"type": S, "description": "'kaynak' ya da 30/60"}}, "required": ["proje_id"]}},
+    {"name": "disa_aktar", "description": "Projeyi MP4 olarak dışa aktarır.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "cozunurluk": {"type": "integer", "description": "720, 1080 ya da 1440"}, "fps": {"type": S, "description": "'kaynak' ya da 30/60"}}, "required": ["proje_id"]}},
     {"name": "kalite_artir", "description": "Bir video ya da fotoğrafın kalitesini yapay zekâ ile artırır.", "parameters": {"type": "object", "properties": {"dosya": {"type": S, "description": "dosya yolu"}, "mod": {"type": S, "enum": ["hizli", "en_iyi", "anime", "klasik"]}, "cozunurluk": {"type": S, "enum": ["kaynak", "720", "1080", "1440", "2160", "x2", "x4"]}, "yuz": {"type": "boolean"}, "fps": {"type": S, "enum": ["kaynak", "30", "60"]}}, "required": ["dosya"]}},
     {"name": "paylasim_metni", "description": "Proje için YouTube Shorts, TikTok ve Instagram Reels başlık/açıklama/etiket yazar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "not": {"type": S, "description": "isteğe bağlı ek istek (ton, vurgu)"}}, "required": ["proje_id"]}},
     {"name": "paylas", "description": "Paylaşım penceresini açar: dışa aktarılmış videoyu ve metni hazırlar, platformun yükleme sayfasını açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}, "platform": {"type": S, "enum": ["youtube", "tiktok", "instagram"]}}, "required": ["proje_id"]}},
     {"name": "arka_plan_sil", "description": "Fotoğrafın arka planını siler (şeffaf PNG).", "parameters": {"type": "object", "properties": {"dosya": {"type": S}}, "required": ["dosya"]}},
     {"name": "kapak_yap", "description": "Proje için kapak resmi (thumbnail) penceresini açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
-    {"name": "isler", "description": "Çalışan ve son biten işleri (indirme, altyazı, dışa aktarma...) gösterir.", "parameters": {"type": "object", "properties": {}}},
-    {"name": "son_dosyalar", "description": "Son dışa aktarılan videoların ve kalite artırılmış dosyaların yollarını listeler.", "parameters": {"type": "object", "properties": {}}},
+    {"name": "isler", "description": "Çalışan ve son biten işleri (indirme, altyazı, dışa aktarma...) gösterir.", },
+    {"name": "son_dosyalar", "description": "Son dışa aktarılan videoların ve kalite artırılmış dosyaların yollarını listeler.", },
 ]
 
 

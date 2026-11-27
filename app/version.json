@@ -1,13 +1,9 @@
 {
- "version": "1.7.0",
+ "version": "1.7.1",
  "date": "2026-11-27",
  "notes": [
-  "Yapay zekâ asistanı: soldaki 'Asistan'a yaz, işleri o yapsın (klip arama, otomatik edit, altyazı, dışa aktarma, kalite artırma, paylaşım metni)",
-  "Otomatik Edit: yayındaki en iyi anları seçip altyazılı, hazır kısa videolar yapar (Klip Bulucu'daki 🤖 düğmesi)",
-  "Paylaş: YouTube Shorts / TikTok / Instagram Reels için başlık, açıklama, etiket; tek tuşla kopyala ve yükleme sayfasını aç",
-  "Kapak yap: videodan kare seç, büyük yazıyla YouTube / Reels kapağı kaydet",
-  "Fotoğraf kalitesi artırma: Kalite sayfasına fotoğraf sürükle (2 kat / 4 kat büyütme, yüz, renk)",
-  "Görsel araçları: arka plan silme ve fırçayla nesne silme (bilgisayarda, ücretsiz)",
-  "Ayarlar → Yapay Zekâ: ücretsiz Gemini anahtarını buraya ekle"
+  "Asistan: Gemini'nin reddettiği araç tanımları düzeltildi (anahtar kabul edildiği halde cevap gelmiyordu)",
+  "Yapay zekâ hatalarında daha açık mesaj; yeni 'AQ.' anahtarlar destekleniyor",
+  "SSL sorunu olan bilgisayarlarda bağlantı için yedek yol"
  ]
 }

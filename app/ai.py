@@ -44,6 +44,11 @@ def _http(method, path, body=None, timeout=180, k=None):
         except Exception:
             err = {}
         msg, status = err.get("message", ""), err.get("status", "")
+        import sys
+        print(f"[ai] HTTP {e.code} {status}: {msg[:400]}", file=sys.stderr, flush=True)
+        if e.code == 401 or "ACCESS_TOKEN_TYPE_UNSUPPORTED" in json.dumps(err):
+            raise AIError("Google bu anahtarı kabul etmedi (401). AI Studio'da yeni bir anahtar oluşturup tekrar dene; "
+                          "anahtarın tamamını kopyaladığından emin ol.")
         if e.code == 400 and ("API key" in msg or "API_KEY" in msg):
             raise AIError("Gemini anahtarı geçersiz. Ayarlar → Yapay Zekâ'dan kontrol et.")
         if e.code == 403:
@@ -54,11 +59,25 @@ def _http(method, path, body=None, timeout=180, k=None):
             raise AIError("MODEL:" + msg)
         if e.code >= 500:
             raise AIError("Gemini şu an yanıt vermiyor, biraz sonra tekrar dene.")
-        raise AIError(f"Gemini hatası ({e.code}): {msg[:200]}")
-    except urllib.error.URLError:
+        raise AIError(f"Gemini hatası ({e.code}): {msg[:300]}")
+    except urllib.error.URLError as e:
+        import sys
+        print(f"[ai] bağlantı hatası: {e}", file=sys.stderr, flush=True)
+        if "CERTIFICATE" in str(e).upper() or "SSL" in str(e).upper():
+            return _http_curl(method, url, body, timeout, k)
         raise AIError("İnternete bağlanılamadı. Bağlantını kontrol et.")
     except TimeoutError:
         raise AIError("Gemini zaman aşımına uğradı, tekrar dene.")
+
+
+def _http_curl(method, url, body, timeout, k):
+    """SSL sertifika sorunu olan bilgisayarlarda curl_cffi ile dene."""
+    from curl_cffi import requests as creq
+    r = creq.request(method, url, data=json.dumps(body) if body is not None else None, timeout=timeout,
+                     headers={"Content-Type": "application/json", "x-goog-api-key": k})
+    if r.status_code >= 400:
+        raise AIError(f"Gemini hatası ({r.status_code}): {r.text[:300]}")
+    return r.json()
 
 
 def _ver(name):
