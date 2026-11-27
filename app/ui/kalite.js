@@ -50,7 +50,14 @@
   const NOPV = new Set(['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10', 'ozel_fps', 'titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;
   Q.open = Q.open || { boyut: true, ai: true, net: true, gorsel: true };
-  const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary><span class="kq-gi">${(typeof ICON !== 'undefined' && ICON[id]) || '•'}</span>${title}<span class="kq-chev"></span></summary><div class="kq-gb">${body}</div></details>`;
+  /* her grubun kendi ayarları: "Sıfırla" sadece o grubu varsayılana döndürür */
+  const GKEYS = { boyut: ['hedef', 'ozel_w', 'ozel_h'], ai: ['model', 'ai_guc', 'bicim'], yuz: ['yuz', 'yuz_model', 'yuz_guc'],
+    net: ['supersample', 'keskin', 'detay', 'gurultu', 'yumusat', 'titreme', 'blok', 'bant'],
+    renk: ['oto_renk', 'parlak', 'kontrast', 'doygun', 'sicaklik', 'gamma', 'golge', 'parlak_alan', 'vinyet', 'gren'],
+    fps: ['fps', 'fps_ai', 'ozel_fps'], cikti: ['kalite', 'kayipsiz', 'codec', 'ses', 'ses_temizle', 'ses_dengele', 'foto_bicim'],
+    uzman: ['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10'] };
+  const changed = id => id === 'koruma' ? !!(Q.kor && (Q.kor.mod !== 'dengeli' || Q.kor.gpu_limit !== 80)) : (GKEYS[id] || []).some(k => Q.opts && DEF[k] !== undefined && String(Q.opts[k]) !== String(DEF[k]));
+  const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary><span class="kq-gi">${(typeof ICON !== 'undefined' && ICON[id]) || '•'}</span>${title}${GKEYS[id] || id === 'koruma' ? `<button class="kq-reset ${changed(id) ? '' : 'off'}" data-reset="${id}" title="Bu bölümü varsayılana döndür">↺ Sıfırla</button>` : ''}<span class="kq-chev"></span></summary><div class="kq-gb">${body}</div></details>`;
 
   /* --- kendi kaydettiğim ayarlar --- */
   const mine = () => (KS.state.settings && KS.state.settings.kalite_benim) || [];
@@ -168,6 +175,13 @@
       const o = { ...Q.opts }; delete o.bas; delete o.bit;
       const l = mine().filter(m => m.ad !== ad); l.push({ ad, o }); await saveMine(l.slice(-12)); Q.renderSide(); KS.toast('⭐ Kaydedildi: ' + KS.esc(ad), 'ok');
     };
+    $$('[data-reset]', el).forEach(b => b.onclick = async e => {
+      e.preventDefault(); e.stopPropagation();
+      const id = b.dataset.reset;
+      if (id === 'koruma') { await korSave({ mod: 'dengeli', gpu_limit: 80 }); }
+      else (GKEYS[id] || []).forEach(k => { if (DEF[k] !== undefined) Q.opts[k] = DEF[k]; });
+      const sc = $('.kq-scroll').scrollTop; Q.renderSide(); $('.kq-scroll').scrollTop = sc; if (id !== 'koruma' && id !== 'uzman') Q.previewSoon();
+    });
     $('#kqGo').onclick = Q.start; Q.status();
     if ($('#kqBg')) $('#kqBg').onclick = async () => { try { const r = await KS.api('/api/gorsel/arkaplan', { path: Q.src.path }); KS.trackJob(r.job); } catch (e) { KS.toast(KS.esc(e.message), 'err'); } };
     if ($('#kqBOn')) $('#kqBOn').onclick = () => Q.brushOn();

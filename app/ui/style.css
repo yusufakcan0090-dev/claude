@@ -1487,3 +1487,8 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 .side-jobs.paused .sj-fg{stroke:#ffb347}
 .side-jobs b{position:absolute;top:15px;left:0;right:0;text-align:center;font-size:9.5px;font-weight:700;color:#e4e6ea}
 .side-jobs small{font-size:9.5px;color:#8b9098}
+
+.kq-reset{margin-left:auto;margin-right:8px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:#2a2d32;border:1px solid #3a3d42;color:#c9cdd3;cursor:pointer}
+.kq-reset:hover{background:#353941;color:#fff;border-color:#4a8fe0}
+.kq-reset + .kq-chev{margin-left:0}
+.kq-reset.off{opacity:.35;pointer-events:none}
