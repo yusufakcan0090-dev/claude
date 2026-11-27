@@ -65,7 +65,9 @@ KS.go = page => {
   document.body.classList.toggle('on-editor', page === 'editor');
   document.body.classList.toggle('on-kalite', page === 'kalite');
   if (page === 'kalite' && KS.kalite) KS.kalite.loadYarim();
-  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  const TOOLS = ['vbg', 'kapak', 'kanal'];
+  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page || (b.dataset.page === 'araclar' && TOOLS.includes(page))));
+  (KS.hooks.page || []).forEach(f => { try { f(page); } catch (e) { console.error(e); } });
   $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
   if (page === 'settings') KS.renderSettings();
   if (page === 'editor' && KS.editor) KS.editor.onShow();
@@ -309,6 +311,7 @@ KS.addFile = async () => {
 
 KS.handleFile = async f => {
   if (f.error) return KS.toast(KS.esc(f.error), 'err');
+  if (KS.toolDrop && KS.toolDrop[KS.page]) return KS.toolDrop[KS.page](f);
   if (KS.page === 'kalite' && (f.kind === 'video' || f.kind === 'image') && KS.kalite) return KS.kalite.load(f.path);
   if (KS.page === 'donustur' && KS.donustur && ['video', 'audio', 'image'].includes(f.kind)) return KS.donustur.add([f.path]);
   const ed = KS.editor;

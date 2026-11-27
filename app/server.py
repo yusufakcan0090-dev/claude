@@ -1417,6 +1417,48 @@ def api_donustur():
     return jsonify(job=j.id)
 
 
+# ================================================================ video arka plan silme
+@app.post("/api/vbg/preview")
+def api_vbg_preview():
+    import vbg
+    d = request.get_json(force=True) or {}
+    src = d.get("path") or ""
+    if not Path(src).exists():
+        return jsonify(error="Video bulunamadı"), 400
+    try:
+        f = vbg.preview(src, float(d.get("t") or 0), d.get("o") or {})
+    except Exception as e:
+        return jsonify(error=str(e)[:300]), 400
+    return jsonify(url="/media/vbg/" + f.name)
+
+
+@app.get("/media/vbg/<name>")
+def media_vbg(name):
+    f = CACHE / "vbg" / safe_name(name, 80)
+    return send_file(f) if f.exists() else ("", 404)
+
+
+@app.post("/api/vbg/start")
+def api_vbg_start():
+    import vbg
+    d = request.get_json(force=True) or {}
+    src = d.get("path") or ""
+    if not Path(src).exists():
+        return jsonify(error="Video bulunamadı"), 400
+    o = d.get("o") or {}
+    save_settings({"vbg_ayar": {k: v for k, v in o.items() if k != "bg"}})
+    j = JOBS.start("vbg", "Arka plan sil: " + Path(src).stem[:36], vbg.job_vbg, src, o, heavy=True)
+    return jsonify(job=j.id)
+
+
+@app.get("/media/video")
+def media_video():
+    path = request.args.get("path") or ""
+    if not path or not Path(path).exists():
+        return "", 404
+    return send_file(path, conditional=True)
+
+
 @app.post("/api/describe")
 def api_describe():
     return jsonify(describe_file((request.get_json(force=True) or {}).get("path")))
