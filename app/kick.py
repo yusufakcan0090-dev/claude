@@ -493,7 +493,7 @@ def _download_ffmpeg(job, url, title, lo, hi, section, preview, folder, name):
     """yt-dlp'den sadece akış adreslerini alıp videoyu (ya da aralığını) doğrudan FFmpeg ile indirir."""
     import subprocess
     from core import run_ffmpeg_progress
-    fmt = ("worst[vcodec!=none][acodec!=none]/worst" if preview
+    fmt = ("worst[ext=mp4][vcodec!=none][acodec!=none]/worst[vcodec!=none][acodec!=none]/worst" if preview
            else "b[height<=1440][vcodec!=none][acodec!=none]/bv*[height<=1440]+ba/b")
     with _ydl({"format": fmt}) as ydl:
         info = ydl.extract_info(url, download=False)
@@ -535,7 +535,7 @@ def download(job, url, title, lo=0.0, hi=1.0, section=None, preview=False):
         "outtmpl": outtmpl,
         "progress_hooks": [_hook(job, lo, hi, "Düşük kalitede indiriliyor (analiz için)" if preview else "İndiriliyor")],
         "merge_output_format": "mp4",
-        "format": ("worst[vcodec!=none][acodec!=none]/worst" if preview
+        "format": ("worst[ext=mp4][vcodec!=none][acodec!=none]/worst[vcodec!=none][acodec!=none]/worst" if preview
                    else "bv*[height<=1440]+ba/b[height<=1440]/bv*+ba/b"),
     }
     if section:

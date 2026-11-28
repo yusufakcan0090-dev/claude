@@ -1,7 +1,10 @@
 {
- "version": "1.13.5",
+ "version": "1.13.6",
  "date": "2026-11-28",
  "notes": [
+  "Bulunan Anlar düzeldi: sayfa kendini durmadan yeniliyordu (kartlar soluk/eksik görünüyordu, önizleme oynamıyordu)",
+  "Bulunan Anlar önizlemesi her videoda oynuyor (oynatılamayan biçimler otomatik dönüştürülür)",
+  "An kartlarında tuşlar düzgün sığıyor, grafikteki numaralar üst üste binmiyor",
   "Araçlar bölümü kaldırıldı (Video Arka Plan Sil, Kapak Stüdyosu, Kanal Analizi); menü sadeleşti",
   "Serbest ayar: Anime motoru (Otomatik / HFA2k) ve Gerçek görüntü motoru (UltraSharp / Nomos8k / Siax / LSDIR+) seçilebiliyor",
   "Anime modeli: çizgiler koyulaşıp belirginleşiyor, renkler canlanıp derinleşiyor, netlik güçlendi (süper örnekleme hep açık): fark gözle görülür",

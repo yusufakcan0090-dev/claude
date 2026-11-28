@@ -6,12 +6,12 @@
   const tabs = $('#finderTabs');
   const ink = $('.tab-ink', tabs);
   const setInk = () => { const a = $('.tab.active', tabs); if (a) { ink.style.left = a.offsetLeft + 'px'; ink.style.width = a.offsetWidth + 'px'; } };
-  F.tab = name => {
+  F.tab = (name, quiet) => {
     $$('.tab', tabs).forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     $$('#page-finder .tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
     setInk();
     $('#clipsBar').classList.toggle('show', name === 'clips' && F.selClips.size > 0);
-    if (name === 'moments') F.renderAnalyses();
+    if (name === 'moments' && !quiet) F.renderAnalyses();
     if (name === 'projects') F.renderProjects();
   };
   $$('.tab', tabs).forEach(t => t.onclick = () => F.tab(t.dataset.tab));
@@ -217,12 +217,18 @@
       $('#analysisMain').innerHTML = emptyHtml('Henüz an aranmadı', 'Bir yayının "Anları Bul" butonuna bas ya da bilgisayarından uzun bir video ekle.', KS.icon.spark);
       return;
     }
+    if (F._loading) return;
     if (!F.analysis || !list.some(a => a.id === F.analysis.id)) F.showAnalysis(list[0].id);
   };
 
   F.showAnalysis = async aid => {
-    F.tab('moments');
-    const a = await KS.api('/api/analysis/' + aid);
+    F.tab('moments', true);
+    F.renderAnalysisList();
+    if (F._loading === aid) return;
+    F._loading = aid;
+    let a;
+    try { a = await KS.api('/api/analysis/' + aid); } finally { F._loading = null; }
+    if (!a || !a.moments) return;
     F.analysis = a; F.selMoments.clear(); F.playing = null;
     $$('.an-item').forEach(b => b.classList.toggle('active', b.dataset.aid === aid));
     const main = $('#analysisMain');
@@ -339,10 +345,14 @@
     x.beginPath(); pts.forEach((v, i) => { const px = i / (pts.length - 1) * W, py = H - 6 - v * (H - 18); i ? x.lineTo(px, py) : x.moveTo(px, py); });
     x.strokeStyle = grd; x.lineWidth = 1.6; x.stroke();
     // an noktaları
-    a.moments.forEach((m, i) => {
-      const px = m.peak / a.duration * W;
+    let lastL = -1e9;
+    a.moments.map((m, i) => ({ i, px: KS.clamp(m.peak / a.duration * W, 5, W - 5) })).sort((p, q) => p.px - q.px).forEach(({ i, px }) => {
       x.fillStyle = '#fff'; x.beginPath(); x.arc(px, 9, 3.5, 0, 7); x.fill();
-      x.font = '700 10px Segoe UI'; x.fillStyle = 'rgba(255,255,255,.7)'; x.fillText('#' + (i + 1), px + 5, 13);
+      if (px - lastL < 30) return;  // etiketler üst üste binmesin
+      lastL = px;
+      x.font = '700 10px Segoe UI'; x.fillStyle = 'rgba(255,255,255,.75)';
+      const t = '#' + (i + 1), tw = x.measureText(t).width;
+      x.fillText(t, px + 5 + tw > W ? px - 5 - tw : px + 5, 13);
     });
     const v = $('#anVideo');
     if (v && v.currentTime) { const px = v.currentTime / a.duration * W; x.fillStyle = '#22d3ee'; x.fillRect(px - 1, 0, 2, H); }

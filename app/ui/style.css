@@ -1492,3 +1492,11 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 .kq-reset:hover{background:#353941;color:#fff;border-color:#4a8fe0}
 .kq-reset + .kq-chev{margin-left:0}
 .kq-reset.off{opacity:.35;pointer-events:none}
+
+/* an kartları: tuşlar sığsın, işaret kutusu üstlerine binmesin */
+.moments-grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.mcard{padding-right:40px;animation-fill-mode:backwards}
+.mcard .tick{top:10px;bottom:auto}
+.mcard .rank{right:12px;top:auto;bottom:10px}
+.mc-adj{flex-wrap:nowrap}
+.mc-adj button{white-space:nowrap;flex:none;padding:3px 6px}

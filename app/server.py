@@ -1,4 +1,7 @@
 """Kesit Stüdyosu - yerel web sunucusu (arayüz <-> motor)."""
+import hashlib
+import json
+import threading
 import os
 import subprocess
 import time
@@ -13,7 +16,7 @@ import model
 import transcribe
 import updater
 import enhance
-from core import (ANALIZ, APP, CACHE, FFMPEG, FFPROBE, INDIRILEN, IS_WIN, JOBS, PROJELER, load_settings,
+from core import (ANALIZ, APP, ONIZLEME, CACHE, FFMPEG, FFPROBE, INDIRILEN, IS_WIN, JOBS, PROJELER, load_settings,
                   new_id, popen, probe, read_json, run, safe_name, save_settings,
                   thumbnail, write_json)
 
@@ -218,6 +221,11 @@ def job_analyze(job, src, title, local, mode="orta", count=20):
     write_json(ANALIZ / f"{aid}.json", {"id": aid, "title": title, "source": src, "local": local, "preview": path,
                                         "mode": mode, "duration": info["duration"], "moments": moments,
                                         "curve": curve, "created": time.time()})
+    job.set(0.98, "Önizleme hazırlanıyor...")
+    try:
+        web_preview(path)   # önizleme penceresinde oynatılabilsin
+    except Exception:
+        pass
     job.set(1, f"{len(moments)} an bulundu")
     return {"analysis": aid, "count": len(moments)}
 
@@ -508,12 +516,52 @@ def media_overlay(pid, oid):
     return send_file(_find(load_project(pid), "overlays", oid)["source"], conditional=True)
 
 
+_WEB_LOCK = threading.Lock()
+
+
+def web_preview(path):
+    """Önizleme videosu programın penceresinde oynasın: kap/codec uygun değilse
+    (TS, MKV, HEVC...) küçük, oynatılabilir bir MP4 kopyası yapar ve onu döndürür."""
+    path = str(path)
+    try:
+        r = run([FFPROBE, "-v", "error", "-show_entries", "format=format_name:stream=codec_type,codec_name",
+                 "-of", "json", path])
+        d = json.loads(r.stdout or "{}")
+    except Exception:
+        return path
+    fmt = (d.get("format") or {}).get("format_name") or ""
+    vc = next((x.get("codec_name") for x in d.get("streams", []) if x.get("codec_type") == "video"), None)
+    ac = next((x.get("codec_name") for x in d.get("streams", []) if x.get("codec_type") == "audio"), None)
+    mp4 = "mp4" in fmt or "mov" in fmt
+    v_ok, a_ok = vc in ("h264", "vp9", "av1", None), ac in ("aac", "mp3", "opus", None)
+    if mp4 and v_ok and a_ok:
+        return path
+    out = ONIZLEME / ("web_" + hashlib.sha1(path.encode("utf-8")).hexdigest()[:14] + ".mp4")
+    with _WEB_LOCK:
+        if out.exists() and out.stat().st_size > 0:
+            return str(out)
+        tmp = out.with_suffix(".tmp.mp4")
+        vargs = ["-c:v", "copy"] if vc == "h264" else ["-vf", "scale=-2:'min(480,ih)'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28"]
+        aargs = ["-c:a", "copy"] if ac == "aac" else ["-c:a", "aac", "-b:a", "96k"]
+        cmd = [FFMPEG, "-y", "-v", "error", "-i", path, "-map", "0:v:0?", "-map", "0:a:0?"] + vargs + aargs + ["-movflags", "+faststart", str(tmp)]
+        res = run(cmd)
+        if (res.returncode != 0 or not tmp.exists()) and vc == "h264":   # kopyalama olmadıysa yeniden kodla
+            cmd = [FFMPEG, "-y", "-v", "error", "-i", path, "-map", "0:v:0?", "-map", "0:a:0?", "-vf", "scale=-2:'min(480,ih)'",
+                   "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(tmp)]
+            res = run(cmd)
+        if res.returncode != 0 or not tmp.exists():
+            tmp.unlink(missing_ok=True)
+            return path
+        tmp.replace(out)
+    return str(out)
+
+
 @app.route("/media/analysis/<aid>")
 def media_analysis(aid):
     a = read_json(ANALIZ / f"{safe_name(aid)}.json")
     if not a:
         abort(404)
-    return send_file(a["preview"], conditional=True)
+    return send_file(web_preview(a["preview"]), conditional=True)
 
 
 @app.route("/thumb/<pid>")
