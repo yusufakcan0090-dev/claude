@@ -1,7 +1,8 @@
 {
- "version": "1.13.1",
+ "version": "1.13.2",
  "date": "2026-11-27",
  "notes": [
+  "Dışa aktarma daha hızlı: video ekran kartında çözülüyor (olmazsa işlemciye geçer), bulanık arka plan ve parlama efekti çok daha hızlı; kalite ve FPS aynı",
   "Fotoğraflarda Anime modeli artık Waifu2x (CUnet) kullanıyor: çizgiler kalınlaşmaz, gri tonlar ve taramalar korunur",
   "Fotoğraflarda renk çözünürlüğü korunuyor, gereksiz ön filtreler kaldırıldı; Waifu2x çalışmazsa kendiliğinden eski modele geçer",
   "Asistan artık editördeki her şeyi yapabiliyor: altyazı rengi/boyutu/yazı tipi/konumu, yazı ekle-değiştir-sil, renk filtresi, efektler, zoom, geçiş, biçim, ad ve diğer tüm ayarlar",

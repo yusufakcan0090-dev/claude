@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.13.1** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.2** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -196,7 +196,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.1.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.2.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.

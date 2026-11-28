@@ -378,7 +378,8 @@ def _layout_modes(inp, out, k, lay, mode, fmt, W, H, OW, OH):
                 f"[{k}t][{k}u]vstack[{out}]"]
     if mode == "blur":
         return [f"[{inp}]split[{k}a][{k}b]",
-                f"[{k}a]scale={OW}:{OH}:force_original_aspect_ratio=increase,crop={OW}:{OH},gblur=sigma=28,eq=brightness=-0.10:saturation=1.15[{k}bg]",
+                f"[{k}a]scale={OW // 4 // 2 * 2}:{OH // 4 // 2 * 2}:force_original_aspect_ratio=increase,crop={OW // 4 // 2 * 2}:{OH // 4 // 2 * 2},gblur=sigma=7,"
+                f"eq=brightness=-0.10:saturation=1.15,scale={OW}:{OH}:flags=bicubic[{k}bg]",
                 f"[{k}b]scale={OW}:{OH}:force_original_aspect_ratio=decrease:flags=lanczos[{k}fg]",
                 f"[{k}bg][{k}fg]overlay=(W-w)/2:(H-h)/2,setsar=1[{out}]"]
     return [f"[{inp}]scale={OW}:{OH}:force_original_aspect_ratio=decrease:flags=lanczos,"
@@ -425,7 +426,7 @@ def unique_path(folder, name):
     return p
 
 
-def build_command(project, opts, s, out, encoder):
+def build_command(project, opts, s, out, encoder, hw=False):
     project = apply_hidden(project)
     clips = [c for c in project.get("clips") or [] if model.clip_len(c) > 0.04 and Path(c["source"]).exists()]
     if not clips:
@@ -445,7 +446,9 @@ def build_command(project, opts, s, out, encoder):
 
     inputs, fc = [], []
 
-    def add_input(path, loop=False, ss=None, t=None):
+    def add_input(path, loop=False, ss=None, t=None, video=False):
+        if video and hw:  # videoyu ekran kartında çöz (kalite aynı, işlemci rahatlar); olmazsa ffmpeg kendisi işlemciye döner
+            inputs.extend(["-hwaccel", "auto"])
         if loop:
             inputs.extend(["-loop", "1"])
         if ss is not None:
@@ -461,7 +464,7 @@ def build_command(project, opts, s, out, encoder):
     for i, c in enumerate(clips):
         sp = max(0.25, float(c.get("speed") or 1))
         dur = float(c["out"]) - float(c["in"])
-        idx = add_input(c["source"], ss=float(c["in"]), t=dur)
+        idx = add_input(c["source"], ss=float(c["in"]), t=dur, video=True)
         fc.append(f"[{idx}:v]setpts=(PTS-STARTPTS)/{sp:.4f},fps={cfps:g}[r{i}]")
         fc += layout_chain(f"r{i}", f"l{i}", c, fmt, OW, OH)
         fc.append(f"[l{i}]format=yuv420p" + (",drawbox=c=black:t=fill" if c.get("hidden") else "") + f"[v{i}]")
@@ -502,8 +505,8 @@ def build_command(project, opts, s, out, encoder):
     if z:
         add(f"zoompan=z='{z}':x='{zx}':y='{zy}':d=1:s={OW}x{OH}:fps={out_fps:g}", "vz")
     if fx.get("glow"):
-        fc.append(f"[{cur}]format=gbrp,split[gl1][gl2];[gl2]gblur=sigma={OW / 60:.1f}[gl3];"
-                  f"[gl1][gl3]blend=all_mode=screen:all_opacity=0.38,format=yuv420p[vg]")
+        fc.append(f"[{cur}]split[gl1][gl2];[gl2]scale={OW // 4 // 2 * 2}:{OH // 4 // 2 * 2},gblur=sigma={OW / 240:.1f},scale={OW}:{OH}:flags=bicubic,format=gbrp[gl3];"
+                  f"[gl1]format=gbrp[gl4];[gl4][gl3]blend=all_mode=screen:all_opacity=0.38,format=yuv420p[vg]")
         cur = "vg"
     if fx.get("rgb"):
         add(f"rgbashift=rh=-{max(2, OW // 220)}:bh={max(2, OW // 220)}", "vrgb")
@@ -522,7 +525,7 @@ def build_command(project, opts, s, out, encoder):
         a, b = max(0.0, float(ov["s"])), min(total, float(ov["e"]))
         if b - a < 0.05:
             continue
-        idx = add_input(ov["source"], ss=float(ov.get("in", 0)), t=b - a)
+        idx = add_input(ov["source"], ss=float(ov.get("in", 0)), t=b - a, video=True)
         pre = f"[{idx}:v]setpts=PTS-STARTPTS,fps={out_fps:g}"
         if ov.get("chroma"):
             col = (ov.get("chroma_color") or "#00FF00").lstrip("#")
@@ -647,8 +650,8 @@ def export(job, project, opts=None):
     out = unique_path(Path(opts.get("klasor") or s.get("cikti_klasoru")), safe_name(project.get("title") or "kesit", 60))
     cancel = lambda: job.cancelled  # noqa
 
-    def run_with(enc):
-        cmd, total, label = build_command(project, opts, s, out, enc)
+    def run_with(enc, hw=False):
+        cmd, total, label = build_command(project, opts, s, out, enc, hw)
         return run_ffmpeg_progress(cmd, total, lambda f: job.set(f, f"Dışa aktarılıyor %{int(f * 100)} · {label}"),
                                    cancel, cwd=str(ROOT))
 
@@ -658,7 +661,9 @@ def export(job, project, opts=None):
     code, err = 1, ""
     for enc in order:
         job.set(0.01, f"Dışa aktarma başlıyor ({names[enc]})...")
-        code, err = run_with(enc)
+        code, err = run_with(enc, True)
+        if code != 0 and not job.cancelled:  # ekran kartında çözme sorun çıkardıysa işlemciyle dene
+            code, err = run_with(enc, False)
         if code == 0:
             _ENC_OK = enc
             break
