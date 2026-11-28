@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.12.10** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.12.11** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -106,7 +106,7 @@ KUR.bat, BASLAT.bat, GUNCELLE.bat, SORUN_GIDER.bat, kurulum.py
 requirements.txt, requirements-nvidia.txt, README.md, OKU_BENI.txt
 kur/   kurulum.nsi (NSIS), arayuz.ps1 (kurulum penceresi), isci.ps1 (kurulum işçisi), derle.sh
 app/
-  main.py          başlatıcı: pencere "B.E.K", masaüstü kısayolu, simge
+  main.py          başlatıcı: pencere "B.E.K", masaüstü kısayolu, simge, görev çubuğu kimliği (Animeci.BEK)
   server.py        Flask sunucusu, tüm /api uçları
   core.py          ayarlar, iş sistemi (Job: duraklat/iptal/ilerleme/ETA), ffmpeg yardımcıları
   updater.py       otomatik güncelleme
@@ -185,7 +185,7 @@ app/
 ---
 
 ## 9. Sürüm geçmişi (özet)
-- **1.12.x:** B.E.K adı ve "bek" logosu, BEK_Kurulum.exe; serbest büyütme (1x–4x/Özel); süper örnekleme; 4 modele inen sade model kartları; hazır ayarlar kaldırıldı; bölüm bölüm sıfırlama; canlı sıcaklık; işler sol menüde halka; FPS düşürme ve dosya adı düzeltmeleri; masaüstü simgesi yenileme
+- **1.12.x:** Görev çubuğu simgesi (AppUserModelID); B.E.K adı ve "bek" logosu, BEK_Kurulum.exe; serbest büyütme (1x–4x/Özel); süper örnekleme; 4 modele inen sade model kartları; hazır ayarlar kaldırıldı; bölüm bölüm sıfırlama; canlı sıcaklık; işler sol menüde halka; FPS düşürme ve dosya adı düzeltmeleri; masaüstü simgesi yenileme
 - **1.11.0:** Araçlar (Video Arka Plan Sil, Kapak Stüdyosu, Kanal Analizi), Kalite serbest ayar, Donanım koruması
 - **1.10.x:** Dönüştür, otomatik güncelleme, tek dosya kurulum (.exe), Kalite yeniden tasarım, üst düzey kalite (UltraSharp, CUGAN Pro, CodeFormer, kayıpsız, titreme giderme)
 - **1.9.x ve öncesi:** Yapay zekâ asistanı, otomatik edit, başlık/açıklama, fotoğraf araçları, Kalite Artır (duraklat/devam), orijinal çözünürlükte dışa aktarma, AE tarzı editör, Kick/YouTube bulucu, Türkçe altyazı
@@ -196,7 +196,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.12.10.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.12.11.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.

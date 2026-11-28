@@ -64,6 +64,64 @@ try {{ & "$env:SystemRoot\\System32\\ie4uinit.exe" -show }} catch {{}}
         print("Kısayol güncellenemedi:", e)
 
 
+APP_ID = "Animeci.BEK"
+
+
+def _app_id_process():
+    """Görev çubuğu B.E.K'i Python olarak değil, kendi programı olarak tanısın."""
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+    except Exception as e:
+        print("Uygulama kimliği ayarlanamadı:", e)
+
+
+def _taskbar_identity(hwnd):
+    """Pencereye kimlik + yeniden açma komutu + simge ver: görev çubuğuna sabitleyince B.E.K logosu çıkar ve doğrudan programı açar."""
+    import ctypes
+    from ctypes import wintypes, c_void_p, byref, POINTER, Structure, c_ushort, c_ulong, c_wchar_p, HRESULT, WINFUNCTYPE
+
+    class GUID(Structure):
+        _fields_ = [("a", c_ulong), ("b", c_ushort), ("c", c_ushort), ("d", ctypes.c_ubyte * 8)]
+
+    def guid(s):
+        import uuid
+        u = uuid.UUID(s)
+        g = GUID(u.fields[0], u.fields[1], u.fields[2])
+        g.d[:] = (ctypes.c_ubyte * 8).from_buffer_copy(u.bytes[8:])
+        return g
+
+    class PKEY(Structure):
+        _fields_ = [("fmtid", GUID), ("pid", c_ulong)]
+
+    class PROPVARIANT(Structure):
+        _fields_ = [("vt", c_ushort), ("r1", c_ushort), ("r2", c_ushort), ("r3", c_ushort), ("val", c_wchar_p), ("pad", c_void_p)]
+
+    fmt = guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3")
+    iid = guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")  # IPropertyStore
+    store = c_void_p()
+    hr = ctypes.windll.shell32.SHGetPropertyStoreForWindow(wintypes.HWND(hwnd), byref(iid), byref(store))
+    if hr != 0 or not store:
+        raise OSError(f"SHGetPropertyStoreForWindow {hr:#x}")
+    vtbl = ctypes.cast(ctypes.cast(store, POINTER(c_void_p))[0], POINTER(c_void_p))
+    SetValue = WINFUNCTYPE(HRESULT, c_void_p, POINTER(PKEY), POINTER(PROPVARIANT))(vtbl[6])
+    Commit = WINFUNCTYPE(HRESULT, c_void_p)(vtbl[7])
+    Release = WINFUNCTYPE(c_ulong, c_void_p)(vtbl[2])
+    root = Path(__file__).resolve().parent.parent
+    pyw = root / ".venv" / "Scripts" / "pythonw.exe"
+    if not pyw.exists():
+        pyw = Path(sys.executable).with_name("pythonw.exe")
+    ico = Path(__file__).resolve().parent / "ui" / "bek_simge.ico"
+    keep = []
+    # kimlik en son: Windows yeniden açma bilgilerini kimlik değişince okur
+    for pid, text in ((2, f'"{pyw}" "{Path(__file__).resolve()}"'), (3, f"{ico},0"), (4, "B.E.K"), (5, APP_ID)):
+        pv = PROPVARIANT(31, 0, 0, 0, c_wchar_p(text), None)  # VT_LPWSTR
+        keep.append(pv)
+        SetValue(store, byref(PKEY(fmt, pid)), byref(pv))
+    Commit(store)
+    Release(store)
+
+
 def _set_window_icon(win):
     try:
         import time as _t
@@ -78,6 +136,10 @@ def _set_window_icon(win):
 
         def _apply():
             form.Icon = ico
+            try:
+                _taskbar_identity(form.Handle.ToInt64())
+            except Exception as e:
+                print("Görev çubuğu kimliği ayarlanamadı:", e)
         form.Invoke(Action(_apply))
     except Exception as e:
         print("Pencere ikonu ayarlanamadı:", e)
@@ -110,6 +172,8 @@ def _bind_drop(win):
 
 
 def main():
+    if sys.platform.startswith("win"):
+        _app_id_process()
     threading.Thread(target=windows_fixes, daemon=True).start()
     port = free_port()
     th = threading.Thread(target=lambda: server.app.run(

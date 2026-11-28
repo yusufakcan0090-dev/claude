@@ -1,7 +1,8 @@
 {
- "version": "1.12.10",
+ "version": "1.12.11",
  "date": "2026-11-27",
  "notes": [
+  "Görev çubuğuna sabitleyince Python simgesi yerine B.E.K logosu çıkar ve doğrudan program açılır",
   "Masaüstü simgesi yeni logoya geçiyor (Windows simge önbelleği yenilenir)",
   "Düzeltme: FPS düşürme (ör. 30 → 24) artık çalışıyor",
   "Çıkan dosya adı gerçek boyutu gösteriyor (_2K, _4K, _FullHD)",
