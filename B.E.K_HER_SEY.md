@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.12.11** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.0** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -17,7 +17,7 @@ Kick/YouTube yayınlarından ve videolardan kesit (klip) çıkaran, düzenleyen 
 | **Dönüştür** | Video, ses ve fotoğrafı başka biçimlere çevirir (MP4, MOV, WebM, GIF, MP3, WAV, JPG, PNG, WebP...) |
 | **Araçlar** | Video Arka Plan Sil · Kapak Stüdyosu · Kanal Analizi |
 | **Ayarlar** | Yapay zekâ anahtarı, çıktı klasörü, otomatik güncelleme, donanım koruması, programı paylaşma |
-| **Asistan** | Gemini ile sohbet: projeyi açar, otomatik edit yapar, altyazı ekler, dışa aktarır, kalite artırır, kapak/yüz/arka plan işleri yapar |
+| **Asistan** | Gemini ile sohbet: editörde yapılabilen her şeyi yapar (altyazı stili, yazılar, renk, efekt, zoom, geçiş, biçim, her ayar), otomatik edit, altyazı, dışa aktarma, kalite artırma, kapak/yüz/arka plan |
 
 ---
 
@@ -196,7 +196,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.12.11.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.0.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.

@@ -1,7 +1,8 @@
 {
- "version": "1.12.11",
+ "version": "1.13.0",
  "date": "2026-11-27",
  "notes": [
+  "Asistan artık editördeki her şeyi yapabiliyor: altyazı rengi/boyutu/yazı tipi/konumu, yazı ekle-değiştir-sil, renk filtresi, efektler, zoom, geçiş, biçim, ad ve diğer tüm ayarlar",
   "Görev çubuğuna sabitleyince Python simgesi yerine B.E.K logosu çıkar ve doğrudan program açılır",
   "Masaüstü simgesi yeni logoya geçiyor (Windows simge önbelleği yenilenir)",
   "Düzeltme: FPS düşürme (ör. 30 → 24) artık çalışıyor",
