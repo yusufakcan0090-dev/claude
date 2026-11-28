@@ -155,27 +155,32 @@ def _frame_diffs(d, X, count):
     a = np.frombuffer(p.stdout, np.uint8)
     k = len(a) // 2304
     if k < 2:
-        return [1.0] * max(0, count - 1)
+        return [1.0] * max(0, count - 1), None
     a = a[:k * 2304].reshape(k, 2304).astype(np.float32) / 255
     df = np.abs(np.diff(a, axis=0)).mean(axis=1).tolist()
-    return (df + [1.0] * count)[:count - 1]
+    return (df + [1.0] * count)[:count - 1], a
 
 
 DUP, CUT_HARD, CUT_MIN = 0.0035, 0.30, 0.10
 
 
-def rife_plan(diffs, total, n, start, mult):
+def rife_plan(diffs, total, n, start, mult, small=None):
     """Hangi çıkış karesi nereden gelir.
     diffs[i]: kare i ile i+1 farkı. total: eldeki kare (n + ek). n: bu parçanın karesi. start: parçanın ilk karesi (genel).
     Dönen: (anchors, F, items). anchors: RIFE'a verilecek gerçek kare sırası; items: her çıkış için
     ("src", kare) ya da ("rife", sıra) — sıra RIFE çıkışındaki 1'den başlayan numara."""
     import math
     # tekrar eden kareler (animede 2'şer/3'er çizim) atlanır: hareket eşit hızda olur
+    # tekrar kontrolü son çapa kareye göre yapılır: yavaş zoom/kayma gibi küçük ama süren hareketler donmaz
+    def same(i, j):
+        if small is not None and i < len(small) and j < len(small):
+            return float(abs(small[i] - small[j]).mean()) < DUP
+        return all(diffs[k] < DUP for k in range(min(i, j), max(i, j)))
     anchors = [0]
     for i in range(1, total):
-        if diffs[i - 1] >= DUP:
-            if i - anchors[-1] > 3:  # uzun duruş: duruş korunur, hareket sonradan başlar
-                anchors.append(i - 1)
+        if not same(anchors[-1], i):
+            if i - anchors[-1] > 3:  # 2'şer/3'er çizim değil (duruş ya da çok yavaş hareket): her kare kullanılır
+                anchors.extend(range(anchors[-1] + 1, i))
             anchors.append(i)
     if total - 1 > anchors[-1]:
         anchors.append(total - 1)
@@ -190,7 +195,8 @@ def rife_plan(diffs, total, n, start, mult):
         near = [diffs[j] for j in range(max(0, i - 4), min(len(diffs), i + 3)) if j != i - 1]
         return d >= 3.5 * max(near or [0])
     cuts = [is_cut(anchors[j + 1]) for j in range(len(anchors) - 1)]
-    holds = [all(diffs[i] < DUP for i in range(anchors[j], anchors[j + 1])) for j in range(len(anchors) - 1)]  # aynı kare: RIFE'a gerek yok
+    # aynı kare çifti: sadece birebir aynıysa RIFE atlanır (yavaş hareket asla dondurulmaz)
+    holds = [anchors[j + 1] - anchors[j] == 1 and diffs[anchors[j]] < 0.0004 for j in range(len(anchors) - 1)]
     # tüm aralık boyları (1, 2, 3 kare) için ara kareler doğru zamana düşmeli; yoksa aynı kare iki kez çıkar (takılma)
     from fractions import Fraction
     gs = sorted({anchors[j + 1] - anchors[j] for j in range(len(anchors) - 1) if not holds[j] and not cuts[j] and anchors[j + 1] - anchors[j] <= 3}) or [1]
@@ -230,8 +236,8 @@ def rife_plan(diffs, total, n, start, mult):
 
 def _rife_chunk(job, tools, cur, work, X, QV, start, n, total, mult, height, sp, msg):
     """Bir parçanın karelerinden hedef FPS'e eşit aralıklı kareler üretir. Dönen: çıkış klasörü."""
-    diffs = _frame_diffs(cur, X, total)
-    anchors, F, items = rife_plan(diffs, total, n, start, mult)
+    diffs, small = _frame_diffs(cur, X, total)
+    anchors, F, items = rife_plan(diffs, total, n, start, mult, small)
     rin, rout, dout = work / "rin", work / "rout", work / "fps"
     for d in (rin, rout, dout):
         shutil.rmtree(d, ignore_errors=True)
