@@ -1500,3 +1500,12 @@ body.on-kalite .jobs-dock.only-kq{display:none}
 .mcard .rank{right:12px;top:auto;bottom:10px}
 .mc-adj{flex-wrap:nowrap}
 .mc-adj button{white-space:nowrap;flex:none;padding:3px 6px}
+
+/* kalite seçim düğmeleri: eşit satırlar, açıklama ikinci satırda */
+#page-kalite .kq-seg[style*="--c"]{display:flex;flex-wrap:wrap;gap:3px}
+#page-kalite .kq-seg[style*="--c"] button{flex:1 1 calc(100% / var(--c) - 3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:34px;padding:6px 4px;line-height:1.15;text-align:center;min-width:0}
+#page-kalite .kq-seg[style*="--c"] button b{font-weight:600;font-size:12px;max-width:100%;overflow-wrap:anywhere}
+#page-kalite .kq-seg[style*="--c"] button small{font-size:10px;color:#8b9099;line-height:1.2}
+#page-kalite .kq-seg[style*="--c"] button.on small{color:rgba(255,255,255,.82)}
+#page-kalite .kq-seg2 button{min-height:44px}
+#page-kalite .kq-h span{text-transform:none;letter-spacing:0;color:#666b73;font-weight:500;margin-left:4px}

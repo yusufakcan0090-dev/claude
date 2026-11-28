@@ -40,7 +40,13 @@
   $('#kqPick').onclick = async () => { try { const f = await KS.api('/api/pick_any', {}); if (f && f.path) { if (f.kind && f.kind !== 'video' && f.kind !== 'image') return KS.toast('Bir video ya da fotoğraf seç', 'err'); Q.load(f.path); } } catch (e) { KS.toast(KS.esc(e.message), 'err'); } };
 
   /* --- ayarlar --- */
-  const seg = (key, list, cur) => `<div class="seg kq-seg" data-k="${key}">${list.map(([v, n, tip]) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${tip ? `title="${tip}"` : ''}>${n}</button>`).join('')}</div>`;
+  // "Ad · açıklama" ya da "Ad (açıklama)": açıklama küçük ikinci satıra
+  const segLab = n => { const m = String(n).match(/^(.+?)\s*(?:·\s*(.+)|\((.+)\))$/); return m ? [m[1], m[2] || m[3]] : [String(n), '']; };
+  const seg = (key, list, cur) => {
+    const labs = list.map(x => segLab(x[1])), sub = labs.some(l => l[1]), n = list.length;
+    const cols = labs.every(l => l[0].length <= (sub ? 4 : 7)) ? Math.min(n, 6) : n <= 3 ? n : n === 4 ? 2 : 3;
+    return `<div class="seg kq-seg${sub ? ' kq-seg2' : ''}" data-k="${key}" style="--c:${cols}">${list.map(([v, , tip], i) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${tip ? `title="${tip}"` : ''}><b>${labs[i][0]}</b>${labs[i][1] ? `<small>${labs[i][1]}</small>` : ''}</button>`).join('')}</div>`;
+  };
   const sl = (key, label, min, max, cur, hint) => `<div class="kq-sl"><div><span>${label}</span><b id="kqv_${key}">${cur}</b></div><input type="range" min="${min}" max="${max}" value="${cur}" data-r="${key}">${hint ? `<small>${hint}</small>` : ''}</div>`;
   const DEF = { model: 'hizli', olcek: 2, hedef: 'x2', keskin: 65, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
     yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 30, kayipsiz: false, ai_guc: 100, detay: 35, yumusat: 25, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
@@ -98,7 +104,7 @@
   const boyutHtml = (o, img) => {
     const d = outDims(o), k = d && Q.src ? Math.max(d[0] / Q.src.width, d[1] / Q.src.height) : 0;
     const tile = ([v, n, sub]) => `<button data-v="${v}" class="${String(o.hedef) === v ? 'on' : ''}"><b>${n}</b>${sub ? `<small>${sub}</small>` : ''}</button>`;
-    return `<div class="kq-h">Kaç kat büyüsün?</div><div class="seg kq-seg kq-ups" data-k="hedef">${UPS.map(tile).join('')}</div>
+    return `<div class="kq-h">Kaç kat büyüsün?</div><div class="seg kq-seg kq-ups kq-seg2" data-k="hedef" style="--c:5">${UPS.map(tile).join('')}</div>
       ${o.hedef === 'ozel' ? `<div class="kq-nums"><label class="kq-num"><span>Genişlik</span><input type="number" class="inp" data-n="ozel_w" min="64" max="16384" placeholder="otomatik" value="${o.ozel_w || ''}"></label><b>×</b><label class="kq-num"><span>Yükseklik</span><input type="number" class="inp" data-n="ozel_h" min="64" max="16384" placeholder="otomatik" value="${o.ozel_h || ''}"></label></div><small class="kq-note">Birini boş bırakırsan oran korunur (ör. genişlik 2560, yükseklik boş).</small>` : ''}
       ${d ? `<div class="kq-outd"><span>${Q.src.width}×${Q.src.height}</span><i>→</i><b>${d[0]}×${d[1]}</b><em>${kName(d)}${k > 1.01 ? ' · ' + k.toFixed(1).replace('.', ',') + ' kat büyütme' : k < 0.99 ? ' · küçültme' : ' · aynı boyut'}</em></div>` : ''}
       ${o.bicim && o.bicim !== 'kaynak' ? `<small class="kq-note">Biçim ${o.bicim.slice(0, -1)} seçili: çözünürlük o şekle göre ayarlanır.</small>` : ''}
@@ -146,8 +152,8 @@
           ${o.bas || o.bit ? '<button class="btn ghost sm" data-set="tum">Tüm videoyu işle</button>' : ''}</div>
         <div class="kq-h">Ses</div>${chk('ses', 'Sesi koru')}${o.ses ? chk('ses_temizle', 'Sesteki uğultu ve cızırtıyı temizle') + chk('ses_dengele', 'Ses seviyesini dengele / yükselt') : ''}`)}
       ${grp('uzman', 'Serbest ayar (uzman)', `<small class="kq-note">İnce ayarlar. Bilmiyorsan dokunma, otomatik zaten iyisini seçer.</small>
-        <div class="kq-h">Anime motoru (Anime modeli seçiliyken)</div>${seg('anime_motor', [['', 'Otomatik'], ['hfa2k', 'HFA2k · çok keskin']], o.anime_motor || '')}
-        <div class="kq-h">Gerçek görüntü motoru (Gerçek görüntü modeli seçiliyken)</div>${seg('gercek_motor', [['', 'UltraSharp'], ['nomos', 'Nomos8k · en doğal'], ['siax', 'Siax · eski video onarır'], ['lsdir', 'LSDIR+ · temiz']], o.gercek_motor || '')}
+        <div class="kq-h">Anime motoru <span>Anime modelinde</span></div>${seg('anime_motor', [['', 'Otomatik'], ['hfa2k', 'HFA2k · çok keskin']], o.anime_motor || '')}
+        <div class="kq-h">Gerçek görüntü motoru <span>Gerçek görüntü modelinde</span></div>${seg('gercek_motor', [['', 'UltraSharp'], ['nomos', 'Nomos8k · en doğal'], ['siax', 'Siax · eski video onarır'], ['lsdir', 'LSDIR+ · temiz']], o.gercek_motor || '')}
         <small class="kq-note">Önizlemede dene, en iyi görüneni seç. Her biri ilk kullanımda bir kere iner (33-67 MB).</small>
         ${img ? '' : chk('crf_ozel', 'Sıkıştırmayı kendim seçeyim (CRF)')}${!img && o.crf_ozel ? sl('crf', 'CRF: düşük = daha kaliteli, büyük dosya (0 = kayıpsız)', 0, 40, o.crf) : ''}
         ${img ? '' : `<div class="kq-h">Kodlama hızı</div>${seg('enc_hiz', [['', 'Otomatik'], ['hizli', 'Hızlı'], ['orta', 'Orta'], ['yavas', 'Yavaş (daha iyi)'], ['cok_yavas', 'Çok yavaş (en iyi)']], o.enc_hiz)}`}

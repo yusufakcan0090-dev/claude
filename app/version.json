@@ -1,7 +1,8 @@
 {
- "version": "1.13.10",
+ "version": "1.13.11",
  "date": "2026-11-28",
  "notes": [
+  "Kalite ayar düğmeleri yeni düzende: eşit satırlar, açıklamalar küçük ikinci satırda, yazılar kırılmıyor",
   "Kalan süre artık sürekli artmıyor: ilk parça bitince parça sürelerinden hesaplanıp düzgün geri sayıyor",
   "Donanım koruması: Ekran kartı kullanım sınırı (%50–100) ayarlanabiliyor",
   "Yarım kalan işe devam edince video ve ayarları Kalite sayfasında görünüyor (önizleme boş kalmıyor)",
