@@ -31,6 +31,11 @@ TOOLS = {
                 else "https://github.com/nihui/realcugan-ncnn-vulkan/releases/download/20220728/realcugan-ncnn-vulkan-20220728-ubuntu.zip"),
         "exe": "realcugan-ncnn-vulkan" + EXE,
     },
+    "waifu2x": {  # anime/manga resimleri için: çizgileri kalınlaştırmaz, gri tonları ve taramaları korur
+        "url": ("https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-windows.zip" if IS_WIN
+                else "https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-ubuntu.zip"),
+        "exe": "waifu2x-ncnn-vulkan" + EXE,
+    },
     "rife": {
         "url": ("https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-windows.zip" if IS_WIN
                 else "https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-ubuntu.zip"),
@@ -68,6 +73,8 @@ def ai_tool(o):
     """Seçilen modele göre (araç adı, model, ölçek)."""
     k = float(o.get("_k") or 2)  # gereken büyütme (çıkış / kaynak)
     if o.get("model") == "anime_pro":
+        if o.get("_img"):  # fotoğraf/resim: Waifu2x CUnet (en detaylı, taramaları ve gri tonları korur)
+            return "waifu2x", "models-cunet", 2 if k <= 2.05 else 4
         return "realcugan", "models-pro", 2 if k <= 2.05 else 3
     name, sc = MODELS.get(o.get("model"), MODELS["hizli"])
     if o.get("model") == "hizli":
@@ -87,6 +94,13 @@ def ai_cmd(o, inp, out, fmt=None):
         # models-pro: 0 = gürültü giderme yok (en keskin), -1 = korumacı, 3 = güçlü gürültü giderme
         noise = 0 if g < 15 else -1 if g < 55 else 3
         cmd = [str(exe), "-i", str(inp), "-o", str(out), "-n", str(noise), "-s", str(sc), "-m", model]
+    elif tool == "waifu2x":
+        g = int(o.get("gurultu") or 0)
+        # -1 = gürültü temizleme yok (taramalar korunur), 0/1/2 = hafif/orta/güçlü
+        noise = -1 if g < 20 else 0 if g < 45 else 1 if g < 75 else 2
+        cmd = [str(exe), "-i", str(inp), "-o", str(out), "-n", str(noise), "-s", str(sc), "-m", str(exe.parent / model)]
+        if o.get("_final"):
+            cmd += ["-x"]  # son kayıtta TTA: 8 yönlü işleyip birleştirir, daha temiz (biraz yavaş)
     else:
         cmd = [str(exe), "-i", str(inp), "-o", str(out), "-n", model, "-s", str(sc)]
     if fmt:
@@ -327,6 +341,8 @@ def target_size(w, h, hedef, o=None):
 
 def pre_filters(o):
     f = []
+    if o.get("_img") and o.get("model") == "anime_pro" and o.get("model") != "klasik":
+        return f  # Waifu2x JPEG gürültüsünü kendisi temizler; ek filtre taramaları ve gri tonları siler
     if o.get("blok"):
         f.append("deblock=filter=strong:block=8")
     g = int(o.get("gurultu") or 0)
@@ -338,13 +354,13 @@ def pre_filters(o):
     return f
 
 
-def sharpen(k):
+def sharpen(k, pix="yuv420p"):
     """Keskinlik (0-100): kenar maskeli, iki ölçekli keskinleştirme.
     Sadece çizgi ve kenarlar keskinleşir; düz yerlerde gürültü ve kumlanma büyümez, renklerde hale oluşmaz."""
     s = max(0, min(100, int(k))) / 100
     f = [f"cas=strength={0.25 + 0.65 * s:.2f}"]  # genel, uyarlanabilir netlik
     big, small = 0.4 + 2.6 * s, 0.2 + 1.3 * s   # orta kalınlıkta çizgiler + ince detay (sadece parlaklık kanalı)
-    f.append("format=yuv420p,split[ks0][ks1];[ks1]split[ks2][ks3];"
+    f.append(f"format={pix},split[ks0][ks1];[ks1]split[ks2][ks3];"
              f"[ks2]unsharp=7:7:{big:.2f}:3:3:0,unsharp=3:3:{small:.2f}:3:3:0[ksh];"
              f"[ks3]sobel=planes=1:scale={1.5 + 3.5 * s:.2f},gblur=sigma=1.2:planes=1[ksm];"
              "[ks0][ksh][ksm]maskedmerge=planes=1")
@@ -385,7 +401,7 @@ def post_filters(o, W, H):
         f.append(f"unsharp=13:13:{dt / 100 * 0.9:.2f}:13:13:0")
     k = int(o.get("keskin") or 0)
     if k > 0:
-        f += sharpen(k)
+        f += sharpen(k, "yuv444p" if o.get("_img") else "yuv420p")
     if ss > 1:
         f.append(f"scale={W}:{H}:flags=lanczos+accurate_rnd+full_chroma_int,setsar=1")
     f += deflicker(o)
@@ -471,6 +487,7 @@ def preview(path, t, opts, final=None):
     before, after = d / "once.jpg", d / "sonra.jpg"
     MW, MH = target_size(info["width"], info["height"], o["hedef"], o)
     o["_k"] = max(MW / max(1, info["width"]), MH / max(1, info["height"]))
+    o["_img"], o["_final"] = is_image(path), bool(final)
     if after.exists() and not final:
         return key, W, H, bool(o["model"] != "klasik" and _AI_OK)
     d.mkdir(parents=True, exist_ok=True)
@@ -490,7 +507,13 @@ def preview(path, t, opts, final=None):
         if ai_tool(o)[0] != "realesrgan":
             ensure_tool(ai_tool(o)[0])
         cmd, cwd = ai_cmd(o, pre, up)
-        run(cmd, cwd=cwd, timeout=300)
+        r = run(cmd, cwd=cwd, timeout=1200 if final else 300)
+        if not up.exists() and ai_tool(o)[0] == "waifu2x":  # bu ekran kartında Waifu2x çalışmadıysa Real-CUGAN ile dene
+            print("[kalite] waifu2x çalışmadı, Real-CUGAN deneniyor:", (r.stderr or r.stdout or "")[-300:], file=sys.stderr, flush=True)
+            o2 = dict(o, _img=False)
+            ensure_tool("realcugan")
+            cmd, cwd = ai_cmd(o2, pre, up)
+            run(cmd, cwd=cwd, timeout=600)
         if up.exists():
             src, used_ai = up, True
     if o.get("yuz"):
@@ -528,6 +551,7 @@ def preview(path, t, opts, final=None):
 def process_image(job, path, opts):
     """Fotoğraf kalitesini artırır ve çıktı klasörüne kaydeder."""
     o = settings(opts)
+    o["_img"] = True
     path = Path(path)
     job.set(0.05, "Hazırlanıyor...")
     if o["model"] != "klasik":

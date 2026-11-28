@@ -1,7 +1,9 @@
 {
- "version": "1.13.0",
+ "version": "1.13.1",
  "date": "2026-11-27",
  "notes": [
+  "Fotoğraflarda Anime modeli artık Waifu2x (CUnet) kullanıyor: çizgiler kalınlaşmaz, gri tonlar ve taramalar korunur",
+  "Fotoğraflarda renk çözünürlüğü korunuyor, gereksiz ön filtreler kaldırıldı; Waifu2x çalışmazsa kendiliğinden eski modele geçer",
   "Asistan artık editördeki her şeyi yapabiliyor: altyazı rengi/boyutu/yazı tipi/konumu, yazı ekle-değiştir-sil, renk filtresi, efektler, zoom, geçiş, biçim, ad ve diğer tüm ayarlar",
   "Görev çubuğuna sabitleyince Python simgesi yerine B.E.K logosu çıkar ve doğrudan program açılır",
   "Masaüstü simgesi yeni logoya geçiyor (Windows simge önbelleği yenilenir)",
