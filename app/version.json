@@ -1,7 +1,8 @@
 {
- "version": "1.13.9",
+ "version": "1.13.10",
  "date": "2026-11-28",
  "notes": [
+  "Kalan süre artık sürekli artmıyor: ilk parça bitince parça sürelerinden hesaplanıp düzgün geri sayıyor",
   "Donanım koruması: Ekran kartı kullanım sınırı (%50–100) ayarlanabiliyor",
   "Yarım kalan işe devam edince video ve ayarları Kalite sayfasında görünüyor (önizleme boş kalmıyor)",
   "FPS artırma iyileşti: yeni RIFE v4.25 modeli (daha net ara kareler)",

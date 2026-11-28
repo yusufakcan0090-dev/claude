@@ -907,6 +907,8 @@ def process(job, path, opts, resume=None):
     job.extra = {"t0": t_start, "path": str(path), **({"resume": resume} if resume else {})}
     _set = job.set
     base = {"p": None, "t": None}
+    # parça süreleri: kalan süre bunlardan hesaplanır (bir aşama uzun sürünce süre artmaz, geri sayar)
+    pc = {"n": 0, "t0": None, "cur": None, "left": None}
     ok = False
 
     def set_eta(p=None, msg=None):
@@ -916,7 +918,12 @@ def process(job, path, opts, resume=None):
             job.extra["asama"] = msg
         if base["p"] is None and p >= 0.09:
             base["p"], base["t"] = p, job.active_time(t_start)
-        if base["p"] is not None and p - base["p"] > 0.004:
+        if pc["n"] and pc["cur"] is not None:
+            now_a = job.active_time(t_start)
+            per = (pc["last"] - pc["t0"]) / pc["n"]
+            job.extra["eta"] = max(per * 0.03, per * pc["left"] - (now_a - pc["cur"]) + 5)
+            job.eta_at = time.time()
+        elif base["p"] is not None and p - base["p"] > 0.004:
             el = job.active_time(t_start) - base["t"]
             rate = (p - base["p"]) / max(el, 0.1)
             rem = (1 - p) / max(rate, 1e-6)
@@ -969,6 +976,9 @@ def process(job, path, opts, resume=None):
                 segs.append(seg)
                 _set(hi, f"Parça {ci + 1}/{len(chunks)} önceden bitmişti")
                 continue
+            pc["cur"] = job.active_time(t_start)
+            pc["t0"] = pc["t0"] if pc["t0"] is not None else pc["cur"]
+            pc["left"] = sum(1 for c in range(ci, len(chunks)) if c not in done)
             span = lambda x, y: (lo + (hi - lo) * x, lo + (hi - lo) * y)  # noqa: E731
             label = f"Parça {ci + 1}/{len(chunks)}"
             job.extra["parca"] = f"{ci + 1} / {len(chunks)}"
@@ -1014,6 +1024,8 @@ def process(job, path, opts, resume=None):
                  *([] if use_rife else ["-r", f"{tfps:g}"]), *enc, str(seg)], job)
             segs.append(seg)
             done.add(ci)
+            pc["n"] += 1
+            pc["last"] = job.active_time(t_start)
             save_state(hi)
             for d in (d_in, d_up, d_mid, d_fps, work / "rin", work / "rout"):
                 shutil.rmtree(d, ignore_errors=True)
