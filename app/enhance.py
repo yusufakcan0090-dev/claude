@@ -191,11 +191,17 @@ def rife_plan(diffs, total, n, start, mult):
         return d >= 3.5 * max(near or [0])
     cuts = [is_cut(anchors[j + 1]) for j in range(len(anchors) - 1)]
     holds = [all(diffs[i] < DUP for i in range(anchors[j], anchors[j + 1])) for j in range(len(anchors) - 1)]  # aynı kare: RIFE'a gerek yok
-    gaps = sorted(anchors[j + 1] - anchors[j] for j in range(len(anchors) - 1)) or [1]
-    x = mult * gaps[len(gaps) // 2]  # bir aralıktaki çıkış sayısı
-    F = 8
-    for c in range(max(2, math.ceil(x - 1e-6)), 9):
-        if max(abs(k * c / x - round(k * c / x)) for k in range(1, 25)) < 0.06:
+    # tüm aralık boyları (1, 2, 3 kare) için ara kareler doğru zamana düşmeli; yoksa aynı kare iki kez çıkar (takılma)
+    from fractions import Fraction
+    gs = sorted({anchors[j + 1] - anchors[j] for j in range(len(anchors) - 1) if not holds[j] and not cuts[j] and anchors[j + 1] - anchors[j] <= 3}) or [1]
+    p = Fraction(mult).limit_denominator(100).numerator  # çıkış kareleri kaynakta 1/p adımlarla düşer
+
+    def err(c, g):  # en kötü zaman hatası, çıkış karesi cinsinden
+        n = p * g
+        return max(abs(m * c / n - math.floor(m * c / n + .5)) for m in range(min(n, 400))) * g * mult / c
+    F = 16
+    for c in range(max(2, math.ceil(mult * min(gs) - 1e-6)), 17):
+        if all(err(c, g) < .25 for g in gs):
             F = c
             break
     items = []
@@ -210,7 +216,7 @@ def rife_plan(diffs, total, n, start, mult):
             continue
         pa, pb = anchors[j], anchors[j + 1]
         u = max(0.0, min(1.0, (s - pa) / (pb - pa)))
-        q = int(round(u * F))
+        q = int(math.floor(u * F + .5))
         if q == 0 or holds[j]:
             items.append(("src", pa))
         elif q == F:

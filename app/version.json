@@ -1,7 +1,8 @@
 {
- "version": "1.13.12",
+ "version": "1.13.13",
  "date": "2026-11-28",
  "notes": [
+  "FPS artırma: tekrar eden kare içeren videolarda (ör. 24→30 çevrilmiş anime) bazı karelerin iki kez çıkıp hareketi takılttığı hata düzeldi",
   "Kalite: işlem durumu (yüzde, kalan süre, duraklat/iptal) önizlemenin altında yatay; ayarlar paneline daha çok yer kaldı",
   "Kalite ayar düğmeleri yeni düzende: eşit satırlar, açıklamalar küçük ikinci satırda, yazılar kırılmıyor",
   "Kalan süre artık sürekli artmıyor: ilk parça bitince parça sürelerinden hesaplanıp düzgün geri sayıyor",
