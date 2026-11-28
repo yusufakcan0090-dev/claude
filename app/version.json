@@ -1,7 +1,8 @@
 {
- "version": "1.13.3",
+ "version": "1.13.4",
  "date": "2026-11-27",
  "notes": [
+  "Serbest ayar: Anime motoru (Otomatik / HFA2k) ve Gerçek görüntü motoru (UltraSharp / Nomos8k / Siax / LSDIR+) seçilebiliyor",
   "Anime modeli: çizgiler koyulaşıp belirginleşiyor, renkler canlanıp derinleşiyor, netlik güçlendi (süper örnekleme hep açık): fark gözle görülür",
   "Yeni varsayılan ayarlar: süper örnekleme açık, keskinlik 65, detay 35, gürültü 25, kenar yumuşatma 25, titreme 30",
   "Dışa aktarma daha hızlı: video ekran kartında çözülüyor (olmazsa işlemciye geçer), bulanık arka plan ve parlama efekti çok daha hızlı; kalite ve FPS aynı",

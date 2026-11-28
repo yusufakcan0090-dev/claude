@@ -45,7 +45,7 @@
   const DEF = { model: 'hizli', olcek: 2, hedef: 'x2', keskin: 65, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
     yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 30, kayipsiz: false, ai_guc: 100, detay: 35, yumusat: 25, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
     kalite: 'yuksek', codec: 'h264', bicim: 'kaynak', bas: 0, bit: 0, ses: true, ses_temizle: false, ses_dengele: false,
-    supersample: true, ozel_w: 1920, ozel_h: 0, ozel_fps: 60, crf_ozel: false, crf: 16, enc_hiz: '', ses_kbps: 192, tile: 0, bit10: false };
+    supersample: true, ozel_w: 1920, ozel_h: 0, ozel_fps: 60, crf_ozel: false, crf: 16, enc_hiz: '', ses_kbps: 192, tile: 0, bit10: false, anime_motor: '', gercek_motor: '' };
   Q.DEF = DEF;
   const NOPV = new Set(['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10', 'ozel_fps', 'titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;
@@ -55,7 +55,7 @@
     net: ['supersample', 'keskin', 'detay', 'gurultu', 'yumusat', 'titreme', 'blok', 'bant'],
     renk: ['oto_renk', 'parlak', 'kontrast', 'doygun', 'sicaklik', 'gamma', 'golge', 'parlak_alan', 'vinyet', 'gren'],
     fps: ['fps', 'fps_ai', 'ozel_fps'], cikti: ['kalite', 'kayipsiz', 'codec', 'ses', 'ses_temizle', 'ses_dengele', 'foto_bicim'],
-    uzman: ['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10'] };
+    uzman: ['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10', 'anime_motor', 'gercek_motor'] };
   const changed = id => id === 'koruma' ? !!(Q.kor && (Q.kor.mod !== 'dengeli' || Q.kor.gpu_limit !== 80)) : (GKEYS[id] || []).some(k => Q.opts && DEF[k] !== undefined && String(Q.opts[k]) !== String(DEF[k]));
   const grp = (id, title, body) => `<details class="kq-g" data-g="${id}" ${Q.open[id] ? 'open' : ''}><summary><span class="kq-gi">${(typeof ICON !== 'undefined' && ICON[id]) || '•'}</span>${title}${GKEYS[id] || id === 'koruma' ? `<button class="kq-reset ${changed(id) ? '' : 'off'}" data-reset="${id}" title="Bu bölümü varsayılana döndür">↺ Sıfırla</button>` : ''}<span class="kq-chev"></span></summary><div class="kq-gb">${body}</div></details>`;
 
@@ -144,7 +144,10 @@
           <div><span>Bitiş</span><b>${o.bit > o.bas ? fmt(o.bit) : 'Sonuna kadar'}</b><button class="btn ghost sm" data-set="bit">Şu anki kare</button></div>
           ${o.bas || o.bit ? '<button class="btn ghost sm" data-set="tum">Tüm videoyu işle</button>' : ''}</div>
         <div class="kq-h">Ses</div>${chk('ses', 'Sesi koru')}${o.ses ? chk('ses_temizle', 'Sesteki uğultu ve cızırtıyı temizle') + chk('ses_dengele', 'Ses seviyesini dengele / yükselt') : ''}`)}
-      ${grp('uzman', 'Serbest ayar (uzman)', `<small class="kq-note">Hazır ayarların üstüne istediğini değiştir. Bilmiyorsan dokunma, otomatik zaten en iyisini seçer.</small>
+      ${grp('uzman', 'Serbest ayar (uzman)', `<small class="kq-note">İnce ayarlar. Bilmiyorsan dokunma, otomatik zaten iyisini seçer.</small>
+        <div class="kq-h">Anime motoru (Anime modeli seçiliyken)</div>${seg('anime_motor', [['', 'Otomatik'], ['hfa2k', 'HFA2k · çok keskin']], o.anime_motor || '')}
+        <div class="kq-h">Gerçek görüntü motoru (Gerçek görüntü modeli seçiliyken)</div>${seg('gercek_motor', [['', 'UltraSharp'], ['nomos', 'Nomos8k · en doğal'], ['siax', 'Siax · eski video onarır'], ['lsdir', 'LSDIR+ · temiz']], o.gercek_motor || '')}
+        <small class="kq-note">Önizlemede dene, en iyi görüneni seç. Her biri ilk kullanımda bir kere iner (33-67 MB).</small>
         ${img ? '' : chk('crf_ozel', 'Sıkıştırmayı kendim seçeyim (CRF)')}${!img && o.crf_ozel ? sl('crf', 'CRF: düşük = daha kaliteli, büyük dosya (0 = kayıpsız)', 0, 40, o.crf) : ''}
         ${img ? '' : `<div class="kq-h">Kodlama hızı</div>${seg('enc_hiz', [['', 'Otomatik'], ['hizli', 'Hızlı'], ['orta', 'Orta'], ['yavas', 'Yavaş (daha iyi)'], ['cok_yavas', 'Çok yavaş (en iyi)']], o.enc_hiz)}`}
         ${!img && o.codec === 'h265' ? chk('bit10', '10-bit renk (renk geçişleri daha pürüzsüz)') : ''}

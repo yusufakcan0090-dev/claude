@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.13.3** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.4** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -46,7 +46,7 @@ Kick/YouTube yayınlarından ve videolardan kesit (klip) çıkaran, düzenleyen 
 - **Renk:** otomatik renk, parlaklık, kontrast, canlılık, sıcaklık, gamma, gölge/parlak alan, vinyet, gren
 - **FPS:** 30/60/90/120/Özel, RIFE yapay zekâ ara kare; düşürme de çalışır
 - **Çıktı:** kalite (Üst düzey = x265 10-bit / x264 düşük CRF), kayıpsız ara kareler, H.264/H.265, ses temizleme/dengeleme
-- **Serbest ayar:** CRF, kodlama hızı, 10-bit, ses kbps, yapay zekâ parça boyutu
+- **Serbest ayar:** Anime motoru (Otomatik/HFA2k), Gerçek görüntü motoru (UltraSharp/Nomos8k/Siax/LSDIR+), CRF, kodlama hızı, 10-bit, ses kbps, yapay zekâ parça boyutu
 - **⭐ Benim ayarlarım:** ayarları isimle kaydet, tek tıkla uygula. Hazır ayarlar kaldırıldı
 - Her bölümde **↺ Sıfırla**
 - Önce/sonra önizleme, yakınlaştırma (yumuşak; "▦ Piksel" ile piksel görünümü), fotoğrafta fırça ile nesne silme
@@ -198,7 +198,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.3.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.4.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.

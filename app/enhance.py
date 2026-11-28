@@ -52,8 +52,13 @@ MODELS = {
     "dogal": ("remacri-4x", 4),                  # Remacri: keskin ama doğal doku
     "hifi": ("high-fidelity-4x", 4),             # aslına en sadık
 }
-EXTRA_MODELS = {"ultrasharp-4x", "remacri-4x", "high-fidelity-4x"}
+EXTRA_MODELS = {"ultrasharp-4x", "remacri-4x", "high-fidelity-4x", "4xHFA2k", "4xNomos8kSC", "4x_NMKD-Siax_200k", "4xLSDIRplusC"}
 EXTRA_URL = "https://raw.githubusercontent.com/upscayl/upscayl/main/resources/models/{}"
+CUSTOM_URL = "https://raw.githubusercontent.com/upscayl/custom-models/main/models/{}"
+CUSTOM_MODELS = {"4xHFA2k", "4xNomos8kSC", "4x_NMKD-Siax_200k", "4xLSDIRplusC"}
+# serbest ayar: motor seçimi (boş = otomatik)
+ANIME_MOTOR = {"hfa2k": "4xHFA2k"}
+GERCEK_MOTOR = {"nomos": "4xNomos8kSC", "siax": "4x_NMKD-Siax_200k", "lsdir": "4xLSDIRplusC"}
 
 
 def ensure_model(name, job=None, lo=0.0, hi=0.05):
@@ -66,12 +71,16 @@ def ensure_model(name, job=None, lo=0.0, hi=0.05):
     for ext in ("param", "bin"):
         f = md / f"{name}.{ext}"
         if not f.exists() or f.stat().st_size < 1000:
-            _download(EXTRA_URL.format(f"{name}.{ext}"), f, job, lo, hi, f"Yapay zekâ modeli indiriliyor ({name})")
+            _download((CUSTOM_URL if name in CUSTOM_MODELS else EXTRA_URL).format(f"{name}.{ext}"), f, job, lo, hi, f"Yapay zekâ modeli indiriliyor ({name})")
 
 
 def ai_tool(o):
     """Seçilen modele göre (araç adı, model, ölçek)."""
     k = float(o.get("_k") or 2)  # gereken büyütme (çıkış / kaynak)
+    if o.get("model") == "anime_pro" and ANIME_MOTOR.get(o.get("anime_motor") or ""):
+        return "realesrgan", ANIME_MOTOR[o["anime_motor"]], 4
+    if o.get("model") == "ultra" and GERCEK_MOTOR.get(o.get("gercek_motor") or ""):
+        return "realesrgan", GERCEK_MOTOR[o["gercek_motor"]], 4
     if o.get("model") == "anime_pro":
         if o.get("_img"):  # fotoğraf/resim: Waifu2x CUnet (en detaylı, taramaları ve gri tonları korur)
             return "waifu2x", "models-cunet", 2 if k <= 2.05 else 4
@@ -124,7 +133,7 @@ DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "x2", "keskin": 65, "gurultu":
            # çıktı ve ses
            "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True,
            # serbest ayar
-           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False, "supersample": True}
+           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False, "supersample": True, "anime_motor": "", "gercek_motor": ""}
 FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
              "codeformer": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
