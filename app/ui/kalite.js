@@ -73,6 +73,7 @@
     return `<div class="seg kq-kor">${KMODES.map(([v, n]) => `<button data-kor="${v}" class="${mod === v ? 'on' : ''}">${n}</button>`).join('')}</div>
       <small class="kq-note">${d[2]}</small>
       <div class="kq-sl"><div><span>Ekran kartı sıcaklık sınırı</span><b id="kqKorV">${k.gpu_limit || 80}°C</b></div><input type="range" min="60" max="90" value="${k.gpu_limit || 80}" id="kqKorLim"></div>
+      <div class="kq-sl"><div><span>Ekran kartı kullanım sınırı</span><b id="kqUseV">%${k.gpu_kullanim || 100}</b></div><input type="range" min="50" max="100" step="5" value="${k.gpu_kullanim || 100}" id="kqUse"></div>
       <div class="kq-kor-live" id="kqKorLive">${t || 'Sıcaklık okunamıyor (NVIDIA olmayan kartlarda). Yine de düşük öncelik ve molalar çalışır.'}</div>
       <small class="kq-note">İşler bilgisayarı yormayacak şekilde düşük öncelikte çalışır. Sınır aşılırsa iş kendiliğinden durur, soğuyunca kaldığı yerden devam eder. (Ekran kartları ve işlemciler kendini de korur; bu ek bir güvenlik.)</small>`;
   };
@@ -168,6 +169,7 @@
     $$('[data-n]', el).forEach(i => { i.addEventListener('keydown', e => e.stopPropagation()); i.onchange = () => { const v = parseInt(i.value); Q.opts[i.dataset.n] = isNaN(v) ? 0 : Math.max(+i.min, Math.min(+i.max, v)); if (!NOPV.has(i.dataset.n)) Q.previewSoon(); Q.renderSide(); }; });
     $$('[data-kor]', el).forEach(b => b.onclick = async () => { const m = b.dataset.kor; await korSave({ mod: m, gpu_limit: { sessiz: 72, dengeli: 80, tam: 86 }[m] }); Q.renderSide(); });
     const kl = $('#kqKorLim', el); if (kl) { KS.paintRange(kl); kl.oninput = () => { $('#kqKorV').textContent = kl.value + '°C'; KS.paintRange(kl); }; kl.onchange = () => korSave({ gpu_limit: +kl.value }); }
+    const ku = $('#kqUse', el); if (ku) { KS.paintRange(ku); ku.oninput = () => { $('#kqUseV').textContent = '%' + ku.value; KS.paintRange(ku); }; ku.onchange = () => korSave({ gpu_kullanim: +ku.value }); }
     $$('[data-mine]', el).forEach(b => b.onclick = async e => {
       const i = +b.dataset.mine;
       if (e.target.dataset.mdel != null) { if (!confirm('"' + mine()[i].ad + '" silinsin mi?')) return; const l = mine().slice(); l.splice(i, 1); await saveMine(l); return Q.renderSide(); }

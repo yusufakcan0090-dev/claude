@@ -248,6 +248,41 @@ def _lower(p):
         pass
 
 
+def gpu_use():
+    """Ekran kartı kullanım sınırı (%50-100)."""
+    try:
+        return max(50, min(100, int((load_settings().get("koruma") or {}).get("gpu_kullanim") or 100)))
+    except (TypeError, ValueError):
+        return 100
+
+
+def _throttle():
+    """Kullanım sınırı: ağır işin alt süreçleri her saniyenin bir kısmında kısa süre dondurulur."""
+    from core import proc_pause
+    use, t_cfg = 100, 0
+    while True:
+        try:
+            if time.time() - t_cfg > 3:
+                use, t_cfg = gpu_use(), time.time()
+            if use >= 100:
+                time.sleep(1)
+                continue
+            procs = [p for j in _heavy_jobs() if not j.paused for p in list(j.procs) if p.poll() is None]
+            if not procs:
+                time.sleep(0.5)
+                continue
+            time.sleep(use / 100)
+            for p in procs:
+                proc_pause(p, True)
+            try:
+                time.sleep(1 - use / 100)
+            finally:
+                for p in procs:  # Windows'ta dondurma sayılır: kullanıcı/koruma dondurduysa donuk kalır
+                    proc_pause(p, False)
+        except Exception:
+            time.sleep(1)
+
+
 def start():
     global _started
     with _lock:
@@ -255,6 +290,7 @@ def start():
             return
         _started = True
     threading.Thread(target=_loop, daemon=True, name="koruma").start()
+    threading.Thread(target=_throttle, daemon=True, name="kullanim").start()
 
 
 def status():
@@ -262,4 +298,4 @@ def status():
     c = cfg()
     return {"mod": c["mod"], "gpu_limit": c["gpu"], "cpu_limit": c["cpu"], "gpu_ad": STATE["gpu_ad"], "gpu_temp": STATE["gpu_temp"],
             "gpu_util": STATE["gpu_util"], "cpu_temp": STATE["cpu_temp"], "soguma": STATE["soguma"], "dinlenme": STATE["dinlenme"], "okuma": STATE["son"],
-            "sensor": bool(_smi()) or bool(_cpu_ok)}
+            "sensor": bool(_smi()) or bool(_cpu_ok), "gpu_kullanim": gpu_use()}
