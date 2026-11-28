@@ -113,18 +113,18 @@ def ai_cmd(o, inp, out, fmt=None):
     if j:
         cmd += ["-j", j]
     return cmd, str(exe.parent)
-DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "x2", "keskin": 45, "gurultu": 25, "blok": True,
+DEFAULT = {"model": "hizli", "olcek": 2, "hedef": "x2", "keskin": 65, "gurultu": 25, "blok": True,
            "parlak": 0, "kontrast": 0, "doygun": 0, "fps": "kaynak", "fps_ai": True,
            # yüz
            "yuz": False, "yuz_guc": 70, "yuz_model": "gfpgan",
            # gelişmiş netlik
-           "ai_guc": 100, "detay": 0, "yumusat": 0, "bant": False, "titreme": 0, "kayipsiz": False,
+           "ai_guc": 100, "detay": 35, "yumusat": 25, "bant": False, "titreme": 30, "kayipsiz": False,
            # renk ve görüntü
            "sicaklik": 0, "golge": 0, "parlak_alan": 0, "gamma": 0, "vinyet": 0, "gren": 0, "oto_renk": False,
            # çıktı ve ses
            "kalite": "yuksek", "codec": "h264", "foto_bicim": "png", "bicim": "kaynak", "bas": 0, "bit": 0, "ses_temizle": False, "ses_dengele": False, "ses": True,
            # serbest ayar
-           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False, "supersample": False}
+           "ozel_w": 1920, "ozel_h": 0, "ozel_fps": 60, "crf_ozel": False, "crf": 16, "enc_hiz": "", "ses_kbps": 192, "tile": 0, "bit10": False, "supersample": True}
 FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPGANv1.4.onnx",
              "codeformer": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
@@ -381,7 +381,8 @@ def post_filters(o, W, H):
     # süper örnekleme: netleştirme hedefin 2 katı boyutta yapılır, sonra kaliteli küçültülür.
     # çizgiler pürüzsüz kalır (testere dişi / basamak olmaz), ince çizgiler kopmaz.
     ss = 1.0
-    if o.get("supersample"):
+    anime = o.get("model") == "anime_pro"
+    if o.get("supersample") or anime:  # Anime modelinde hep açık: güçlü netlikte hale ve basamak olmasın
         ss = min(2.0, 8192 / max(W, H), (3840 * 2160 * 2 / max(1, W * H)) ** 0.5)
         if ss < 1.25:
             ss = 1.0
@@ -400,11 +401,22 @@ def post_filters(o, W, H):
     if dt > 0:  # detay / doku güçlendirme (yerel kontrast)
         f.append(f"unsharp=13:13:{dt / 100 * 0.9:.2f}:13:13:0")
     k = int(o.get("keskin") or 0)
+    pix = "yuv444p" if o.get("_img") else "yuv420p"
     if k > 0:
-        f += sharpen(k, "yuv444p" if o.get("_img") else "yuv420p")
+        if anime:  # anime: daha güçlü netlik (süper örnekleme sayesinde hale olmaz)
+            k = min(100, k + 10)
+        f += sharpen(k, pix)
+    if anime:
+        # çizgileri koyulaştır (Anime4K yöntemi): çevresinden belirgin koyu olan ince çizgiler daha da koyulaşır,
+        # düz alanlar ve renkler değişmez. lut2 tabloyu bir kez hesaplar, hızlıdır.
+        f.append(f"format={pix},split[ld0][ld1];[ld1]gblur=sigma={1.6 * ss:.2f}:planes=1[ld2];"
+                 "[ld0][ld2]lut2=c0='clip(x-0.9*max(y-x-4,0),0,255)':c1=x:c2=x")
     if ss > 1:
         f.append(f"scale={W}:{H}:flags=lanczos+accurate_rnd+full_chroma_int,setsar=1")
     f += deflicker(o)
+    if anime:  # canlılık + derinlik: soluk renkler canlanır (ten gibi doygun renkler az etkilenir), hafif S eğrisi
+        f.append("vibrance=intensity=0.24")
+        f.append("curves=all='0/0 0.12/0.085 0.5/0.5 0.88/0.915 1/1'")
     if o.get("bant"):
         f.append("deband=1thr=0.02:2thr=0.02:3thr=0.02:range=16:blur=1")
     if o.get("oto_renk"):

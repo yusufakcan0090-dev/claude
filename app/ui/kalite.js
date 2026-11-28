@@ -42,10 +42,10 @@
   /* --- ayarlar --- */
   const seg = (key, list, cur) => `<div class="seg kq-seg" data-k="${key}">${list.map(([v, n, tip]) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}" ${tip ? `title="${tip}"` : ''}>${n}</button>`).join('')}</div>`;
   const sl = (key, label, min, max, cur, hint) => `<div class="kq-sl"><div><span>${label}</span><b id="kqv_${key}">${cur}</b></div><input type="range" min="${min}" max="${max}" value="${cur}" data-r="${key}">${hint ? `<small>${hint}</small>` : ''}</div>`;
-  const DEF = { model: 'hizli', olcek: 2, hedef: 'x2', keskin: 45, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
-    yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 0, kayipsiz: false, ai_guc: 100, detay: 0, yumusat: 0, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
+  const DEF = { model: 'hizli', olcek: 2, hedef: 'x2', keskin: 65, gurultu: 25, blok: true, parlak: 0, kontrast: 0, doygun: 0, fps: 'kaynak', fps_ai: true,
+    yuz: false, yuz_guc: 70, yuz_model: 'gfpgan', titreme: 30, kayipsiz: false, ai_guc: 100, detay: 35, yumusat: 25, bant: false, sicaklik: 0, golge: 0, parlak_alan: 0, gamma: 0, vinyet: 0, gren: 0, oto_renk: false,
     kalite: 'yuksek', codec: 'h264', bicim: 'kaynak', bas: 0, bit: 0, ses: true, ses_temizle: false, ses_dengele: false,
-    supersample: false, ozel_w: 1920, ozel_h: 0, ozel_fps: 60, crf_ozel: false, crf: 16, enc_hiz: '', ses_kbps: 192, tile: 0, bit10: false };
+    supersample: true, ozel_w: 1920, ozel_h: 0, ozel_fps: 60, crf_ozel: false, crf: 16, enc_hiz: '', ses_kbps: 192, tile: 0, bit10: false };
   Q.DEF = DEF;
   const NOPV = new Set(['crf_ozel', 'crf', 'enc_hiz', 'ses_kbps', 'tile', 'bit10', 'ozel_fps', 'titreme', 'kayipsiz', 'fps', 'fps_ai', 'kalite', 'codec', 'bas', 'bit', 'ses', 'ses_temizle', 'ses_dengele']);
   const chk = (key, label) => `<label class="ae-chk kq-chk"><input type="checkbox" data-c="${key}" ${Q.opts[key] ? 'checked' : ''}>${label}</label>`;

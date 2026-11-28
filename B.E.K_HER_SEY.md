@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.13.2** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.3** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -39,6 +39,8 @@ Kick/YouTube yayınlarından ve videolardan kesit (klip) çıkaran, düzenleyen 
 - **Büyütme:** 1x / 2x (önerilen) / 3x / 4x / Özel (genişlik × yükseklik). Altında sonuç boyutu ve 4K/2K etiketi yazar
 - **Yapay zekâ modelleri (4):** Anime (videoda Real-CUGAN Pro, fotoğrafta Waifu2x CUnet), Gerçek görüntü (UltraSharp), Hızlı (realesr-animevideov3), Yapay zekâsız (klasik)
   - Yapay zekâ gereken büyütmeye göre 2x / 3x / 4x çalışır
+- **Anime modeli ek olarak:** çizgi koyulaştırma (Anime4K yöntemi), canlılık + derinlik, daha güçlü netlik
+- **Varsayılanlar:** süper örnekleme açık, keskinlik 65, detay 35, gürültü 25, kenar yumuşatma 25, titreme 30
 - **Netlik:** süper örnekleme (çizgiler pürüzsüz), keskinlik (kenar maskeli iki katmanlı), detay, gürültü, kenar yumuşatma, titreme giderme, blok/bant temizleme
 - **Yüz:** GFPGAN / CodeFormer ile yüz düzeltme
 - **Renk:** otomatik renk, parlaklık, kontrast, canlılık, sıcaklık, gamma, gölge/parlak alan, vinyet, gren
@@ -196,7 +198,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.2.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.3.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.
