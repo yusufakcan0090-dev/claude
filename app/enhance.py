@@ -903,7 +903,10 @@ def process(job, path, opts, resume=None):
         except Exception:
             pass
 
-    enc = encoder_args(o)
+    # H.264 bu boyutun üstünü çoğu bilgisayarda ekran kartıyla çözemez: video takılır. Büyük çıktılar H.265 olur.
+    if o.get("codec") != "h265" and (W > 4096 or H > 2304):
+        o["codec"] = "h265"
+    enc = encoder_args(o) + ["-color_range", "tv"]
     af = audio_filters(o)
     aud = (["-c:a", "aac", "-b:a", f'{int(o.get("ses_kbps") or 192)}k'] + (["-af", af] if af else [])) if o.get("ses", True) else ["-an"]
     MW, MH = target_size(info["width"], info["height"], o["hedef"], o)
@@ -1026,7 +1029,7 @@ def process(job, path, opts, resume=None):
                                   f"Ara kareler üretiliyor ({tfps:g} FPS)...")
                 rate = tfps
             job.set(lo + (hi - lo) * .92, "Video yazılıyor...")
-            _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / f"%08d.{X}"), "-vf", _vf(post_filters(o, W, H)),
+            _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / f"%08d.{X}"), "-vf", _vf(post_filters(o, W, H) + ["scale=out_range=tv", "format=" + ("yuv420p10le" if "yuv420p10le" in enc else "yuv420p")]),
                  *([] if use_rife else ["-r", f"{tfps:g}"]), *enc, str(seg)], job)
             segs.append(seg)
             done.add(ci)

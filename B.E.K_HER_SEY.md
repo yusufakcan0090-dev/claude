@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.13.13** · Tarih: 28.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.14** · Tarih: 28.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -179,6 +179,7 @@ app/
 
 ## 9. Sürüm geçmişi (özet)
 - **1.12.x:** Görev çubuğu simgesi (AppUserModelID); B.E.K adı ve "bek" logosu, BEK_Kurulum.exe; serbest büyütme (1x–4x/Özel); süper örnekleme; 4 modele inen sade model kartları; hazır ayarlar kaldırıldı; bölüm bölüm sıfırlama; canlı sıcaklık; işler sol menüde halka; FPS düşürme ve dosya adı düzeltmeleri; masaüstü simgesi yenileme
+- **1.13.14:** W>4096 veya H>2304 ise otomatik H.265 (H.264 donanım çözme sınırı); çıktı -color_range tv + scale=out_range=tv
 - **1.13.13:** rife_plan F: tüm aralık boylarına ve kaynak fazına göre (Fraction), yuvarlama floor+.5
 - **1.13.12:** #kqJob .kq-main içinde, zaman çubuğunun altında yatay
 - **1.13.11:** Kalite seg düğmeleri: --c sütun, "Ad · açıklama" iki satır
@@ -198,7 +199,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.13.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.14.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.
