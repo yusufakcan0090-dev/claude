@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.13.4** · Tarih: 27.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.5** · Tarih: 28.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -15,7 +15,6 @@ Kick/YouTube yayınlarından ve videolardan kesit (klip) çıkaran, düzenleyen 
 | **Editör** | After Effects tarzı editör: çok klip, katmanlar, keyframe, efektler/geçişler, Türkçe otomatik altyazı, LUT, yüzü kadraja alma, dışa aktarma (dikey/yatay/kare) |
 | **Kalite** | Video ve fotoğrafı yapay zekâ ile büyütür, netleştirir, gürültü/blok temizler, yüz düzeltir, FPS artırır |
 | **Dönüştür** | Video, ses ve fotoğrafı başka biçimlere çevirir (MP4, MOV, WebM, GIF, MP3, WAV, JPG, PNG, WebP...) |
-| **Araçlar** | Video Arka Plan Sil · Kapak Stüdyosu · Kanal Analizi |
 | **Ayarlar** | Yapay zekâ anahtarı, çıktı klasörü, otomatik güncelleme, donanım koruması, programı paylaşma |
 | **Asistan** | Gemini ile sohbet: editörde yapılabilen her şeyi yapar (altyazı stili, yazılar, renk, efekt, zoom, geçiş, biçim, her ayar), otomatik edit, altyazı, dışa aktarma, kalite artırma, kapak/yüz/arka plan |
 
@@ -59,11 +58,6 @@ Kick/YouTube yayınlarından ve videolardan kesit (klip) çıkaran, düzenleyen 
 - Sınır aşılınca iş donar, soğuyunca kaldığı yerden devam eder
 - Ağır işler düşük öncelikte çalışır, bilgisayar donmaz
 - Sıcaklık Kalite'de, Ayarlar'da ve sol alttaki göstergede 2 saniyede bir canlı gösterilir
-
-### Araçlar
-- **Video Arka Plan Sil:** Yeşil perde olmadan kişiyi ayırır (RVM) ya da her şeyi ayırır (IS-Net). Arkaya renk, bulanık, resim ya da video koyar; şeffaf WebM/MOV çıkarabilir. Kenar yumuşatma/daraltma, önce-sonra önizleme
-- **Kapak Stüdyosu:** Videodan kare seçme, kişiyi otomatik kesme (beyaz çerçeve, parlama, gölge), 4 şablon, Türkçe karakterli 8 yazı tipi, *yıldızlı kelime* vurgusu, emoji, ok, daire. Sürükle/büyüt/döndür, geri al (Ctrl+Z), YouTube 16:9 / Shorts 9:16 / kare; JPG 2 MB altı ya da PNG. Yapay zekâ yazı önerisi
-- **Kanal Analizi:** YouTube kanalının son 20/50/100 videosu: en iyi gün ve saat, Shorts mı uzun mu, en iyi süre, en çok tutanlar, yükselenler, tutan başlık kelimeleri, etkileşim, yükleme sıklığı, sıralanabilir tablo, kural tabanlı öneriler ve yapay zekâ yorumu
 
 ### Diğer
 - **Otomatik güncelleme:** 15 dakikada bir GitHub'a bakar; iş yokken, 45 saniye dokunulmamışsa, pencere açık değilse kendisi kurar
@@ -140,9 +134,6 @@ app/
     kalite.js      Kalite
     donustur.js    Dönüştür
     araclar.js     Araç merkezi + ortak arayüz kiti (KS.ui)
-    vbg.js         Video Arka Plan Sil
-    kapak.js       Kapak Stüdyosu
-    kanal.js       Kanal Analizi
     ai.js          Asistan
     fonts/         kapak yazı tipleri (Anton, Bebas Neue, Montserrat Black, Archivo Black, Bangers, Luckiest Guy, Bowlby One SC, Rubik Mono One)
     logo.png, logo512.png, icon.ico, bek_simge.ico
@@ -188,6 +179,7 @@ app/
 
 ## 9. Sürüm geçmişi (özet)
 - **1.12.x:** Görev çubuğu simgesi (AppUserModelID); B.E.K adı ve "bek" logosu, BEK_Kurulum.exe; serbest büyütme (1x–4x/Özel); süper örnekleme; 4 modele inen sade model kartları; hazır ayarlar kaldırıldı; bölüm bölüm sıfırlama; canlı sıcaklık; işler sol menüde halka; FPS düşürme ve dosya adı düzeltmeleri; masaüstü simgesi yenileme
+- **1.13.5:** Araçlar bölümü kaldırıldı
 - **1.11.0:** Araçlar (Video Arka Plan Sil, Kapak Stüdyosu, Kanal Analizi), Kalite serbest ayar, Donanım koruması
 - **1.10.x:** Dönüştür, otomatik güncelleme, tek dosya kurulum (.exe), Kalite yeniden tasarım, üst düzey kalite (UltraSharp, CUGAN Pro, CodeFormer, kayıpsız, titreme giderme)
 - **1.9.x ve öncesi:** Yapay zekâ asistanı, otomatik edit, başlık/açıklama, fotoğraf araçları, Kalite Artır (duraklat/devam), orijinal çözünürlükte dışa aktarma, AE tarzı editör, Kick/YouTube bulucu, Türkçe altyazı
@@ -198,7 +190,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.4.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.5.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.

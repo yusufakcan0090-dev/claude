@@ -34,7 +34,7 @@ S = "string"
 TOOLS = [
     {"name": "projeleri_listele", "description": "Kullanıcının projelerini (video düzenleme projeleri) en yeniden eskiye listeler.", },
     {"name": "proje_ac", "description": "Bir projeyi editörde açar.", "parameters": {"type": "object", "properties": {"proje_id": {"type": S}}, "required": ["proje_id"]}},
-    {"name": "sayfa_ac", "description": "Programda bir sayfaya geçer.", "parameters": {"type": "object", "properties": {"sayfa": {"type": S, "enum": ["bul", "editor", "kalite", "ayarlar", "araclar", "arka_plan_video", "kapak", "kanal", "donustur"], "description": "bul=Klip Bulucu, arka_plan_video=Video Arka Plan Sil, kapak=Kapak Stüdyosu, kanal=Kanal Analizi"}}, "required": ["sayfa"]}},
+    {"name": "sayfa_ac", "description": "Programda bir sayfaya geçer.", "parameters": {"type": "object", "properties": {"sayfa": {"type": S, "enum": ["bul", "editor", "kalite", "ayarlar", "donustur"], "description": "bul=Klip Bulucu"}}, "required": ["sayfa"]}},
     {"name": "klip_ara", "description": "Kick/YouTube'da kanal, klip ya da konu arar (örn. 'rraenee', 'komik anlar'). Sonuçları Klip Bulucu'da da gösterir.", "parameters": {"type": "object", "properties": {"sorgu": {"type": S}}, "required": ["sorgu"]}},
     {"name": "otomatik_edit", "description": "Bir yayından/videodan en iyi anları seçip her biri için hazır kısa video projesi (altyazılı) oluşturur. Kaynak: video bağlantısı (Kick/YouTube), bilgisayardaki dosya yolu ya da 'acik_proje'.",
      "parameters": {"type": "object", "properties": {"kaynak": {"type": S}, "adet": {"type": "integer", "description": "kaç video (1-10), varsayılan 3"},
@@ -351,7 +351,7 @@ def run_tool(name, a, ctx, actions):
         actions.append({"type": "open_project", "id": p["id"]})
         return f"'{p.get('title')}' editörde açıldı."
     if name == "sayfa_ac":
-        pg = {"bul": "finder", "editor": "editor", "kalite": "kalite", "ayarlar": "settings", "araclar": "araclar", "arka_plan_video": "vbg", "kapak": "kapak", "kanal": "kanal", "donustur": "donustur"}.get(a.get("sayfa"), "finder")
+        pg = {"bul": "finder", "editor": "editor", "kalite": "kalite", "ayarlar": "settings", "donustur": "donustur"}.get(a.get("sayfa"), "finder")
         actions.append({"type": "go", "page": pg})
         return "Açıldı."
     if name == "klip_ara":

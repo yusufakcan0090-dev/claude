@@ -65,8 +65,7 @@ KS.go = page => {
   document.body.classList.toggle('on-editor', page === 'editor');
   document.body.classList.toggle('on-kalite', page === 'kalite');
   if (page === 'kalite' && KS.kalite) KS.kalite.loadYarim();
-  const TOOLS = ['vbg', 'kapak', 'kanal'];
-  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page || (b.dataset.page === 'araclar' && TOOLS.includes(page))));
+  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   (KS.hooks.page || []).forEach(f => { try { f(page); } catch (e) { console.error(e); } });
   $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
   if (page === 'settings') KS.renderSettings();
