@@ -1,7 +1,8 @@
 {
- "version": "1.13.7",
+ "version": "1.13.8",
  "date": "2026-11-28",
  "notes": [
+  "Yarım kalan işe devam edince video ve ayarları Kalite sayfasında görünüyor (önizleme boş kalmıyor)",
   "FPS artırma iyileşti: yeni RIFE v4.25 modeli (daha net ara kareler)",
   "Sahne geçişlerinde ve flaşlarda bulanık/hayalet kare çıkmıyor (kurgudaki bulanıklık efektleri etkilenmez)",
   "Animede tekrar eden kareler algılanıyor: hareket takılmadan, eşit hızda akıyor",

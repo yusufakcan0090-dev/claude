@@ -24,11 +24,11 @@
   const FPS = [['kaynak', 'Aynı'], ['30', '30'], ['60', '60'], ['90', '90'], ['120', '120'], ['ozel', 'Özel']];
   const fmt = s => { s = Math.max(0, s || 0); return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
 
-  Q.load = async path => {
+  Q.load = async (path, opts) => {
     try {
       const r = await KS.api('/api/kalite/info?path=' + encodeURIComponent(path));
       if (Q.brush) { Q.brush = null; mask = null; bBox.hidden = true; }
-      Q.src = r; Q.opts = Object.assign({}, DEF, r.opts, { bas: 0, bit: 0 });
+      Q.src = r; Q.opts = Object.assign({}, DEF, r.opts, opts || {}, opts ? {} : { bas: 0, bit: 0 });
       $('#page-kalite').classList.toggle('kq-photo', !!r.image);
       $('#kqName').textContent = r.image ? `${r.name} · ${r.width}×${r.height} · Fotoğraf` : `${r.name} · ${r.width}×${r.height} · ${Math.round(r.fps)} FPS · ${fmt(r.duration)}`;
       const t = $('#kqT'); t.max = Math.max(.1, r.duration - .05).toFixed(2); t.value = Math.min(r.duration / 3, r.duration).toFixed(2); KS.paintRange(t);
@@ -371,12 +371,15 @@
         <div class="kq-run-btns"><button class="btn primary" data-devam="${u.id}">▶ Devam et</button><button class="btn ghost" data-sil="${u.id}">Sil</button></div></div>`).join('');
       if (box.dataset.html !== html) {
         box.innerHTML = html; box.dataset.html = html; box.dataset.mode = 'y';
-        $$('[data-devam]', box).forEach(b => b.onclick = async () => { try { const r = await KS.api('/api/kalite/devam', { id: b.dataset.devam }); Q.yarim = Q.yarim.filter(x => x.id !== b.dataset.devam); KS.trackJob(r.job); box.dataset.html = ''; Q.status(); } catch (e) { KS.toast(KS.esc(e.message), 'err'); } });
+        $$('[data-devam]', box).forEach(b => b.onclick = async () => { try { const u = Q.yarim.find(x => x.id === b.dataset.devam); const r = await KS.api('/api/kalite/devam', { id: b.dataset.devam }); if (u) { Q._auto = u.path; Q.load(u.path, u.opts); } Q.yarim = Q.yarim.filter(x => x.id !== b.dataset.devam); KS.trackJob(r.job); box.dataset.html = ''; Q.status(); } catch (e) { KS.toast(KS.esc(e.message), 'err'); } });
         $$('[data-sil]', box).forEach(b => b.onclick = async () => { if (!await KS.confirm('Yarım kalan işi sil?', 'Şimdiye kadar işlenen kısım silinir, baştan başlaman gerekir.', 'Sil', true)) return; await KS.api('/api/kalite/sil', { id: b.dataset.sil }); Q.yarim = Q.yarim.filter(x => x.id !== b.dataset.sil); box.dataset.html = ''; Q.status(); });
       }
       return;
     }
     box.hidden = false;
+    // süren iş varken video açık değilse (ör. devam edince) o videoyu göster
+    const jp = (j.extra || {}).path;
+    if (jp && Q._auto !== jp && (!Q.src || !Q.src.path)) { Q._auto = jp; Q.load(jp); }
     if (box.dataset.mode !== 'run' || box.dataset.jid !== j.id) {
       box.dataset.mode = 'run'; box.dataset.jid = j.id; box.dataset.html = '';
       box.innerHTML = `<div class="kq-run">

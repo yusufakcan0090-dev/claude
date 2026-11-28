@@ -826,7 +826,7 @@ def unfinished():
             shutil.rmtree(d, ignore_errors=True)
             continue
         res.append({"id": d.name, "path": st["path"], "name": Path(st["path"]).name, "progress": st.get("progress", 0),
-                    "done": len(st.get("done", [])), "total": st.get("total", 0), "updated": f.stat().st_mtime})
+                    "done": len(st.get("done", [])), "total": st.get("total", 0), "updated": f.stat().st_mtime, "opts": st.get("opts") or {}})
     return sorted(res, key=lambda x: -x["updated"])
 
 
@@ -904,7 +904,7 @@ def process(job, path, opts, resume=None):
     o["_k"] = max(MW / max(1, info["width"]), MH / max(1, info["height"]))  # ara adımlar videonun kendi şeklinde
     # kalan süre: duraklatmalar hariç, bu oturumda işlenen kısma göre hesaplanır
     t_start = time.time()
-    job.extra = {"t0": t_start, **({"resume": resume} if resume else {})}
+    job.extra = {"t0": t_start, "path": str(path), **({"resume": resume} if resume else {})}
     _set = job.set
     base = {"p": None, "t": None}
     ok = False
