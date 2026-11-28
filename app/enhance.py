@@ -40,6 +40,12 @@ TOOLS = {
         "url": ("https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-windows.zip" if IS_WIN
                 else "https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-ubuntu.zip"),
         "exe": "rife-ncnn-vulkan" + EXE,
+    },    # yeni RIFE (v4.25): daha az bulanık ara kare; çalışmazsa eski sürüme dönülür
+    "rife4": {
+        "url": ("https://raw.githubusercontent.com/yusufakcan0090-dev/claude/araclar/rife-bek-20250112-windows.zip" if IS_WIN
+                else "https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-ubuntu.zip"),
+        "exe": "rife-ncnn-vulkan" + EXE,
+        "model": "rife-v4.25" if IS_WIN else "rife-v4.6",
     },
 }
 # model -> (dosya adı, ölçek)
@@ -138,6 +144,120 @@ FACE_URLS = {"gfpgan": "https://huggingface.co/Neus/GFPGANv1.4/resolve/main/GFPG
              "codeformer": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
              "yunet": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"}
 CHUNK = 240  # bir seferde işlenen kare (disk dolmasın)
+OVERLAP = 6  # RIFE: parça sonuna eklenen kare (geçişte takılma olmasın)
+
+
+def _frame_diffs(d, X, count):
+    """Ardışık kareler arası fark (0-1). Küçük gri kopyalar üzerinden, hızlı."""
+    import numpy as np
+    p = subprocess.run([FFMPEG, "-v", "error", "-i", str(d / f"%08d.{X}"), "-frames:v", str(count), "-vf", "scale=64:36:flags=area,format=gray",
+                        "-f", "rawvideo", "-"], capture_output=True, creationflags=NO_WINDOW)
+    a = np.frombuffer(p.stdout, np.uint8)
+    k = len(a) // 2304
+    if k < 2:
+        return [1.0] * max(0, count - 1)
+    a = a[:k * 2304].reshape(k, 2304).astype(np.float32) / 255
+    df = np.abs(np.diff(a, axis=0)).mean(axis=1).tolist()
+    return (df + [1.0] * count)[:count - 1]
+
+
+DUP, CUT_HARD, CUT_MIN = 0.0035, 0.30, 0.10
+
+
+def rife_plan(diffs, total, n, start, mult):
+    """Hangi çıkış karesi nereden gelir.
+    diffs[i]: kare i ile i+1 farkı. total: eldeki kare (n + ek). n: bu parçanın karesi. start: parçanın ilk karesi (genel).
+    Dönen: (anchors, F, items). anchors: RIFE'a verilecek gerçek kare sırası; items: her çıkış için
+    ("src", kare) ya da ("rife", sıra) — sıra RIFE çıkışındaki 1'den başlayan numara."""
+    import math
+    # tekrar eden kareler (animede 2'şer/3'er çizim) atlanır: hareket eşit hızda olur
+    anchors = [0]
+    for i in range(1, total):
+        if diffs[i - 1] >= DUP:
+            if i - anchors[-1] > 3:  # uzun duruş: duruş korunur, hareket sonradan başlar
+                anchors.append(i - 1)
+            anchors.append(i)
+    if total - 1 > anchors[-1]:
+        anchors.append(total - 1)
+
+    # sahne geçişi / flaş: ani sıçrama. Kurgudaki bulanıklık ve yavaş geçişler kesme sayılmaz
+    def is_cut(i):  # kare i-1 -> i
+        d = diffs[i - 1]
+        if d >= CUT_HARD:
+            return True
+        if d < CUT_MIN:
+            return False
+        near = [diffs[j] for j in range(max(0, i - 4), min(len(diffs), i + 3)) if j != i - 1]
+        return d >= 3.5 * max(near or [0])
+    cuts = [is_cut(anchors[j + 1]) for j in range(len(anchors) - 1)]
+    holds = [all(diffs[i] < DUP for i in range(anchors[j], anchors[j + 1])) for j in range(len(anchors) - 1)]  # aynı kare: RIFE'a gerek yok
+    gaps = sorted(anchors[j + 1] - anchors[j] for j in range(len(anchors) - 1)) or [1]
+    x = mult * gaps[len(gaps) // 2]  # bir aralıktaki çıkış sayısı
+    F = 8
+    for c in range(max(2, math.ceil(x - 1e-6)), 9):
+        if max(abs(k * c / x - round(k * c / x)) for k in range(1, 25)) < 0.06:
+            F = c
+            break
+    items = []
+    k0 = math.ceil(start * mult - 1e-6)
+    k1 = math.ceil((start + n) * mult - 1e-6)
+    import bisect
+    for k in range(k0, k1):
+        s = min(k / mult - start, total - 1)
+        j = max(0, min(len(anchors) - 2, bisect.bisect_right(anchors, s) - 1)) if len(anchors) > 1 else 0
+        if len(anchors) < 2:
+            items.append(("src", min(total - 1, int(round(s)))))
+            continue
+        pa, pb = anchors[j], anchors[j + 1]
+        u = max(0.0, min(1.0, (s - pa) / (pb - pa)))
+        q = int(round(u * F))
+        if q == 0 or holds[j]:
+            items.append(("src", pa))
+        elif q == F:
+            items.append(("src", pb))
+        elif cuts[j]:  # kesmede karıştırma yok: en yakın gerçek kare
+            items.append(("src", min(total - 1, int(math.floor(s + 0.5)))))
+        else:
+            items.append(("rife", j * F + q + 1))
+    return anchors, F, items
+
+
+def _rife_chunk(job, tools, cur, work, X, QV, start, n, total, mult, height, sp, msg):
+    """Bir parçanın karelerinden hedef FPS'e eşit aralıklı kareler üretir. Dönen: çıkış klasörü."""
+    diffs = _frame_diffs(cur, X, total)
+    anchors, F, items = rife_plan(diffs, total, n, start, mult)
+    rin, rout, dout = work / "rin", work / "rout", work / "fps"
+    for d in (rin, rout, dout):
+        shutil.rmtree(d, ignore_errors=True)
+        d.mkdir()
+    need = any(t == "rife" for t, _ in items)
+    if need:
+        for i, fr in enumerate(anchors):
+            shutil.copyfile(cur / f"{fr + 1:08d}.{X}", rin / f"{i + 1:08d}.{X}")
+        want = len(anchors) * F
+        err = ""
+        for exe, model in tools:
+            shutil.rmtree(rout, ignore_errors=True)
+            rout.mkdir()
+            cmd = [str(exe), "-i", str(rin), "-o", str(rout), "-m", model, "-n", str(want), "-f", f"%08d.{X}"]
+            if height > 1500:
+                cmd.append("-u")  # büyük karelerde hızlı harekette daha doğru
+            code, err = _run_watch(cmd, job, rout, want, *sp, msg, cwd=str(exe.parent))
+            if code == 0 and _count(rout) >= want - 1:
+                break
+        else:
+            raise RuntimeError("Akıcılaştırma (RIFE) başarısız: " + err[-250:])
+    for i, (t, v) in enumerate(items):
+        src = cur / f"{v + 1:08d}.{X}" if t == "src" else rout / f"{v:08d}.{X}"
+        if not src.exists():
+            src = cur / f"{min(total, anchors[min(len(anchors) - 1, (v - 1) // F)] + 1):08d}.{X}"
+        dst = dout / f"{i + 1:08d}.{X}"
+        try:
+            os.link(src, dst)
+        except Exception:
+            shutil.copyfile(src, dst)
+    shutil.rmtree(rin, ignore_errors=True)
+    return dout
 
 
 def settings(s=None):
@@ -742,11 +862,14 @@ def process(job, path, opts, resume=None):
         use_ai = False
         job.set(0.04, "Ekran kartında yapay zekâ çalışmadı, klasik mod kullanılıyor...")
     use_rife = mult > 1.01 and o.get("fps_ai", True)
+    rife_tools = []  # (exe, model): önce yeni, olmazsa eski
     if use_rife:
-        try:
-            ensure_tool("rife", job, 0.04, 0.06)
-        except Exception:
-            use_rife = False
+        for nm in ("rife4", "rife"):
+            try:
+                rife_tools.append((ensure_tool(nm, job, 0.04, 0.06), TOOLS[nm].get("model", "rife-v4.6")))
+            except Exception:
+                pass
+        use_rife = bool(rife_tools)
     use_face = bool(o.get("yuz"))
     if use_face:
         ensure_face(job, 0.06, 0.09, o.get("yuz_model") or "gfpgan")
@@ -761,7 +884,7 @@ def process(job, path, opts, resume=None):
         shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
     done = set(state.get("done") or [])
-    if use_ai != state.get("use_ai", use_ai) or use_face != state.get("use_face", use_face) or use_rife != state.get("use_rife", use_rife):
+    if use_ai != state.get("use_ai", use_ai) or use_face != state.get("use_face", use_face) or use_rife != state.get("use_rife", use_rife) or (use_rife and state.get("rife_v", 1 if state else 2) != 2):
         done = set()  # araçlar değiştiyse parçalar uyumsuz olur
 
     chunk_size = {"v": state.get("chunk")}
@@ -770,7 +893,7 @@ def process(job, path, opts, resume=None):
         try:
             (work / "durum.json").write_text(json.dumps({"path": str(path), "opts": opts, "done": sorted(done), "total": total_chunks, "chunk": chunk_size["v"],
                                                          "progress": round(progress, 4), "use_ai": use_ai, "use_face": use_face,
-                                                         "use_rife": use_rife}), "utf-8")
+                                                         "use_rife": use_rife, "rife_v": 2}), "utf-8")
         except Exception:
             pass
 
@@ -836,7 +959,6 @@ def process(job, path, opts, resume=None):
         segs = []
         if use_ai and ai_tool(o)[0] != "realesrgan":
             ensure_tool(ai_tool(o)[0], job, 0.08, 0.09)
-        fexe = tool_path("rife")
         g = int(o.get("ai_guc", 100))
         save_state(0.09)
         for ci, a in enumerate(chunks):
@@ -855,9 +977,13 @@ def process(job, path, opts, resume=None):
                 shutil.rmtree(d, ignore_errors=True)
                 d.mkdir()
             job.set(lo, "Kareler çıkarılıyor...")
-            _ff([FFMPEG, "-y", "-ss", f"{(f0 + a) / sfps:.4f}", "-i", str(path), "-frames:v", str(n), "-vf", _vf(pre_filters(o)),
+            # RIFE için parçanın sonuna sonraki parçadan birkaç kare eklenir: parça geçişlerinde takılma olmaz
+            ov = min(OVERLAP, total_frames - a - n) if use_rife else 0
+            _ff([FFMPEG, "-y", "-ss", f"{(f0 + a) / sfps:.4f}", "-i", str(path), "-frames:v", str(n + ov), "-vf", _vf(pre_filters(o)),
                  *QV, "-start_number", "1", str(d_in / f"%08d.{X}")], job)
-            n = _count(d_in) or n
+            got = _count(d_in) or n
+            ov = max(0, got - n) if use_rife else 0
+            n = min(n, got)
             cur = d_in
             if use_ai:
                 acmd, acwd = ai_cmd(o, d_in, d_up, X)
@@ -879,19 +1005,17 @@ def process(job, path, opts, resume=None):
                 cur = d_mid
             rate = sfps
             if use_rife:
-                want = max(2, int(round(n * mult)))
-                code, err = _run_watch([str(fexe), "-i", str(cur), "-o", str(d_fps), "-m", "rife-v4.6", "-n", str(want), "-f", f"%08d.{X}"],
-                                       job, d_fps, want, *span(.7, .9), f"Ara kareler üretiliyor ({tfps:g} FPS)...", cwd=str(fexe.parent))
-                if code != 0 or _count(d_fps) < 2:
-                    raise RuntimeError("Akıcılaştırma (RIFE) başarısız: " + err[-250:])
-                cur, rate = d_fps, sfps * (_count(d_fps) / n)
+                hh = MH if use_ai else info["height"]
+                cur = _rife_chunk(job, rife_tools, cur, work, X, QV, a, n, n + ov, mult, hh, span(.7, .9),
+                                  f"Ara kareler üretiliyor ({tfps:g} FPS)...")
+                rate = tfps
             job.set(lo + (hi - lo) * .92, "Video yazılıyor...")
             _ff([FFMPEG, "-y", "-framerate", f"{rate:.4f}", "-i", str(cur / f"%08d.{X}"), "-vf", _vf(post_filters(o, W, H)),
-                 "-r", f"{tfps:g}", *enc, str(seg)], job)
+                 *([] if use_rife else ["-r", f"{tfps:g}"]), *enc, str(seg)], job)
             segs.append(seg)
             done.add(ci)
             save_state(hi)
-            for d in (d_in, d_up, d_mid, d_fps):
+            for d in (d_in, d_up, d_mid, d_fps, work / "rin", work / "rout"):
                 shutil.rmtree(d, ignore_errors=True)
             _check(job)
         lst = work / "liste.txt"

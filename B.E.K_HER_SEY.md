@@ -1,7 +1,7 @@
 # B.E.K: Uygulamanın her şeyi
 
 **B.E.K** = **B**ul · **E**ditle · **K**aliteyi artır (eski adı: Kesit Stüdyosu)
-Sürüm: **1.13.6** · Tarih: 28.11.2026 · Sahibi: Yusuf Akcan (Animeci)
+Sürüm: **1.13.7** · Tarih: 28.11.2026 · Sahibi: Yusuf Akcan (Animeci)
 
 ---
 
@@ -43,7 +43,7 @@ Kick/YouTube yayınlarından ve videolardan kesit (klip) çıkaran, düzenleyen 
 - **Netlik:** süper örnekleme (çizgiler pürüzsüz), keskinlik (kenar maskeli iki katmanlı), detay, gürültü, kenar yumuşatma, titreme giderme, blok/bant temizleme
 - **Yüz:** GFPGAN / CodeFormer ile yüz düzeltme
 - **Renk:** otomatik renk, parlaklık, kontrast, canlılık, sıcaklık, gamma, gölge/parlak alan, vinyet, gren
-- **FPS:** 30/60/90/120/Özel, RIFE yapay zekâ ara kare; düşürme de çalışır
+- **FPS:** 30/60/90/120/Özel, RIFE v4.25 ara kare (olmazsa v4.6); sahne geçişi/flaşta karıştırmaz, animede tekrar eden kareleri atlar (eşit hız), parçalar arası 6 kare bindirme, 1500px üstü UHD modu; düşürme de çalışır
 - **Çıktı:** kalite (Üst düzey = x265 10-bit / x264 düşük CRF), kayıpsız ara kareler, H.264/H.265, ses temizleme/dengeleme
 - **Serbest ayar:** Anime motoru (Otomatik/HFA2k), Gerçek görüntü motoru (UltraSharp/Nomos8k/Siax/LSDIR+), CRF, kodlama hızı, 10-bit, ses kbps, yapay zekâ parça boyutu
 - **⭐ Benim ayarlarım:** ayarları isimle kaydet, tek tıkla uygula. Hazır ayarlar kaldırıldı
@@ -179,6 +179,7 @@ app/
 
 ## 9. Sürüm geçmişi (özet)
 - **1.12.x:** Görev çubuğu simgesi (AppUserModelID); B.E.K adı ve "bek" logosu, BEK_Kurulum.exe; serbest büyütme (1x–4x/Özel); süper örnekleme; 4 modele inen sade model kartları; hazır ayarlar kaldırıldı; bölüm bölüm sıfırlama; canlı sıcaklık; işler sol menüde halka; FPS düşürme ve dosya adı düzeltmeleri; masaüstü simgesi yenileme
+- **1.13.7:** FPS: RIFE v4.25 (paket: araclar dalı), sahne geçişi, anime tekrar kare, parça geçişi, UHD
 - **1.13.6:** Bulunan Anlar sonsuz yenileme hatası, önizleme oynatma, kart düzeni
 - **1.13.5:** Araçlar bölümü kaldırıldı
 - **1.11.0:** Araçlar (Video Arka Plan Sil, Kapak Stüdyosu, Kanal Analizi), Kalite serbest ayar, Donanım koruması
@@ -191,7 +192,7 @@ app/
 
 ```
 B.E.K projesine devam ediyoruz. Bana "çarım 👑" diye hitap et, Türkçe ve kısa konuş.
-Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.6.
+Depo: yusufakcan0090-dev/claude, dal: kesit-studyosu. Güncel sürüm 1.13.7.
 Güncelleme: app/version.json sürüm+not → bash kur/derle.sh → commit → git push origin HEAD:kesit-studyosu (programlar kendisi günceller).
 Bilgisayarımdaki klasöre (C:\Users\yusuf\Desktop\KesitStudyosu) dosya yazma; sadece okuyabilirsin.
 Dosya yapısı ve özellikler için depodaki B.E.K_HER_SEY.md'yi oku.
